@@ -142,7 +142,6 @@ import {
   }
 
   function notifyChange() {
-    hideLoadingOverlay();
     changeCallbacks.forEach(function (cb) {
       try { cb(); } catch (e) { console.error('Atlas: erro em callback onDataChange.', e); }
     });
@@ -461,7 +460,6 @@ import {
       safeRedirect(redirectTo || 'index.html');
       return false;
     }
-    showLoadingOverlay();
     return true;
   }
 
@@ -475,71 +473,6 @@ import {
         console.error('Atlas: falha ao redirecionar para', path, e2);
       }
     }
-  }
-
-  /* ---------------------------------------------------------------
-     Indicador visual de carregamento
-     A conexão com o Firebase (restaurar login + buscar dados) não é
-     instantânea. Sem nenhum feedback visual, a página parece "travada"
-     ou vazia nesse intervalo. Este overlay discreto cobre só esse
-     instante inicial e desaparece sozinho assim que os dados chegam
-     (via notifyChange) ou após um tempo limite de segurança.
-  --------------------------------------------------------------- */
-
-  var loadingOverlayShown = false;
-  var loadingOverlaySafetyTimer = null;
-
-  function showLoadingOverlay() {
-    if (loadingOverlayShown) return;
-    if (typeof document === 'undefined') return;
-    loadingOverlayShown = true;
-
-    var inject = function () {
-      if (document.getElementById('atlasLoadingOverlay')) return;
-
-      var style = document.createElement('style');
-      style.id = 'atlasLoadingStyle';
-      style.textContent =
-        '#atlasLoadingOverlay{position:fixed;inset:0;z-index:600;' +
-        'display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;' +
-        'background:#0a0e14;transition:opacity .35s ease;}' +
-        '#atlasLoadingOverlay .atlas-spinner{width:34px;height:34px;border-radius:50%;' +
-        'border:3px solid rgba(124,58,237,.25);border-top-color:#a855f7;' +
-        'animation:atlasSpin .8s linear infinite;}' +
-        '#atlasLoadingOverlay span{color:#97a1b0;font-size:13px;' +
-        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;}' +
-        '@keyframes atlasSpin{to{transform:rotate(360deg);}}' +
-        '#atlasLoadingOverlay.atlas-loading-hide{opacity:0;pointer-events:none;}';
-      document.head.appendChild(style);
-
-      var overlay = document.createElement('div');
-      overlay.id = 'atlasLoadingOverlay';
-      overlay.innerHTML = '<div class="atlas-spinner"></div><span>Conectando ao Atlas...</span>';
-      document.body.appendChild(overlay);
-    };
-
-    if (document.body) {
-      inject();
-    } else {
-      document.addEventListener('DOMContentLoaded', inject);
-    }
-
-    // Trava de segurança: nunca deixa o overlay preso por mais de 6 segundos.
-    loadingOverlaySafetyTimer = setTimeout(hideLoadingOverlay, 6000);
-  }
-
-  function hideLoadingOverlay() {
-    if (loadingOverlaySafetyTimer) {
-      clearTimeout(loadingOverlaySafetyTimer);
-      loadingOverlaySafetyTimer = null;
-    }
-    if (typeof document === 'undefined') return;
-    var overlay = document.getElementById('atlasLoadingOverlay');
-    if (!overlay) return;
-    overlay.classList.add('atlas-loading-hide');
-    setTimeout(function () {
-      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
-    }, 400);
   }
 
   /* ---------------------------------------------------------------
