@@ -1397,7 +1397,7 @@ document.addEventListener('atlas-data-ready', function () {
           '<div class="note-card-title">' + escapeHtml(t.titulo) + '</div>' +
           excerptHtml +
           '<div class="note-card-foot">' +
-            '<span class="note-card-date' + (dueSoon ? '" style="color:var(--orange);font-weight:600;"' : '"') + '>' +
+            '<span class="note-card-date"' + (dueSoon ? ' style="color:var(--orange);font-weight:600;"' : '') + '>' +
               (dateStr ? 'Entrega: ' + escapeHtml(dateStr) : '') +
             '</span>' +
             '<div class="note-card-actions dev-only">' +
@@ -1417,7 +1417,7 @@ document.addEventListener('atlas-data-ready', function () {
   tasksList.addEventListener('click', function (e) {
     var editBtn = e.target.closest('[data-action="edit-task"]');
     var delBtn = e.target.closest('[data-action="delete-task"]');
-    var card = e.target.closest('.note-card');
+    var card = e.target.closest('#tasksList .note-card');
 
     if (editBtn) {
       e.stopPropagation();
@@ -1431,15 +1431,13 @@ document.addEventListener('atlas-data-ready', function () {
       askDelete('task', delBtn.dataset.id, 'Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.');
       return;
     }
-    // Clique em qualquer outra parte do card (o card inteiro é clicável):
-    // qualquer usuário pode abrir a tarefa para leitura.
     if (card) {
       openReadTask(card.dataset.id);
     }
   });
   tasksList.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    var card = e.target.closest('.note-card');
+    var card = e.target.closest('#tasksList .note-card');
     if (card) { e.preventDefault(); openReadTask(card.dataset.id); }
   });
 
