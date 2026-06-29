@@ -1,0 +1,1607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas — Centro de Comando do 9º D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+  /* ============ RESET & TOKENS ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #000000;
+    --bg: #050506;
+    --surface: #0c0c0e;
+    --surface-2: #131316;
+    --line: rgba(255,255,255,0.08);
+    --line-strong: rgba(255,255,255,0.16);
+
+    --red: #2563eb;
+    --red-bright: #4f8dff;
+    --red-deep: #0b2659;
+    --red-glow: rgba(37, 99, 235, 0.4);
+
+    --ink: #f4f3f1;
+    --ink-dim: #8d8d95;
+    --ink-faint: #58585f;
+
+    --r-xl: 28px;
+    --r-lg: 20px;
+    --r-md: 14px;
+    --r-sm: 9px;
+
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .display { font-family: 'Space Grotesk', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  ul { list-style: none; }
+
+  ::selection { background: var(--red); color: #fff; }
+  :focus-visible { outline: 2px solid var(--red-bright); outline-offset: 3px; border-radius: 4px; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+  /* ============ HEADER ============ */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 200;
+    background: transparent;
+    transition: background 0.4s var(--ease), border-color 0.4s var(--ease), backdrop-filter 0.4s var(--ease);
+    border-bottom: 1px solid transparent;
+  }
+  header.scrolled {
+    background: rgba(5,5,6,0.72);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    border-bottom-color: var(--line);
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand-mark {
+    width: 30px; height: 30px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand-mark svg { width: 100%; height: 100%; }
+  .brand-word {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .menu-trigger {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .hamburger {
+    width: 42px; height: 42px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+  }
+  .hamburger:hover { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.06); }
+  .hamburger span {
+    width: 16px; height: 1.5px;
+    background: var(--ink);
+    border-radius: 2px;
+    transition: transform 0.35s var(--ease), opacity 0.35s var(--ease), width 0.35s var(--ease);
+  }
+  .hamburger.open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+
+  /* full-screen nav overlay */
+  .nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    background: rgba(3,3,4,0.97);
+    backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s var(--ease), visibility 0.5s;
+  }
+  .nav-overlay.open { opacity: 1; visibility: visible; }
+
+  .nav-overlay-list { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .nav-overlay-list a {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink-dim);
+    padding: 10px 24px;
+    transition: color 0.3s var(--ease), transform 0.3s var(--ease);
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .nav-overlay.open .nav-overlay-list a {
+    animation: navIn 0.6s var(--ease) forwards;
+  }
+  .nav-overlay.open .nav-overlay-list a:nth-child(1) { animation-delay: 0.06s; }
+  .nav-overlay.open .nav-overlay-list a:nth-child(2) { animation-delay: 0.12s; }
+  .nav-overlay.open .nav-overlay-list a:nth-child(3) { animation-delay: 0.18s; }
+  .nav-overlay.open .nav-overlay-list a:nth-child(4) { animation-delay: 0.24s; }
+  @keyframes navIn { to { opacity: 1; transform: translateY(0); } }
+
+  .nav-overlay-list a:hover { color: var(--ink); }
+  .nav-overlay-list a .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--red-bright);
+    vertical-align: super;
+    margin-right: 8px;
+    letter-spacing: 0;
+  }
+
+  .nav-overlay-close {
+    position: absolute;
+    top: 26px; right: 32px;
+  }
+
+  /* ============ BUTTONS ============ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 28px;
+    border-radius: 100px;
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), background 0.35s var(--ease), border-color 0.35s var(--ease);
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--red-bright), var(--red));
+    color: #fff;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 10px 30px -10px var(--red-glow);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 16px 40px -10px rgba(37,99,235,0.6);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.28); transform: translateY(-2px); }
+
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+
+  /* ============ HERO ============ */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 140px 24px 80px;
+    overflow: hidden;
+  }
+
+  .hero-canvas-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  #atlasCanvas {
+    width: min(900px, 92vw);
+    height: min(900px, 92vw);
+    opacity: 0;
+    transition: opacity 1.6s var(--ease-soft);
+  }
+  #atlasCanvas.ready { opacity: 1; }
+
+  .hero-vignette {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 38%, transparent 0%, var(--bg) 78%),
+      linear-gradient(180deg, var(--bg) 0%, transparent 14%, transparent 70%, var(--bg) 100%);
+    pointer-events: none;
+  }
+
+  .hero-content { position: relative; z-index: 2; }
+
+  .hero-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 16px 8px 12px;
+    border-radius: 100px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line-strong);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.02em;
+    color: var(--ink-dim);
+    margin-bottom: 38px;
+    animation: fadeUp 0.9s var(--ease) 0.1s backwards;
+  }
+  .hero-status .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red-bright);
+    box-shadow: 0 0 12px 2px var(--red-glow);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+
+  .hero h1 {
+    font-size: clamp(64px, 13vw, 168px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 0.92;
+    background: linear-gradient(180deg, #ffffff 0%, #ffffff 45%, #c7c7cc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: fadeUp 0.9s var(--ease) 0.18s backwards;
+  }
+
+  .hero-sub {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(18px, 2.6vw, 26px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-top: 18px;
+    animation: fadeUp 0.9s var(--ease) 0.26s backwards;
+  }
+  .hero-sub .accent { color: var(--red-bright); }
+
+  .hero-desc {
+    max-width: 480px;
+    margin: 18px auto 0;
+    font-size: 16px;
+    color: var(--ink-dim);
+    line-height: 1.6;
+    animation: fadeUp 0.9s var(--ease) 0.32s backwards;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 44px;
+    animation: fadeUp 0.9s var(--ease) 0.4s backwards;
+  }
+
+  .hero-scroll {
+    position: absolute;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    animation: fadeUp 0.9s var(--ease) 0.6s backwards;
+  }
+  .hero-scroll-line {
+    width: 1px; height: 34px;
+    background: linear-gradient(180deg, var(--ink-faint), transparent);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-scroll-line::after {
+    content: '';
+    position: absolute;
+    top: -100%; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(180deg, transparent, var(--red-bright));
+    animation: scrollLine 2s ease-in-out infinite;
+  }
+  @keyframes scrollLine { to { top: 100%; } }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ============ SECTION SHARED ============ */
+  section { position: relative; padding: 150px 24px; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    color: var(--red-bright);
+    margin-bottom: 22px;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 16px; height: 1px;
+    background: var(--red-bright);
+  }
+
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.9s var(--ease), transform 0.9s var(--ease); }
+  .reveal.in-view { opacity: 1; transform: translateY(0); }
+
+  /* ============ SOBRE ============ */
+  .about {
+    border-top: 1px solid var(--line);
+    text-align: center;
+  }
+  .about-head { max-width: 720px; margin: 0 auto 64px; }
+  .about-head h2 {
+    font-size: clamp(32px, 4.6vw, 48px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+  }
+  .about-head .dim { color: var(--ink-faint); }
+
+  .about-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  .flow-item {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(15px, 1.8vw, 18px);
+    font-weight: 500;
+    color: var(--ink);
+    padding: 14px 26px;
+    border-radius: 100px;
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.02);
+    transition: border-color 0.3s var(--ease), background 0.3s var(--ease), transform 0.3s var(--ease);
+  }
+  .flow-item:hover {
+    border-color: rgba(37,99,235,0.5);
+    background: rgba(37,99,235,0.06);
+    transform: translateY(-2px);
+  }
+  .flow-arrow { color: var(--ink-faint); font-size: 16px; }
+
+  .about-foot {
+    margin-top: 56px;
+    font-size: 16.5px;
+    color: var(--ink-dim);
+  }
+  .about-foot strong { color: var(--ink); font-weight: 600; }
+
+  /* ============ RECURSOS ============ */
+  .features { border-top: 1px solid var(--line); }
+
+  .feat-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; margin-bottom: 64px; flex-wrap: wrap; }
+  .feat-head h2 {
+    font-size: clamp(30px, 4vw, 42px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    max-width: 440px;
+  }
+  .feat-head p { color: var(--ink-dim); font-size: 16px; max-width: 320px; line-height: 1.6; }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    overflow: hidden;
+  }
+
+  .feature-card {
+    background: var(--surface);
+    padding: 52px;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.5s var(--ease);
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -20%;
+    width: 70%; height: 140%;
+    background: radial-gradient(ellipse at center, var(--red-glow), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.5s var(--ease);
+    pointer-events: none;
+  }
+  .feature-card:hover { background: var(--surface-2); }
+  .feature-card:hover::before { opacity: 0.22; }
+
+  .feature-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .feature-icon {
+    width: 52px; height: 52px;
+    border-radius: var(--r-sm);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-dim);
+    transition: all 0.4s var(--ease);
+    position: relative;
+    z-index: 1;
+  }
+  .feature-card:hover .feature-icon {
+    color: var(--red-bright);
+    border-color: rgba(37,99,235,0.55);
+    box-shadow: 0 0 0 1px rgba(37,99,235,0.18), 0 10px 28px -8px var(--red-glow);
+    transform: translateY(-3px);
+  }
+  .feature-icon svg { width: 24px; height: 24px; }
+
+  .feature-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    letter-spacing: 0.04em;
+  }
+
+  .feature-bottom { position: relative; z-index: 1; }
+  .feature-card h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin-bottom: 10px;
+  }
+  .feature-card p { color: var(--ink-dim); font-size: 15px; line-height: 1.6; max-width: 360px; }
+
+  /* ============ STATS ============ */
+  .stats { border-top: 1px solid var(--line); }
+  .stats::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 420px;
+    background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 72%);
+    opacity: 0.16;
+    filter: blur(70px);
+    pointer-events: none;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    position: relative;
+  }
+  .stat-cell {
+    text-align: center;
+    padding: 20px 16px;
+    border-right: 1px solid var(--line);
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-num {
+    font-size: clamp(40px, 5.4vw, 64px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .stat-num .unit { color: var(--red-bright); }
+  .stat-label {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+
+  /* ============ MATÉRIAS ============ */
+  .subjects { border-top: 1px solid var(--line); }
+  .subject-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .subject-card {
+    position: relative;
+    padding: 28px 22px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    overflow: hidden;
+    transition: transform 0.4s var(--ease), border-color 0.4s var(--ease);
+    --sc: var(--red);
+  }
+  .subject-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, var(--sc) 0%, transparent 55%);
+    opacity: 0;
+    transition: opacity 0.4s var(--ease);
+  }
+  .subject-card:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--sc) 55%, var(--line-strong));
+  }
+  .subject-card:hover::before { opacity: 0.14; }
+
+  .subject-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--sc) 16%, transparent);
+    color: var(--sc);
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+  }
+  .subject-icon svg { width: 18px; height: 18px; }
+  .subject-card h4 {
+    font-size: 15.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ============ CTA FINAL ============ */
+  .final {
+    border-top: 1px solid var(--line);
+    text-align: center;
+    overflow: hidden;
+  }
+  .final::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1000px; height: 600px;
+    background: radial-gradient(ellipse at center, var(--red-glow), transparent 70%);
+    opacity: 0.2;
+    filter: blur(80px);
+    pointer-events: none;
+  }
+  .final-inner { position: relative; z-index: 1; }
+  .final h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(30px, 5vw, 54px);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+  .final h2 .accent { color: var(--red-bright); }
+  .final p {
+    margin-top: 20px;
+    font-size: 17px;
+    color: var(--ink-dim);
+  }
+  .final .btn { margin-top: 44px; }
+
+  /* ============ FOOTER ============ */
+  footer { border-top: 1px solid var(--line); padding: 56px 24px 36px; }
+  .footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .footer-brand { display: flex; align-items: center; gap: 10px; }
+  .footer-brand .brand-mark { width: 22px; height: 22px; }
+  .footer-brand span { font-size: 14.5px; color: var(--ink-dim); }
+  .footer-links { display: flex; gap: 32px; }
+  .footer-links a { font-size: 14.5px; color: var(--ink-dim); transition: color 0.25s var(--ease); }
+  .footer-links a:hover { color: var(--red-bright); }
+  .footer-meta { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink-faint); }
+
+  /* ============ ACCESS MODAL ============ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    background: rgba(2,2,3,0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.35s var(--ease), visibility 0.35s;
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+
+  .modal-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    padding: 36px 32px 30px;
+    position: relative;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
+    transform: translateY(14px) scale(0.98);
+    transition: transform 0.4s var(--ease);
+  }
+  .modal-overlay.open .modal-card { transform: translateY(0) scale(1); }
+
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.02);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-dim);
+    transition: background 0.25s var(--ease), color 0.25s var(--ease);
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.06); color: var(--ink); }
+  .modal-close svg { width: 16px; height: 16px; }
+
+  .modal-icon {
+    width: 48px; height: 48px;
+    border-radius: var(--r-sm);
+    background: rgba(37,99,235,0.1);
+    border: 1px solid rgba(37,99,235,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--red-bright);
+    margin-bottom: 18px;
+  }
+  .modal-icon svg { width: 22px; height: 22px; }
+
+  .modal-card h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .modal-card p.modal-desc {
+    font-size: 14.5px;
+    color: var(--ink-dim);
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+
+  .modal-label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 9px;
+  }
+
+  .modal-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line-strong);
+    background: rgba(255,255,255,0.02);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    transition: border-color 0.25s var(--ease), background 0.25s var(--ease);
+  }
+  .modal-input::placeholder { color: var(--ink-faint); letter-spacing: 0; font-family: 'Inter', sans-serif; }
+  .modal-input:focus { border-color: rgba(37,99,235,0.55); background: rgba(37,99,235,0.04); outline: none; }
+  .modal-input.error { border-color: rgba(239,68,68,0.6); background: rgba(239,68,68,0.05); }
+
+  .modal-feedback {
+    margin-top: 12px;
+    font-size: 13.5px;
+    display: none;
+    align-items: center;
+    gap: 7px;
+  }
+  .modal-feedback.show { display: flex; }
+  .modal-feedback.error { color: #ff7a7a; }
+  .modal-feedback.loading { color: var(--red-bright); }
+  .modal-feedback svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  .modal-spinner {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(79,141,255,0.25);
+    border-top-color: var(--red-bright);
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .modal-submit {
+    width: 100%;
+    margin-top: 22px;
+    padding: 14px 0;
+  }
+
+  .modal-hint {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .modal-hint span { color: var(--ink-dim); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 980px) {
+    .feature-grid { grid-template-columns: 1fr; }
+    .subject-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .stat-cell:nth-child(2) { border-right: none; }
+    .stat-cell:nth-child(1), .stat-cell:nth-child(2) { border-bottom: 1px solid var(--line); padding-bottom: 32px; margin-bottom: 8px; }
+  }
+
+  @media (max-width: 720px) {
+    nav { padding: 18px 20px; }
+    .container, section { padding-left: 20px; padding-right: 20px; }
+    section { padding-top: 100px; padding-bottom: 100px; }
+    .hero { padding-top: 120px; }
+    .feat-head { flex-direction: column; align-items: flex-start; }
+    .subject-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .feature-card { padding: 36px 28px; min-height: 220px; }
+    .footer-inner { flex-direction: column; text-align: center; }
+    .footer-links { gap: 22px; flex-wrap: wrap; justify-content: center; }
+  }
+
+  @media (max-width: 460px) {
+    .hero-actions, .final .btn-row { flex-direction: column; width: 100%; }
+    .hero-actions .btn { width: 100%; }
+    .subject-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Camada central de dados e sessão (sessão de aluno/dev, CRUD de anotações,
+     tarefas e eventos via localStorage). Compartilhado por todas as páginas. -->
+<!-- Firebase SDK (compat) — necessário para o banco de dados compartilhado.
+     Devem vir SEMPRE antes de atlas-data.js. -->
+<script type="module" src="atlas-data.js"></script>
+
+<!-- ============ HEADER ============ -->
+<header id="siteHeader">
+  <nav>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 32 32" fill="none">
+          <defs>
+            <linearGradient id="navGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stop-color="#6fa6ff"/>
+              <stop offset="1" stop-color="#0b2659"/>
+            </linearGradient>
+          </defs>
+          <path d="M16 5 L26.5 26 H21 L16 14.5 L11 26 H5.5 Z" fill="url(#navGrad)"/>
+        </svg>
+      </div>
+      <span class="brand-word display">Atlas</span>
+    </div>
+
+    <div class="menu-trigger">
+      <button class="hamburger" id="hamburgerBtn" aria-label="Abrir menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+</header>
+
+<!-- ============ NAV OVERLAY ============ -->
+<div class="nav-overlay" id="navOverlay">
+  <button class="hamburger nav-overlay-close" id="navCloseBtn" aria-label="Fechar menu">
+    <span style="transform: translateY(6.5px) rotate(45deg);"></span>
+    <span style="opacity:0;"></span>
+    <span style="transform: translateY(-6.5px) rotate(-45deg);"></span>
+  </button>
+  <ul class="nav-overlay-list">
+    <li><a href="#sobre"><span class="num mono">01</span>Sobre</a></li>
+    <li><a href="#recursos"><span class="num mono">02</span>Recursos</a></li>
+    <li><a href="#materias"><span class="num mono">03</span>Matérias</a></li>
+    <li><a href="#contato"><span class="num mono">04</span>Contato</a></li>
+  </ul>
+</div>
+
+<!-- ============ ACCESS MODAL (LOGIN) ============ -->
+<div class="modal-overlay" id="accessModalOverlay">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accessModalTitle">
+    <button class="modal-close" id="accessModalClose" aria-label="Fechar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="10" rx="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+
+    <h3 class="display" id="accessModalTitle">Acesso ao Atlas</h3>
+    <p class="modal-desc">Informe o código de acesso da turma para entrar no painel de conteúdos.</p>
+
+    <form id="accessForm" novalidate>
+      <label class="modal-label" for="accessCodeInput">Código de acesso da turma</label>
+      <input
+        type="text"
+        id="accessCodeInput"
+        class="modal-input mono"
+        placeholder="ex: atlas9d"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+      >
+
+      <div class="modal-feedback error" id="accessFeedbackError">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <span>Código incorreto. Verifique e tente novamente.</span>
+      </div>
+
+      <div class="modal-feedback loading" id="accessFeedbackLoading">
+        <span class="modal-spinner"></span>
+        <span>Entrando...</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary modal-submit" id="accessSubmitBtn">Acessar painel</button>
+    </form>
+
+    <p class="modal-hint">Não tem o código? <span>Peça ao responsável da turma 9º D.</span></p>
+  </div>
+</div>
+
+<main>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="hero-canvas-wrap">
+      <canvas id="atlasCanvas" width="900" height="900"></canvas>
+    </div>
+    <div class="hero-vignette"></div>
+
+    <div class="hero-content">
+      <div class="hero-status mono">
+        <span class="dot"></span>
+        SISTEMA ATIVO — 9º D
+      </div>
+
+      <h1 class="display">ATLAS</h1>
+      <p class="hero-sub display">Centro de <span class="accent">Estudos</span> do 9º D</p>
+      <p class="hero-desc">Todo o conteúdo da turma organizado em um único lugar.</p>
+
+      <div class="hero-actions">
+        <button class="btn btn-primary js-open-access">Entrar no Atlas</button>
+        <button class="btn btn-ghost js-open-access">Explorar Conteúdos</button>
+      </div>
+    </div>
+
+    <div class="hero-scroll">
+      <span>Scroll</span>
+      <div class="hero-scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- ============ SOBRE ============ -->
+  <section class="about" id="sobre">
+    <div class="section-inner">
+      <div class="about-head reveal">
+        <span class="eyebrow">O QUE É O ATLAS</span>
+        <h2 class="display">O centro de comando digital <span class="dim">do 9º D.</span></h2>
+      </div>
+
+      <div class="about-flow reveal">
+        <span class="flow-item">Anotações</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-item">Apostilas</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-item">Tarefas</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-item">Revisões</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-item">Ferramentas de estudo</span>
+      </div>
+
+      <p class="about-foot reveal">Tudo em <strong>um único lugar</strong>.</p>
+    </div>
+  </section>
+
+  <!-- ============ RECURSOS ============ -->
+  <section class="features" id="recursos">
+    <div class="section-inner">
+      <div class="feat-head reveal">
+        <h2 class="display">Quatro ferramentas. Um único painel.</h2>
+        <p>Tudo o que a turma usa todos os dias, sem dispersão entre apps.</p>
+      </div>
+
+      <div class="feature-grid reveal">
+        <div class="feature-card">
+          <div class="feature-top">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            </div>
+            <span class="feature-tag mono">01 / GRADE</span>
+          </div>
+          <div class="feature-bottom">
+            <h3>Matérias</h3>
+            <p>As 8 disciplinas do 9º D organizadas em um único painel, sempre à mão.</p>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-top">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+            </div>
+            <span class="feature-tag mono">02 / ACERVO</span>
+          </div>
+          <div class="feature-bottom">
+            <h3>Apostilas PDF</h3>
+            <p>Todo o material das aulas reunido e pronto para consulta a qualquer hora.</p>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-top">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <span class="feature-tag mono">03 / PRAZOS</span>
+          </div>
+          <div class="feature-bottom">
+            <h3>Tarefas</h3>
+            <p>Acompanhe entregas e prazos com status claro do que falta fazer.</p>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-top">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3Z"/><path d="M11.6 16.5 13 20.5a1.5 1.5 0 0 1-2.8 1l-2-5"/></svg>
+            </div>
+            <span class="feature-tag mono">04 / AVISOS</span>
+          </div>
+          <div class="feature-bottom">
+            <h3>Avisos da turma</h3>
+            <p>Comunicados, provas e prazos importantes, com prioridade clara para o que não pode passar.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ESTATÍSTICAS ============ -->
+  <section class="stats">
+    <div class="section-inner">
+      <div class="stats-grid reveal">
+        <div class="stat-cell">
+          <div class="stat-num display">08</div>
+          <div class="stat-label">Matérias</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num display"><span class="unit">+</span>100</div>
+          <div class="stat-label">Conteúdos</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num display"><span class="unit">+</span>50</div>
+          <div class="stat-label">Apostilas</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num display">24<span class="unit">/7</span></div>
+          <div class="stat-label">Atualizações</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MATÉRIAS ============ -->
+  <section class="subjects" id="materias">
+    <div class="section-inner">
+      <div class="feat-head reveal">
+        <h2 class="display">A grade completa do 9º D.</h2>
+        <p>Cada disciplina com identidade própria dentro do Atlas.</p>
+      </div>
+
+      <div class="subject-grid reveal">
+        <div class="subject-card" style="--sc:#6b7cff;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg></div>
+          <h4>Matemática</h4>
+        </div>
+        <div class="subject-card" style="--sc:#ff9c4a;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg></div>
+          <h4>Português</h4>
+        </div>
+        <div class="subject-card" style="--sc:#c9893f;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg></div>
+          <h4>História</h4>
+        </div>
+        <div class="subject-card" style="--sc:#3fb6c9;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9Z"/></svg></div>
+          <h4>Geografia</h4>
+        </div>
+        <div class="subject-card" style="--sc:#4ad991;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2M9 2h6M9 13h6"/></svg></div>
+          <h4>Ciências</h4>
+        </div>
+        <div class="subject-card" style="--sc:#5b8cff;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/></svg></div>
+          <h4>Inglês</h4>
+        </div>
+        <div class="subject-card" style="--sc:#d65bd9;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2a10 10 0 1 0 0 20c.6 0 1-.4 1-1 0-.3-.1-.5-.3-.7-.2-.2-.3-.4-.3-.7 0-.6.4-1 1-1h1.2A4.6 4.6 0 0 0 19 14c0-6.6-3.1-12-7-12Z"/></svg></div>
+          <h4>Arte</h4>
+        </div>
+        <div class="subject-card" style="--sc:#4f8dff;">
+          <div class="subject-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="m6 22 3-7 1.5-3.5L12 14l1.5-2.5L15 15l3 7M9.5 11.5 12 9l2.5 2.5"/></svg></div>
+          <h4>Educação Física</h4>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA FINAL ============ -->
+  <section class="final" id="contato">
+    <div class="section-inner final-inner reveal">
+      <h2 class="display">Organização. Conhecimento. <span class="accent">Evolução.</span></h2>
+      <p>Tudo que sua turma precisa para estudar em um só lugar.</p>
+      <button class="btn btn-primary js-open-access">Entrar no Atlas</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M16 5 L26.5 26 H21 L16 14.5 L11 26 H5.5 Z" fill="#2563eb"/>
+        </svg>
+      </div>
+      <span>Atlas — Centro de Comando do 9º D</span>
+    </div>
+
+    <div class="footer-links">
+      <a href="#sobre">Sobre</a>
+      <a href="#recursos">Recursos</a>
+      <a href="#contato">Contato</a>
+    </div>
+
+    <div class="footer-meta mono">© 2026</div>
+  </div>
+</footer>
+
+<script>
+  /* ===== Header scroll state ===== */
+  const header = document.getElementById('siteHeader');
+  const onScroll = () => {
+    header.classList.toggle('scrolled', window.scrollY > 24);
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* ===== Hamburger / nav overlay ===== */
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const navCloseBtn = document.getElementById('navCloseBtn');
+  const navOverlay = document.getElementById('navOverlay');
+
+  function openNav() {
+    navOverlay.classList.add('open');
+    hamburgerBtn.classList.add('open');
+    hamburgerBtn.setAttribute('aria-expanded', 'true');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeNav() {
+    navOverlay.classList.remove('open');
+    hamburgerBtn.classList.remove('open');
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+    document.body.style.overflow = '';
+  }
+  hamburgerBtn.addEventListener('click', () => {
+    navOverlay.classList.contains('open') ? closeNav() : openNav();
+  });
+  navCloseBtn.addEventListener('click', closeNav);
+  navOverlay.querySelectorAll('a').forEach(a => a.addEventListener('click', closeNav));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeNav(); closeAccessModal(); } });
+
+  /* ===== Scroll reveal ===== */
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  reveals.forEach(el => io.observe(el));
+
+  /* ====================================================
+     ===== MODAL DE ACESSO (LOGIN COM CÓDIGO DA TURMA) ====
+     ====================================================
+     Regra de negócio:
+     - "Entrar no Atlas" e "Explorar Conteúdos" abrem EXATAMENTE
+       o mesmo modal e executam a mesma função.
+     - O dashboard só é acessível após o código correto ser informado.
+     - Código de aluno: atlas9d (não sensível a maiúsculas/minúsculas,
+       ignora espaços extras) -> sessão 'student'.
+     - Código de desenvolvedor: Elijah044 (sensível a maiúsculas/minúsculas,
+       como uma senha real) -> sessão 'dev', com acesso total de
+       criar/editar/excluir conteúdo em todas as páginas.
+     - A verificação dos dois códigos é feita por AtlasData.checkAccessCode,
+       definido em atlas-data.js (carregado antes deste script).
+     - Código correto  -> mostra "Entrando..." e redireciona para dashboard.html
+     - Código incorreto -> exibe mensagem de erro e mantém o usuário no modal
+  ===================================================== */
+  (function () {
+    const REDIRECT_URL = 'dashboard.html';
+
+    const overlay = document.getElementById('accessModalOverlay');
+    const closeBtn = document.getElementById('accessModalClose');
+    const form = document.getElementById('accessForm');
+    const input = document.getElementById('accessCodeInput');
+    const submitBtn = document.getElementById('accessSubmitBtn');
+    const errorEl = document.getElementById('accessFeedbackError');
+    const loadingEl = document.getElementById('accessFeedbackLoading');
+    const openTriggers = document.querySelectorAll('.js-open-access');
+
+    function resetFeedback() {
+      errorEl.classList.remove('show');
+      loadingEl.classList.remove('show');
+      input.classList.remove('error');
+    }
+
+    function openAccessModal() {
+      resetFeedback();
+      input.value = '';
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      // Foco no campo para já permitir digitar o código
+      setTimeout(() => input.focus(), 150);
+    }
+
+    function closeAccessModal() {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+      resetFeedback();
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Acessar painel';
+    }
+    // expõe para o handler de Escape acima
+    window.closeAccessModal = closeAccessModal;
+
+    function showError(message) {
+      loadingEl.classList.remove('show');
+      errorEl.querySelector('span').textContent = message;
+      errorEl.classList.add('show');
+      input.classList.add('error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Acessar painel';
+    }
+
+    function handleSubmit(e) {
+      e.preventDefault();
+
+      const typed = input.value.trim();
+
+      if (!typed) {
+        showError('Digite o código de acesso da turma.');
+        input.focus();
+        return;
+      }
+
+      // atlas-data.js é carregado como módulo ES (mais leve que o SDK
+      // "compat" antigo), o que o torna assíncrono. Na grande maioria das
+      // vezes ele já estará pronto quando a pessoa clicar em "Acessar
+      // painel", mas, por segurança, se ainda não estiver, esperamos o
+      // evento 'atlas-data-ready' antes de continuar — em vez de falhar
+      // com "não foi possível conectar" só porque o módulo não carregou
+      // a tempo.
+      if (window.AtlasData) {
+        processLogin(typed);
+      } else {
+        loadingEl.classList.add('show');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Entrando...';
+        input.disabled = true;
+        document.addEventListener('atlas-data-ready', function () {
+          processLogin(typed);
+        }, { once: true });
+      }
+    }
+
+    function processLogin(typed) {
+      const role = window.AtlasData ? window.AtlasData.checkAccessCode(typed) : null;
+
+      if (!role) {
+        showError('Código incorreto. Verifique e tente novamente.');
+        input.disabled = false;
+        return;
+      }
+
+      // Código correto: trava o formulário, mostra "Entrando..." e só
+      // redireciona depois que o login no Firebase (compartilhado entre
+      // todos os dispositivos) for confirmado.
+      errorEl.classList.remove('show');
+      input.classList.remove('error');
+      loadingEl.classList.add('show');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Entrando...';
+      input.disabled = true;
+
+      window.AtlasData.loginWithRole(role, (success) => {
+        if (!success) {
+          showError('Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
+          input.disabled = false;
+          return;
+        }
+        setTimeout(() => {
+          window.location.href = REDIRECT_URL;
+        }, 500);
+      });
+    }
+
+    // Os dois botões (“Entrar no Atlas” e “Explorar Conteúdos”)
+    // chamam a MESMA função openAccessModal — comportamento idêntico,
+    // único diferencial é o rótulo do botão.
+    openTriggers.forEach(btn => btn.addEventListener('click', openAccessModal));
+
+    closeBtn.addEventListener('click', closeAccessModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeAccessModal();
+    });
+    form.addEventListener('submit', handleSubmit);
+
+    // Limpa erro ao digitar de novo
+    input.addEventListener('input', () => {
+      if (errorEl.classList.contains('show')) resetFeedback();
+    });
+  })();
+
+  /* ===== ATLAS mascot — canvas-drawn AI assistant ===== */
+  (function () {
+    const canvas = document.getElementById('atlasCanvas');
+    const ctx = canvas.getContext('2d');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let W, H, DPR;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = canvas.width = Math.round(rect.width * DPR);
+      H = canvas.height = Math.round(rect.height * DPR);
+    }
+
+    // Ambient particles drifting around the mascot
+    let particles = [];
+    function initParticles() {
+      const count = window.innerWidth < 640 ? 26 : 46;
+      particles = Array.from({ length: count }, () => {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 0.30 + Math.random() * 0.20;
+        return {
+          angle,
+          dist,
+          speed: (0.0006 + Math.random() * 0.0009) * (Math.random() < 0.5 ? 1 : -1),
+          size: 0.8 + Math.random() * 1.6,
+          twinkle: Math.random() * Math.PI * 2,
+          twinkleSpeed: 0.02 + Math.random() * 0.03,
+        };
+      });
+    }
+
+    let mx = 0.5, my = 0.5;
+    window.addEventListener('mousemove', (e) => {
+      mx = e.clientX / window.innerWidth;
+      my = e.clientY / window.innerHeight;
+    }, { passive: true });
+
+    let t = 0;
+    let started = false;
+
+    function draw() {
+      t += 1;
+      ctx.clearRect(0, 0, W, H);
+
+      const cx = W / 2;
+      const cy = H / 2;
+      const unit = W * 0.42;
+      const parallaxX = (mx - 0.5) * 16 * DPR;
+      const parallaxY = (my - 0.5) * 10 * DPR;
+      const bob = Math.sin(t * 0.02) * unit * 0.018;
+
+      // orbiting tech rings behind the mascot
+      ctx.save();
+      ctx.translate(cx + parallaxX * 0.3, cy + parallaxY * 0.3 + bob * 0.4);
+      [0.50, 0.60, 0.70].forEach((r, i) => {
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(37,99,235,${0.12 - i * 0.03})`;
+        ctx.lineWidth = 1 * DPR;
+        const rot = (t * (0.0015 + i * 0.0006)) * (i % 2 === 0 ? 1 : -1);
+        ctx.setLineDash(i === 1 ? [DPR * 2, DPR * 10] : []);
+        ctx.lineDashOffset = -t * 0.3;
+        ctx.arc(0, 0, unit * r, rot, rot + Math.PI * 1.5);
+        ctx.stroke();
+      });
+      ctx.restore();
+      ctx.setLineDash([]);
+
+      // ambient luminous particles orbiting the mascot
+      for (const p of particles) {
+        p.angle += p.speed;
+        p.twinkle += p.twinkleSpeed;
+        const px = cx + parallaxX + Math.cos(p.angle) * unit * p.dist;
+        const py = cy + parallaxY + bob * 0.5 + Math.sin(p.angle) * unit * p.dist * 0.55;
+        const glow = 0.5 + Math.sin(p.twinkle) * 0.5;
+        const r = p.size * DPR * (0.8 + glow * 0.5);
+
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, r * 4);
+        grad.addColorStop(0, `rgba(120,170,255,${0.85 * glow})`);
+        grad.addColorStop(0.5, `rgba(37,99,235,${0.28 * glow})`);
+        grad.addColorStop(1, 'rgba(37,99,235,0)');
+
+        ctx.beginPath();
+        ctx.fillStyle = grad;
+        ctx.arc(px, py, r * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ===== mascot body =====
+      ctx.save();
+      ctx.translate(cx + parallaxX * 0.5, cy + parallaxY * 0.5 + bob);
+
+      const headW = unit * 0.62;
+      const headH = unit * 0.50;
+      const headR = unit * 0.16;
+      const neckH = unit * 0.10;
+
+      // soft ground shadow
+      ctx.beginPath();
+      ctx.ellipse(0, headH * 0.62 + neckH + unit * 0.08, headW * 0.46, unit * 0.05, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.filter = 'blur(6px)';
+      ctx.fill();
+      ctx.filter = 'none';
+
+      // outer glow behind head
+      const haloGrad = ctx.createRadialGradient(0, -headH * 0.05, headW * 0.1, 0, -headH * 0.05, headW * 1.05);
+      haloGrad.addColorStop(0, 'rgba(79,141,255,0.35)');
+      haloGrad.addColorStop(1, 'rgba(79,141,255,0)');
+      ctx.beginPath();
+      ctx.fillStyle = haloGrad;
+      ctx.arc(0, -headH * 0.05, headW * 1.05, 0, Math.PI * 2);
+      ctx.fill();
+
+      // neck / collar
+      ctx.beginPath();
+      ctx.moveTo(-headW * 0.16, headH * 0.46);
+      ctx.lineTo(-headW * 0.22, headH * 0.46 + neckH);
+      ctx.lineTo(headW * 0.22, headH * 0.46 + neckH);
+      ctx.lineTo(headW * 0.16, headH * 0.46);
+      ctx.closePath();
+      const neckGrad = ctx.createLinearGradient(0, headH * 0.4, 0, headH * 0.6 + neckH);
+      neckGrad.addColorStop(0, '#1b2433');
+      neckGrad.addColorStop(1, '#0f141d');
+      ctx.fillStyle = neckGrad;
+      ctx.fill();
+
+      // shoulders hint
+      ctx.beginPath();
+      ctx.ellipse(0, headH * 0.46 + neckH + unit * 0.05, headW * 0.58, unit * 0.09, 0, Math.PI, Math.PI * 2);
+      const shoulderGrad = ctx.createLinearGradient(0, headH * 0.4, 0, headH * 0.6 + neckH);
+      shoulderGrad.addColorStop(0, '#161d29');
+      shoulderGrad.addColorStop(1, '#0a0e15');
+      ctx.fillStyle = shoulderGrad;
+      ctx.fill();
+
+      // head shape — rounded square, friendly proportions
+      function roundedRect(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      const hx = -headW / 2, hy = -headH / 2;
+      roundedRect(hx, hy, headW, headH, headR);
+      const headGrad = ctx.createLinearGradient(hx, hy, hx, hy + headH);
+      headGrad.addColorStop(0, '#1c2433');
+      headGrad.addColorStop(1, '#0c0f16');
+      ctx.fillStyle = headGrad;
+      ctx.fill();
+      ctx.lineWidth = 1.4 * DPR;
+      ctx.strokeStyle = 'rgba(120,170,255,0.45)';
+      ctx.stroke();
+
+      // top antenna
+      ctx.beginPath();
+      ctx.moveTo(0, hy);
+      ctx.lineTo(0, hy - unit * 0.10);
+      ctx.lineWidth = 1.6 * DPR;
+      ctx.strokeStyle = 'rgba(120,170,255,0.55)';
+      ctx.stroke();
+      const tipGlow = 0.6 + Math.sin(t * 0.05) * 0.4;
+      const tipGrad = ctx.createRadialGradient(0, hy - unit * 0.10, 0, 0, hy - unit * 0.10, unit * 0.05);
+      tipGrad.addColorStop(0, `rgba(150,190,255,${0.95 * tipGlow})`);
+      tipGrad.addColorStop(1, 'rgba(79,141,255,0)');
+      ctx.beginPath();
+      ctx.fillStyle = tipGrad;
+      ctx.arc(0, hy - unit * 0.10, unit * 0.05, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.fillStyle = '#cfe0ff';
+      ctx.arc(0, hy - unit * 0.10, unit * 0.014, 0, Math.PI * 2);
+      ctx.fill();
+
+      // face visor (rounded inset panel)
+      const vw = headW * 0.74, vh = headH * 0.46;
+      const vx = -vw / 2, vy = -vh * 0.36;
+      roundedRect(vx, vy, vw, vh, vh * 0.5);
+      const visorGrad = ctx.createLinearGradient(vx, vy, vx, vy + vh);
+      visorGrad.addColorStop(0, '#060a10');
+      visorGrad.addColorStop(1, '#0c1420');
+      ctx.fillStyle = visorGrad;
+      ctx.fill();
+      ctx.lineWidth = 1 * DPR;
+      ctx.strokeStyle = 'rgba(79,141,255,0.3)';
+      ctx.stroke();
+
+      // eyes — soft glowing bars, blink occasionally
+      const blinkCycle = (t % 220);
+      const blink = blinkCycle > 206 ? Math.max(0, 1 - (blinkCycle - 206) / 7) : 1;
+      const eyeW = vw * 0.16;
+      const eyeH = vh * 0.30 * blink + 1;
+      const eyeY = 0;
+      const eyeOffsetX = vw * 0.21;
+
+      [-1, 1].forEach((side) => {
+        const ex = side * eyeOffsetX;
+        roundedRect(ex - eyeW / 2, eyeY - eyeH / 2, eyeW, eyeH, eyeH * 0.5);
+        const eyeGrad = ctx.createLinearGradient(ex, eyeY - eyeH / 2, ex, eyeY + eyeH / 2);
+        eyeGrad.addColorStop(0, '#bcd6ff');
+        eyeGrad.addColorStop(1, '#4f8dff');
+        ctx.fillStyle = eyeGrad;
+        ctx.shadowColor = 'rgba(79,141,255,0.8)';
+        ctx.shadowBlur = 14 * DPR;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // subtle scan line inside visor
+      const scanY = vy + ((t * 0.6) % vh);
+      ctx.save();
+      roundedRect(vx, vy, vw, vh, vh * 0.5);
+      ctx.clip();
+      const scanGrad = ctx.createLinearGradient(0, scanY - 6 * DPR, 0, scanY + 6 * DPR);
+      scanGrad.addColorStop(0, 'rgba(79,141,255,0)');
+      scanGrad.addColorStop(0.5, 'rgba(120,170,255,0.18)');
+      scanGrad.addColorStop(1, 'rgba(79,141,255,0)');
+      ctx.fillStyle = scanGrad;
+      ctx.fillRect(vx, scanY - 6 * DPR, vw, 12 * DPR);
+      ctx.restore();
+
+      // side audio nodes (ear-like details)
+      [-1, 1].forEach((side) => {
+        const nx = side * (headW / 2 + unit * 0.015);
+        roundedRect(nx - unit * 0.015, -unit * 0.05, unit * 0.03, unit * 0.1, unit * 0.01);
+        ctx.fillStyle = '#0c0f16';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(120,170,255,0.4)';
+        ctx.lineWidth = 1 * DPR;
+        ctx.stroke();
+      });
+
+      ctx.restore();
+
+      if (!started) {
+        started = true;
+        requestAnimationFrame(() => canvas.classList.add('ready'));
+      }
+
+      if (!reduceMotion) requestAnimationFrame(draw);
+    }
+
+    function setup() {
+      resize();
+      initParticles();
+      ctx.clearRect(0, 0, W, H);
+      draw();
+    }
+
+    window.addEventListener('resize', () => {
+      resize();
+      initParticles();
+    });
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(setup);
+    } else {
+      setup();
+    }
+
+    if (reduceMotion) {
+      setTimeout(() => { draw(); canvas.classList.add('ready'); }, 50);
+    }
+  })();
+</script>
+
+</body>
+</html>
