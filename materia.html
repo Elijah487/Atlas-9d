@@ -536,13 +536,7 @@
   }
   .empty-banner a { color: var(--blue-bright); font-weight: 600; }
 
-  /* ============ TAREFAS — mesmo componente visual de tarefas.html ============
-     Reutiliza exatamente o card .task-card (borda, padding, border-radius,
-     hover, sombra) usado em tarefas.html, para manter consistência visual
-     em toda a plataforma. A única diferença para o componente original é
-     que aqui o card também pode exibir, no topo, os ícones de editar/excluir
-     (visíveis somente em Modo Desenvolvedor) — o badge de matéria foi
-     omitido aqui porque a própria página já é específica de uma matéria. */
+  /* ============ GRID DE TAREFAS — copiado de tarefas.html ============ */
   .tasks-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -591,6 +585,16 @@
     position: relative;
     z-index: 1;
   }
+  .task-subject-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: var(--sc-dim);
+    color: var(--sc);
+    flex-shrink: 0;
+  }
   .task-due-badge {
     font-size: 11.5px;
     color: var(--ink-faint);
@@ -622,9 +626,7 @@
   }
   .task-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
 
-  /* Ações de dev (editar/excluir) dentro do card — não existem no card
-     "puro" de tarefas.html, mas precisam aparecer aqui só para o
-     Modo Desenvolvedor, sem comprometer o restante do clique no card. */
+  /* Botões de editar/excluir — só aparecem em modo dev */
   .task-card-actions {
     display: none;
     gap: 6px;
@@ -633,6 +635,13 @@
     flex-shrink: 0;
   }
   body.dev-mode-on .task-card-actions { display: flex; }
+
+  @media (max-width: 1180px) {
+    .tasks-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .tasks-grid { grid-template-columns: 1fr; }
+  }
 
   /* ============ MODAIS (criar/editar anotação e tarefa) ============ */
   .modal-overlay {
@@ -962,7 +971,7 @@
         <h2>Tarefas</h2>
         <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
       </div>
-      <div class="notes-grid" id="tasksList"></div>
+      <div class="tasks-grid" id="tasksList"></div>
       <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
     </section>
 
@@ -1385,22 +1394,20 @@ document.addEventListener('atlas-data-ready', function () {
     tasksEmpty.style.display = tasks.length ? 'none' : 'block';
 
     tasksList.innerHTML = tasks.map(function (t) {
-      var excerpt = htmlToExcerpt(t.resposta, 140);
+      var excerpt = htmlToExcerpt(t.resposta, 110);
       var dueSoon = isDueSoon(t.dataEntrega);
-      var dateStr = formatDateBR(t.dataEntrega);
       var excerptHtml = excerpt
-        ? '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>'
-        : '<div class="note-card-excerpt" style="color:var(--ink-faint);font-style:italic;">Sem resposta/gabarito cadastrado ainda.</div>';
+        ? '<div class="task-card-excerpt">' + escapeHtml(excerpt) + '</div>'
+        : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
 
       return (
-        '<div class="note-card" data-id="' + t.id + '" tabindex="0" role="button">' +
-          '<div class="note-card-title">' + escapeHtml(t.titulo) + '</div>' +
-          excerptHtml +
-          '<div class="note-card-foot">' +
-            '<span class="note-card-date"' + (dueSoon ? ' style="color:var(--orange);font-weight:600;"' : '') + '>' +
-              (dateStr ? 'Entrega: ' + escapeHtml(dateStr) : '') +
+        '<div class="task-card" data-id="' + t.id + '" tabindex="0" role="button">' +
+          '<div class="task-card-top">' +
+            '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+              escapeHtml(formatDateBR(t.dataEntrega)) +
             '</span>' +
-            '<div class="note-card-actions dev-only">' +
+            '<div class="task-card-actions">' +
               '<button type="button" class="icon-btn" data-action="edit-task" data-id="' + t.id + '" aria-label="Editar">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
               '</button>' +
@@ -1409,6 +1416,8 @@ document.addEventListener('atlas-data-ready', function () {
               '</button>' +
             '</div>' +
           '</div>' +
+          '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
+          excerptHtml +
         '</div>'
       );
     }).join('');
@@ -1417,7 +1426,7 @@ document.addEventListener('atlas-data-ready', function () {
   tasksList.addEventListener('click', function (e) {
     var editBtn = e.target.closest('[data-action="edit-task"]');
     var delBtn = e.target.closest('[data-action="delete-task"]');
-    var card = e.target.closest('#tasksList .note-card');
+    var card = e.target.closest('.task-card');
 
     if (editBtn) {
       e.stopPropagation();
@@ -1437,7 +1446,7 @@ document.addEventListener('atlas-data-ready', function () {
   });
   tasksList.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
-    var card = e.target.closest('#tasksList .note-card');
+    var card = e.target.closest('.task-card');
     if (card) { e.preventDefault(); openReadTask(card.dataset.id); }
   });
 
