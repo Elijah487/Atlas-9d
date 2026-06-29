@@ -277,10 +277,23 @@ import {
       return;
     }
 
+    // IMPORTANTE — leitura dos dados não espera mais a autenticação resolver.
+    // A leitura (onValue em 'atlas_data') é pública/anônima por natureza: as
+    // regras do Firebase já permitem leitura sem depender do uid autenticado,
+    // e a proteção real de quem pode ESCREVER continua inteiramente intacta
+    // (isDev() no cliente + checagem de 'dev_sessions/{uid}' no servidor).
+    // Antes, attachDataListener() só era chamado de dentro do callback de
+    // onAuthStateChanged, fazendo a primeira renderização da página esperar,
+    // em série: resolução do Auth (leitura do IndexedDB) -> eventual
+    // signInAnonymously (round-trip de rede) -> só então abrir o listener do
+    // Database (outro round-trip) -> só então o primeiro snapshot chegar.
+    // Abrindo o listener de leitura imediatamente, ele roda em PARALELO com
+    // a resolução da autenticação, e não mais depois dela — eliminando essa
+    // espera em cascata sem alterar nenhuma regra de segurança ou de escrita.
+    attachDataListener();
+
     onAuthStateChanged(firebaseAuthInstance, function (user) {
-      if (user) {
-        attachDataListener();
-      } else {
+      if (!user) {
         // Não há usuário autenticado neste navegador/aba ainda. Se já existe
         // uma sessão local (a pessoa já passou pelo modal de login antes),
         // refazemos o login anônimo automaticamente, sem pedir a senha de novo.
@@ -289,6 +302,11 @@ import {
           reauthenticate(existingRole);
         }
       }
+      // Cobre o caso raro de a leitura aberta antes da autenticação ter
+      // falhado por permissão; com o usuário já resolvido, tentamos de novo.
+      // Se a primeira tentativa já tiver funcionado (caso comum), o guard
+      // dentro de attachDataListener torna esta chamada um no-op imediato.
+      attachDataListener();
       markFirebaseReady();
     });
   }
@@ -298,12 +316,19 @@ import {
    * local válida, mas o Firebase Auth ainda não tem um usuário (por
    * exemplo, ao abrir uma página interna direto, sem passar pelo modal).
    * Se a sessão local for 'dev', garante que a marcação em dev_sessions
-   * também seja recriada para esse uid.
+   * também seja recriada para esse uid — mas só dispara essa escrita de
+   * rede quando o uid realmente mudou desde a última marcação feita por
+   * esta aba, evitando um round-trip redundante a cada navegação entre
+   * páginas (o uid anônimo persistido normalmente é o mesmo de antes).
    */
+  var lastMarkedDevUid = null;
+
   function reauthenticate(role) {
     if (!firebaseAuthInstance) return;
     signInAnonymously(firebaseAuthInstance).then(function (credential) {
       if (role === 'dev' && firebaseDbInstance && credential.user) {
+        if (lastMarkedDevUid === credential.user.uid) return;
+        lastMarkedDevUid = credential.user.uid;
         set(ref(firebaseDbInstance, DEV_SESSIONS_PATH + '/' + credential.user.uid), true);
       }
     }).catch(function (error) {
@@ -318,6 +343,14 @@ import {
    * mudar — em QUALQUER dispositivo, de qualquer aluno ou do desenvolvedor —
    * este listener dispara, atualiza o cache local e notifica as páginas
    * (via onDataChange).
+   *
+   * Chamado já no início de initFirebase(), em paralelo com a resolução da
+   * autenticação (não mais depois dela). Se as regras do projeto exigirem
+   * usuário autenticado mesmo para leitura, a primeiríssima tentativa pode,
+   * em tese, falhar por permissão antes do login anônimo terminar; nesse
+   * caso (e só nesse caso) refazemos a tentativa uma vez, assim que a
+   * autenticação resolver — sem nunca travar a primeira renderização da
+   * página, que segue acontecendo imediatamente com o cache disponível.
    */
   function attachDataListener() {
     if (dataListenerAttached || !firebaseDbInstance) return;
@@ -334,6 +367,9 @@ import {
       notifyChange();
     }, function (error) {
       console.error('Atlas: erro ao escutar dados do Firebase (confira as regras de segurança).', error);
+      // Permite uma nova tentativa caso o motivo tenha sido falta de
+      // autenticação no instante exato desta primeira chamada.
+      dataListenerAttached = false;
     });
   }
 
