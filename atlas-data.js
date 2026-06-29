@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados e sessão (v4 — Firebase SDK modular)
+   ATLAS — Camada central de dados e sessão (v5 — cache persistente)
    ---------------------------------------------------------------------
    Este arquivo é incluído em TODAS as páginas do Atlas, como módulo ES
    (<script type="module" src="atlas-data.js">). Ele:
@@ -16,7 +16,23 @@
       como AtlasData.getNotes() de forma SÍNCRONA (sem 'await', sem
       Promises) — nenhuma outra página precisa mudar por causa disto.
 
-   3. Gerencia a SESSÃO do usuário (aluno normal ou desenvolvedor).
+   3. [v5] O cache agora é também gravado em sessionStorage (chave
+      CACHE_KEY). Ao abrir qualquer página, o cache é restaurado
+      imediatamente do sessionStorage antes mesmo de o Firebase
+      responder — o que elimina o "flash vazio" na troca de páginas.
+      O Firebase continua sincronizando em segundo plano e atualiza
+      a UI só quando os dados realmente mudarem.
+
+   4. [v5] Em vez de um único listener no nó 'atlas_data' inteiro,
+      existem agora QUATRO listeners separados (notes, tasks, events,
+      notices). Cada um baixa apenas sua própria coleção, reduzindo o
+      volume de dados trafegados por evento de mudança.
+
+   5. [v5] As notificações de mudança são disparadas via debounce
+      (scheduleNotify), evitando múltiplas re-renderizações consecutivas
+      quando vários listeners respondem ao mesmo tempo na inicialização.
+
+   6. Gerencia a SESSÃO do usuário (aluno normal ou desenvolvedor).
       A sessão em si (qual papel a pessoa tem NESTE navegador) continua
       em localStorage — isso é só uma preferência local de UI, não um
       dado compartilhado. O que importa para a segurança real é a
@@ -24,7 +40,7 @@
       'dev_sessions/{uid}' no banco, que é o que as REGRAS do Firebase
       checam de verdade antes de permitir qualquer escrita.
 
-   4. PROTEGE as operações de escrita em duas camadas:
+   7. PROTEGE as operações de escrita em duas camadas:
       a) Aqui no cliente: saveX/deleteX só tentam escrever se isDev().
       b) No servidor (regras do Firebase): a escrita só é aceita se o
          uid autenticado estiver marcado em 'dev_sessions'.
@@ -90,6 +106,9 @@ import {
   var DATA_PATH = 'atlas_data';              // nó no Firebase: { notes, tasks, events, notices }
   var DEV_SESSIONS_PATH = 'dev_sessions';    // nó no Firebase: { [uid]: true }
 
+  /* [v5] Chave do sessionStorage para o cache entre páginas. */
+  var CACHE_KEY = 'atlas_cache';
+
   var STUDENT_CODE = 'atlas9d';
   var DEV_CODE = 'Elijah044'; // comparação sensível a maiúsculas/minúsculas, como uma senha real
 
@@ -139,6 +158,84 @@ import {
     } catch (e) {
       return false;
     }
+  }
+
+  /* [v5] Verifica disponibilidade do sessionStorage. */
+  function hasSessionStorage() {
+    try {
+      return !!global.sessionStorage;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* ---------------------------------------------------------------
+     [v5] Cache persistente em sessionStorage
+     Gravar/ler o objeto 'cache' inteiro a cada atualização de
+     coleção. Isso permite que a próxima página restaure os dados
+     instantaneamente, sem esperar o Firebase responder.
+  --------------------------------------------------------------- */
+
+  /**
+   * Grava o estado atual de 'cache' no sessionStorage.
+   * Chamado sempre que qualquer coleção é atualizada pelo Firebase.
+   */
+  function saveToSessionStorage() {
+    if (!hasSessionStorage()) return;
+    try {
+      global.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+      /* sessionStorage pode estar cheio (QuotaExceededError) — ignorar silenciosamente */
+    }
+  }
+
+  /**
+   * Tenta restaurar o cache do sessionStorage.
+   * Retorna true se havia dados válidos e false caso contrário.
+   */
+  function loadFromSessionStorage() {
+    if (!hasSessionStorage()) return false;
+    try {
+      var raw = global.sessionStorage.getItem(CACHE_KEY);
+      if (!raw) return false;
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        cache = {
+          notes:   Array.isArray(parsed.notes)   ? parsed.notes   : [],
+          tasks:   Array.isArray(parsed.tasks)   ? parsed.tasks   : [],
+          events:  Array.isArray(parsed.events)  ? parsed.events  : [],
+          notices: Array.isArray(parsed.notices) ? parsed.notices : []
+        };
+        return true;
+      }
+    } catch (e) {
+      /* JSON inválido ou sessionStorage inacessível — ignorar */
+    }
+    return false;
+  }
+
+  /* ---------------------------------------------------------------
+     [v5] Notificação via debounce
+     Evita múltiplas re-renderizações consecutivas quando vários
+     listeners do Firebase respondem em sequência (ex.: na primeira
+     conexão, todos os quatro listeners podem disparar quase ao mesmo
+     tempo). Com debounce de 0 ms, todas as atualizações síncronas do
+     mesmo "tick" JS são agrupadas em uma única chamada a notifyChange.
+  --------------------------------------------------------------- */
+
+  var notifyTimer = null;
+
+  /**
+   * Agenda um notifyChange para o próximo tick do event loop.
+   * Se chamado várias vezes antes desse tick, só dispara uma vez.
+   * Os listeners do Firebase devem chamar esta função, nunca
+   * notifyChange() diretamente.
+   */
+  function scheduleNotify() {
+    clearTimeout(notifyTimer);
+    notifyTimer = setTimeout(function () {
+      notifyChange();
+    }, 0);
   }
 
   function notifyChange() {
@@ -260,6 +357,14 @@ import {
   }
 
   function initFirebase() {
+    /* [v5] Tenta restaurar o cache do sessionStorage ANTES de qualquer
+       chamada ao Firebase. Se tiver dados, notifica as páginas
+       imediatamente — o conteúdo aparece instantaneamente. O Firebase
+       sincronizará em segundo plano e atualizará quando necessário. */
+    if (loadFromSessionStorage()) {
+      scheduleNotify();
+    }
+
     var app;
     try {
       app = initializeApp(FIREBASE_CONFIG);
@@ -307,7 +412,7 @@ import {
       })
       .then(function () {
         onAuthStateChanged(firebaseAuthInstance, function (user) {
-          if (user) attachDataListener();
+          if (user) attachDataListeners();
           markFirebaseReady();
         });
 
@@ -350,28 +455,53 @@ import {
 
   var dataListenerAttached = false;
 
+  /* ---------------------------------------------------------------
+     [v5] Listeners por coleção
+     Em vez de escutar o nó 'atlas_data' inteiro (que baixa notes +
+     tasks + events + notices de uma vez), registramos quatro listeners
+     independentes. Cada um baixa apenas os dados da sua coleção,
+     reduzindo o volume trafegado por evento e tornando as atualizações
+     mais granulares.
+     Após atualizar a coleção no cache em memória:
+       1. Sincroniza o sessionStorage.
+       2. Agenda o notifyChange via debounce.
+  --------------------------------------------------------------- */
+
   /**
-   * Escuta o nó 'atlas_data' do Firebase em tempo real. Toda vez que algo
-   * mudar — em QUALQUER dispositivo, de qualquer aluno ou do desenvolvedor —
-   * este listener dispara, atualiza o cache local e notifica as páginas
-   * (via onDataChange).
+   * Fábrica de listener para uma coleção específica.
+   * @param {string} collectionName  'notes' | 'tasks' | 'events' | 'notices'
    */
-  function attachDataListener() {
+  function makeCollectionListener(collectionName) {
+    onValue(
+      ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
+      function (snapshot) {
+        var remoteValue = snapshot.val();
+        cache[collectionName] = objectToArray(remoteValue);
+        saveToSessionStorage();   // persiste o cache atualizado
+        scheduleNotify();         // notifica via debounce
+      },
+      function (error) {
+        console.error(
+          'Atlas: erro ao escutar coleção "' + collectionName +
+          '" do Firebase (confira as regras de segurança).',
+          error
+        );
+      }
+    );
+  }
+
+  /**
+   * Registra os quatro listeners de coleção separados.
+   * Substitui o único onValue(atlas_data) da v4.
+   */
+  function attachDataListeners() {
     if (dataListenerAttached || !firebaseDbInstance) return;
     dataListenerAttached = true;
 
-    onValue(ref(firebaseDbInstance, DATA_PATH), function (snapshot) {
-      var remote = snapshot.val() || {};
-      cache = {
-        notes: objectToArray(remote.notes),
-        tasks: objectToArray(remote.tasks),
-        events: objectToArray(remote.events),
-        notices: objectToArray(remote.notices)
-      };
-      notifyChange();
-    }, function (error) {
-      console.error('Atlas: erro ao escutar dados do Firebase (confira as regras de segurança).', error);
-    });
+    makeCollectionListener('notes');
+    makeCollectionListener('tasks');
+    makeCollectionListener('events');
+    makeCollectionListener('notices');
   }
 
   /**
@@ -389,12 +519,20 @@ import {
    * Grava a lista completa de uma coleção (notes/tasks/events/notices)
    * no Firebase. Como o volume de dados de uma turma é pequeno, gravar
    * a lista inteira a cada alteração é simples e suficiente.
+   * [v5] Atualiza também o cache em memória e o sessionStorage
+   * imediatamente, antes mesmo de o Firebase confirmar, para que a
+   * próxima leitura local já reflita a mudança.
    */
   function persistCollection(collectionName, list) {
     if (!firebaseDbInstance) {
       console.error('Atlas: Firebase não está conectado, não foi possível salvar.');
       return false;
     }
+    // Atualização otimista: reflete no cache local e no sessionStorage agora,
+    // sem esperar o round-trip do Firebase.
+    cache[collectionName] = list;
+    saveToSessionStorage();
+
     set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (error) {
       console.error('Atlas: falha ao salvar no Firebase. Confira as regras de segurança e a conexão.', error);
     });
@@ -589,6 +727,7 @@ import {
       materia: task.materia,
       bimestre: task.bimestre,
       dataEntrega: task.dataEntrega,
+      enunciado: sanitizeHtml(task.enunciado || ''),
       resposta: sanitizeHtml(task.resposta || '')
     };
     if (task.id) {
