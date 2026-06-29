@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matérias — Atlas</title>
+<style>
+
+  /* ============ RESET & TOKENS (idênticos ao dashboard) ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e14;
+    --surface: #10151d;
+    --surface-2: #161c26;
+    --line: #232a36;
+
+    --blue: #2563eb;
+    --blue-bright: #4f8dff;
+    --blue-dim: #1d3a6e;
+
+    --ink: #eef1f6;
+    --ink-dim: #97a1b0;
+    --ink-faint: #5e6675;
+
+    --green: #3fb96f;
+    --orange: #e0a23a;
+
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
+    line-height: 1.5;
+    font-size: 15px;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  ul { list-style: none; }
+  input { font-family: inherit; }
+
+  ::selection { background: var(--blue); color: #fff; }
+  :focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 2px; }
+
+  .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
+
+  /* ============ APP SHELL ============ */
+  .app {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+    grid-template-rows: 60px 1fr;
+    grid-template-areas:
+      "header header"
+      "sidebar main";
+    min-height: 100vh;
+  }
+
+  /* ============ HEADER (idêntico ao dashboard) ============ */
+  header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .brand-mark {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .brand-word { font-size: 16px; font-weight: 600; }
+
+  .search-wrap {
+    flex: 1;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .search-wrap svg { width: 16px; height: 16px; color: var(--ink-faint); flex-shrink: 0; }
+  .search-wrap input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-size: 14px;
+    outline: none;
+  }
+  .search-wrap input::placeholder { color: var(--ink-faint); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .class-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .class-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-weight: 600;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .logout-btn:hover { background: #2a1414; border-color: #5c2222; color: #ff9a9a; }
+  .logout-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  @media (max-width: 460px) { .logout-btn span { display: none; } }
+
+  /* ============ SIDEBAR (idêntico ao dashboard) ============ */
+  .sidebar {
+    grid-area: sidebar;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    color: var(--ink-dim);
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-item.active {
+    background: var(--blue-dim);
+    color: var(--blue-bright);
+    font-weight: 600;
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--line);
+    margin: 14px 4px;
+  }
+
+  /* ============ MAIN ============ */
+  main {
+    grid-area: main;
+    padding: 24px 28px 48px;
+    overflow-x: hidden;
+  }
+
+  .page-title { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+  .page-sub { font-size: 14px; color: var(--ink-dim); margin-top: 4px; }
+
+  section { margin-top: 24px; }
+
+  /* ============ BARRA DE FERRAMENTAS: busca + filtros ============ */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .subject-search {
+    flex: 1;
+    min-width: 220px;
+    max-width: 380px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+  }
+  .subject-search svg { width: 16px; height: 16px; color: var(--ink-faint); flex-shrink: 0; }
+  .subject-search input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-size: 14px;
+    outline: none;
+  }
+  .subject-search input::placeholder { color: var(--ink-faint); }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 9px 16px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-dim);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .filter-chip:hover { color: var(--ink); border-color: var(--blue-dim); }
+  .filter-chip.active {
+    background: var(--blue-dim);
+    border-color: var(--blue-dim);
+    color: var(--blue-bright);
+    font-weight: 600;
+  }
+
+  .results-empty {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--ink-faint);
+    font-size: 14px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    margin-top: 24px;
+  }
+  .results-empty.show { display: block; }
+
+  /* ============ GRID DE MATÉRIAS ============ */
+  .subject-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 18px;
+  }
+
+  .subject-card {
+    --sc: var(--blue-bright);
+    --sc-dim: var(--blue-dim);
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+  }
+  .subject-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, var(--sc) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+  .subject-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--sc);
+    background: var(--surface-2);
+    box-shadow: 0 14px 28px -14px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+  .subject-card:hover::before { opacity: 0.10; }
+  .subject-card:active { transform: translateY(-1px); }
+  .subject-card:focus-visible { outline: 2px solid var(--sc); outline-offset: 3px; }
+
+  .subject-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+  }
+
+  .subject-card-icon {
+    width: 46px; height: 46px;
+    border-radius: 11px;
+    background: var(--sc-dim);
+    color: var(--sc);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+  }
+  .subject-card:hover .subject-card-icon { transform: scale(1.06); }
+  .subject-card-icon svg { width: 22px; height: 22px; }
+
+  .subject-card-arrow {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.22s ease, transform 0.22s ease, color 0.22s ease, border-color 0.22s ease;
+  }
+  .subject-card-arrow svg { width: 14px; height: 14px; }
+  .subject-card:hover .subject-card-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: var(--sc);
+    border-color: var(--sc);
+  }
+
+  .subject-card-name {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .subject-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .meta-item svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--ink-faint); }
+  .meta-item strong { color: var(--ink-dim); font-weight: 600; }
+
+  .subject-card-tags {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
+  .tag-pill {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: var(--sc-dim);
+    color: var(--sc);
+  }
+
+  .subject-card.hidden { display: none; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 220px 1fr; }
+    .subject-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 860px) {
+    .subject-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ============ MOBILE TOPBAR TOGGLE ============ */
+  .menu-btn {
+    display: none;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .menu-btn svg { width: 17px; height: 17px; }
+
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
+    .sidebar {
+      position: fixed;
+      top: 60px; left: 0; bottom: 0;
+      width: 220px;
+      transform: translateX(-100%);
+      z-index: 50;
+      transition: transform 0.18s ease;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .menu-btn { display: flex; }
+    .search-wrap { display: none; }
+    main { padding: 18px; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .subject-search { max-width: none; }
+    .filter-group { gap: 8px; }
+    .subject-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  }
+
+  @media (max-width: 460px) {
+    .subject-grid { grid-template-columns: 1fr; }
+    .class-badge span:last-child { display: none; }
+  }
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="atlas-theme.css">
+</head>
+<body>
+
+<!-- Camada central de dados e sessão, carregada como módulo ES. -->
+<script type="module" src="atlas-data.js"></script>
+<script>
+  document.addEventListener('atlas-data-ready', function () {
+    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+  });
+</script>
+
+<div class="app">
+
+  <!-- ============ HEADER ============ -->
+  <header>
+    <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+
+    <div class="brand">
+      <div class="brand-mark">A</div>
+      <span class="brand-word">Atlas</span>
+    </div>
+
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" placeholder="Pesquisar matérias, tarefas, apostilas...">
+    </div>
+
+    <div class="header-right">
+      <div class="class-badge">
+        <span class="dot"></span>
+        <span>Turma:</span>
+        <span><strong>9º D</strong></span>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button" title="Sair">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span>Sair</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ SIDEBAR ============ -->
+  <nav class="sidebar" id="sidebar">
+    <a class="nav-item fast" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item active fast" href="materias.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Matérias
+    </a>
+    <a class="nav-item fast" href="apostilas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      Apostilas (PDF)
+    </a>
+    <a class="nav-item fast" href="tarefas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tarefas
+    </a>
+    <a class="nav-item fast" href="calendario.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendário
+    </a>
+
+    <div class="sidebar-divider"></div>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <h1 class="page-title">Matérias</h1>
+    <p class="page-sub">Selecione uma matéria para acessar conteúdos, apostilas e tarefas.</p>
+
+    <!-- Busca + filtros -->
+    <section>
+      <div class="toolbar">
+        <div class="subject-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="subjectSearchInput" placeholder="Buscar matéria...">
+        </div>
+
+        <div class="filter-group" id="filterGroup">
+          <button class="filter-chip active fast" data-filter="todas">Todas</button>
+          <button class="filter-chip fast" data-filter="tarefas">Com tarefas</button>
+          <button class="filter-chip fast" data-filter="apostilas">Com apostilas</button>
+          <button class="filter-chip fast" data-filter="recentes">Atualizadas recentemente</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Grid de matérias -->
+    <section>
+      <div class="subject-grid" id="subjectGrid">
+
+        <!-- Matemática — azul -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="matemática" data-materia-real="Matemática" data-tarefas="2" data-apostilas="4" data-recente="1"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Matemática</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">12</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>4</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">2</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- Português — vermelho -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="português" data-materia-real="Português" data-tarefas="1" data-apostilas="3" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Português</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">9</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>3</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">1</strong> tarefa</span>
+          </div>
+        </div>
+
+        <!-- História — marrom -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="história" data-materia-real="História" data-tarefas="0" data-apostilas="2" data-recente="1"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">História</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">7</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>2</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- Geografia — verde -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="geografia" data-materia-real="Geografia" data-tarefas="1" data-apostilas="1" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9Z"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Geografia</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">5</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>1</strong> apostila</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">1</strong> tarefa</span>
+          </div>
+        </div>
+
+        <!-- Ciências — roxo -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="ciências" data-materia-real="Ciências" data-tarefas="0" data-apostilas="0" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2M9 2h6M9 13h6"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Ciências</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">3</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- Inglês — laranja -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="inglês" data-materia-real="Inglês" data-tarefas="0" data-apostilas="2" data-recente="1"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Inglês</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">6</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>2</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- Arte — rosa -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="arte" data-materia-real="Arte" data-tarefas="0" data-apostilas="1" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2a10 10 0 1 0 0 20c.6 0 1-.4 1-1 0-.3-.1-.5-.3-.7-.2-.2-.3-.4-.3-.7 0-.6.4-1 1-1h1.2A4.6 4.6 0 0 0 19 14c0-6.6-3.1-12-7-12Z"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Arte</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">2</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>1</strong> apostila</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- O.E Matemática — azul claro -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="o.e matemática" data-materia-real="O.E Matemática" data-tarefas="0" data-apostilas="0" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">O.E Matemática</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- O.E Português — vermelho suave -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="o.e português" data-materia-real="O.E Português" data-tarefas="0" data-apostilas="0" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">O.E Português</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+        <!-- Multidisciplinar — ciano/turquesa -->
+        <div class="subject-card" tabindex="0" role="button"
+             data-name="multidisciplinar" data-materia-real="Multidisciplinar" data-tarefas="0" data-apostilas="0" data-recente="0"
+             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+          <div class="subject-card-top">
+            <div class="subject-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            </div>
+            <div class="subject-card-arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+          <div class="subject-card-name">Multidisciplinar</div>
+          <div class="subject-card-meta">
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
+            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="results-empty" id="resultsEmpty">Nenhuma matéria encontrada com esses critérios.</div>
+    </section>
+  </main>
+
+</div>
+
+<script>
+  // Mobile sidebar toggle — mesmo padrão do dashboard
+  var menuBtn = document.getElementById('menuBtn');
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      if (window.AtlasData) {
+        AtlasData.logout();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  }
+  var sidebar = document.getElementById('sidebar');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function () {
+      sidebar.classList.toggle('open');
+    });
+  }
+  document.addEventListener('click', function (e) {
+    if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
+      sidebar.classList.remove('open');
+    }
+  });
+
+  /* ===================================================
+     ===== CONTADORES REAIS (anotações e tarefas) ====
+     ===================================================
+     Lê os dados do Modo Desenvolvedor (localStorage, via AtlasData)
+     e atualiza os números mostrados em cada card, além dos atributos
+     data-tarefas e data-recente usados pelos filtros abaixo.
+     Apostilas continuam com o número de exemplo (sem CRUD por enquanto).
+  ===================================================== */
+  function syncSubjectCounters() {
+    if (!window.AtlasData) return;
+    var cards = document.querySelectorAll('#subjectGrid .subject-card');
+    var todayISO = new Date().toISOString().slice(0, 10);
+    var sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    cards.forEach(function (card) {
+      var materiaReal = card.dataset.materiaReal;
+      if (!materiaReal) return;
+
+      var notes = AtlasData.getNotesBy(materiaReal);
+      var tasks = AtlasData.getTasksBy(materiaReal);
+
+      var noteCountEl = card.querySelector('.note-count');
+      if (noteCountEl) {
+        noteCountEl.textContent = notes.length;
+        var noteLabel = noteCountEl.nextSibling;
+        if (noteLabel) noteLabel.textContent = notes.length === 1 ? ' anotação' : ' anotações';
+      }
+
+      var taskCountEl = card.querySelector('.task-count');
+      if (taskCountEl) {
+        taskCountEl.textContent = tasks.length;
+        var taskLabel = taskCountEl.nextSibling;
+        if (taskLabel) taskLabel.textContent = tasks.length === 1 ? ' tarefa' : ' tarefas';
+      }
+
+      card.dataset.tarefas = String(tasks.length);
+
+      var recente = notes.concat(tasks).some(function (item) {
+        return (item.atualizadoEm || item.criadoEm || 0) >= sevenDaysAgo;
+      });
+      card.dataset.recente = recente ? '1' : '0';
+    });
+  }
+
+  syncSubjectCounters();
+  document.addEventListener('atlas-data-ready', function () {
+    if (window.AtlasData) {
+      syncSubjectCounters();
+      AtlasData.onDataChange(syncSubjectCounters);
+      AtlasData.injectDevBanner();
+    }
+  });
+
+  /* ===================================================
+     ===== BUSCA + FILTROS + NAVEGAÇÃO PARA materia.html ====
+     =================================================== */
+  (function () {
+    const grid = document.getElementById('subjectGrid');
+    const cards = Array.from(grid.querySelectorAll('.subject-card'));
+    const searchInput = document.getElementById('subjectSearchInput');
+    const filterGroup = document.getElementById('filterGroup');
+    const filterChips = Array.from(filterGroup.querySelectorAll('.filter-chip'));
+    const emptyState = document.getElementById('resultsEmpty');
+
+    let currentFilter = 'todas';
+
+    function matchesFilter(card) {
+      switch (currentFilter) {
+        case 'tarefas':
+          return parseInt(card.dataset.tarefas, 10) > 0;
+        case 'apostilas':
+          return parseInt(card.dataset.apostilas, 10) > 0;
+        case 'recentes':
+          return card.dataset.recente === '1';
+        default:
+          return true;
+      }
+    }
+
+    function applyFilters() {
+      const term = searchInput.value.trim().toLowerCase();
+      let visibleCount = 0;
+
+      cards.forEach((card) => {
+        const matchesSearch = !term || card.dataset.name.includes(term);
+        const show = matchesSearch && matchesFilter(card);
+        card.classList.toggle('hidden', !show);
+        if (show) visibleCount++;
+      });
+
+      emptyState.classList.toggle('show', visibleCount === 0);
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+
+    filterChips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        filterChips.forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentFilter = chip.dataset.filter;
+        applyFilters();
+      });
+    });
+
+    // Navegação: ao clicar (ou Enter/Espaço com foco) em uma matéria, abre materia.html
+    // Por enquanto todas as matérias levam à mesma estrutura visual base;
+    // o parâmetro ?materia= identifica qual foi escolhida para uso futuro.
+    function goToSubject(card) {
+      var materiaReal = card.dataset.materiaReal || card.dataset.name;
+      var slug = window.AtlasData ? AtlasData.slugify(materiaReal) :
+        materiaReal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
+      window.location.href = 'materia.html?materia=' + encodeURIComponent(slug);
+    }
+
+    cards.forEach((card) => {
+      card.addEventListener('click', () => goToSubject(card));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          goToSubject(card);
+        }
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
