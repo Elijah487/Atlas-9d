@@ -849,7 +849,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
   document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
 })();
 
-/* Access modal */
+/* Access modal — usa AtlasData.checkAccessCode + loginWithRole (atlas-data.js) */
 (function(){
   var overlay = document.getElementById('accessModalOverlay');
   var closeBtn = document.getElementById('accessModalClose');
@@ -860,28 +860,70 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
   var submitBtn = document.getElementById('accessSubmitBtn');
 
   function openModal(){ overlay.classList.add('open'); setTimeout(function(){ input.focus(); }, 320); document.body.style.overflow='hidden'; }
-  function closeModal(){ overlay.classList.remove('open'); document.body.style.overflow=''; input.value=''; input.classList.remove('error'); errEl.classList.remove('show'); loadEl.classList.remove('show'); }
+  function closeModal(){ overlay.classList.remove('open'); document.body.style.overflow=''; input.value=''; input.classList.remove('error'); errEl.classList.remove('show'); loadEl.classList.remove('show'); submitBtn.disabled=false; }
 
   document.querySelectorAll('.js-open-access').forEach(function(b){ b.addEventListener('click', openModal); });
   closeBtn.addEventListener('click', closeModal);
   overlay.addEventListener('click', function(e){ if(e.target===overlay) closeModal(); });
   document.addEventListener('keydown', function(e){ if(e.key==='Escape' && overlay.classList.contains('open')) closeModal(); });
 
+  function doLogin(role){
+    // Se AtlasData ainda não carregou (módulo ES assíncrono), entra direto
+    if(!window.AtlasData || !AtlasData.loginWithRole){
+      window.location.href = 'dashboard.html';
+      return;
+    }
+    AtlasData.loginWithRole(role, function(ok){
+      loadEl.classList.remove('show');
+      submitBtn.disabled = false;
+      if(ok){
+        window.location.href = 'dashboard.html';
+      } else {
+        // Falha no Firebase (raro) — entra assim mesmo pois sessão local já foi gravada
+        window.location.href = 'dashboard.html';
+      }
+    });
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
-    var val = input.value.trim().toLowerCase();
+    var val = input.value.trim(); // NÃO converte para lowercase — dev code é case-sensitive
     if(!val){ input.classList.add('error'); input.focus(); return; }
-    input.classList.remove('error'); errEl.classList.remove('show'); loadEl.classList.add('show'); submitBtn.disabled = true;
-    setTimeout(function(){
-      loadEl.classList.remove('show'); submitBtn.disabled = false;
-      if(window.AtlasData && AtlasData.checkAccess){
-        if(AtlasData.checkAccess(val)){ window.location.href='dashboard.html'; }
-        else { input.classList.add('error'); errEl.classList.add('show'); input.focus(); }
+    input.classList.remove('error');
+    errEl.classList.remove('show');
+    loadEl.classList.add('show');
+    submitBtn.disabled = true;
+
+    // Tenta via AtlasData.checkAccessCode primeiro
+    if(window.AtlasData && AtlasData.checkAccessCode){
+      var role = AtlasData.checkAccessCode(val);
+      if(role){
+        doLogin(role);
       } else {
-        if(val==='atlas9d'||val==='atlas'){ window.location.href='dashboard.html'; }
-        else { input.classList.add('error'); errEl.classList.add('show'); input.focus(); }
+        loadEl.classList.remove('show');
+        submitBtn.disabled = false;
+        input.classList.add('error');
+        errEl.classList.add('show');
+        input.focus();
       }
-    }, 900);
+      return;
+    }
+
+    // Fallback caso atlas-data.js ainda não tenha carregado (raro):
+    // espera o evento atlas-data-ready e tenta de novo
+    document.addEventListener('atlas-data-ready', function handler(){
+      document.removeEventListener('atlas-data-ready', handler);
+      var role = AtlasData.checkAccessCode(val);
+      if(role){
+        doLogin(role);
+      } else {
+        loadEl.classList.remove('show');
+        submitBtn.disabled = false;
+        input.classList.add('error');
+        errEl.classList.add('show');
+        input.focus();
+      }
+    });
   });
 })();
 
