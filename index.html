@@ -72,7 +72,7 @@ ul     { list-style: none; }
 
 /* ============ HEADER ============ */
 header {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
   background: transparent;
   border-bottom: 1px solid transparent;
   transition: background .4s var(--ease), border-color .4s var(--ease), backdrop-filter .4s var(--ease);
@@ -110,11 +110,10 @@ nav {
   transition: border-color .25s var(--ease), background .25s var(--ease),
               color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease);
 }
-.dev-btn .dev-dot {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--red-bright);
-  opacity: 0.45;
-  transition: opacity .25s, box-shadow .25s;
+.dev-btn-icon {
+  width: 13px; height: 13px; flex-shrink: 0;
+  color: var(--red-bright); opacity: 0.6;
+  transition: opacity .25s, filter .25s;
 }
 .dev-btn:hover {
   border-color: rgba(212,43,58,0.38);
@@ -123,9 +122,9 @@ nav {
   box-shadow: 0 0 12px -4px var(--red-glow);
   transform: translateY(-1px);
 }
-.dev-btn:hover .dev-dot {
+.dev-btn:hover .dev-btn-icon {
   opacity: 1;
-  box-shadow: 0 0 6px 1px rgba(255,61,80,0.55);
+  filter: drop-shadow(0 0 4px rgba(255,61,80,0.55));
 }
 .dev-btn:active { transform: translateY(0); }
 
@@ -147,7 +146,7 @@ nav {
 
 /* Nav overlay */
 .nav-overlay {
-  position: fixed; inset: 0; z-index: 190;
+  position: fixed; inset: 0; z-index: 150;
   background: rgba(4,4,5,0.97);
   backdrop-filter: blur(24px);
   display: flex; align-items: center; justify-content: center;
@@ -175,7 +174,11 @@ nav {
   font-family: 'JetBrains Mono', monospace; font-size: 11px;
   color: var(--red-bright); vertical-align: super; margin-right: 8px;
 }
-.nav-overlay-close { position: absolute; top: 20px; right: 26px; }
+.nav-overlay-close {
+  position: absolute; top: 20px; right: 26px;
+  /* Garante que o X do menu só aparece dentro do overlay — sem vazar para cima de outros elementos */
+  z-index: 1;
+}
 
 /* ============ BUTTONS ============ */
 .btn {
@@ -520,7 +523,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
 
 /* ============ DEV MODAL ============ */
 .dev-modal-overlay {
-  position: fixed; inset: 0; z-index: 300;
+  position: fixed; inset: 0; z-index: 400;
   background: rgba(2,2,3,0.88);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   display: flex; align-items: center; justify-content: center; padding: 20px;
@@ -692,7 +695,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
   .footer-inner { flex-direction: column; text-align: center; }
   .footer-links { gap: 16px; flex-wrap: wrap; justify-content: center; }
   .hero-node { display: none; }
-  .dev-btn span:not(.dev-dot) { display: none; }
+  .dev-btn span { display: none; }
 }
 @media (max-width: 440px) {
   .hero-actions { flex-direction: column; width: 100%; }
@@ -723,7 +726,11 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
     <!-- Nav right: DEV button + hamburger -->
     <div class="nav-right">
       <button class="dev-btn" id="devBtn" aria-label="Modo desenvolvedor" title="Modo desenvolvedor">
-        <span class="dev-dot"></span>
+        <svg class="dev-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 8L3 12l4 4"/>
+          <path d="M17 8l4 4-4 4"/>
+          <line x1="14" y1="6" x2="10" y2="18"/>
+        </svg>
         <span>DEV</span>
       </button>
       <button class="hamburger" id="hamburgerBtn" aria-label="Abrir menu" aria-expanded="false">
@@ -756,8 +763,11 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
     </button>
     <div class="dev-modal-header">
       <div class="dev-modal-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>
+        <!-- ícone </> estilo dev — chevrons arredondados + barra central -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 8L3 12l4 4"/>
+          <path d="M17 8l4 4-4 4"/>
+          <line x1="14" y1="6" x2="10" y2="18"/>
         </svg>
       </div>
       <div class="dev-modal-title-block">
