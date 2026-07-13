@@ -85,7 +85,7 @@ import {
        firebase deploy --only functions
      A URL aparece no terminal após o deploy, no formato:
        https://southamerica-east1-atlas-9d.cloudfunctions.net/verifyDevPassword */
-  var CLOUD_FUNCTION_URL = 'https://southamerica-east1-atlas-9d.cloudfunctions.net/verifyDevPassword';
+  var CLOUD_FUNCTION_URL = 'https://atlas-9d.vercel.app/api/dev-login';
 
   var SUBJECTS = [
     'Matemática', 'Português', 'História', 'Geografia',
