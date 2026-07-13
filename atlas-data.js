@@ -1,69 +1,40 @@
 /* =====================================================================
-   ATLAS — Camada central de dados e sessão (v5 — cache persistente)
+   ATLAS — Camada central de dados e sessão (v6 — autenticação segura)
    ---------------------------------------------------------------------
    Este arquivo é incluído em TODAS as páginas do Atlas, como módulo ES
    (<script type="module" src="atlas-data.js">). Ele:
 
-   1. Conecta ao Firebase Realtime Database usando o SDK MODULAR (mais
-      leve que o SDK "compat" usado antes — só importa exatamente as
-      funções usadas, reduzindo bastante o que cada página baixa e,
-      por consequência, o tempo de carregamento/conexão a cada troca
-      de página).
+   1. Conecta ao Firebase Realtime Database usando o SDK MODULAR.
 
-   2. Mantém um CACHE LOCAL em memória, sincronizado em tempo real com
-      o Firebase. Isso é o que permite que o resto do código do Atlas
-      (dashboard.html, materia.html, etc.) continue chamando funções
-      como AtlasData.getNotes() de forma SÍNCRONA (sem 'await', sem
-      Promises) — nenhuma outra página precisa mudar por causa disto.
+   2. Mantém um CACHE LOCAL em memória + sessionStorage, permitindo
+      leitura síncrona por todas as páginas sem re-download de dados.
 
-   3. [v5] O cache agora é também gravado em sessionStorage (chave
-      CACHE_KEY). Ao abrir qualquer página, o cache é restaurado
-      imediatamente do sessionStorage antes mesmo de o Firebase
-      responder — o que elimina o "flash vazio" na troca de páginas.
-      O Firebase continua sincronizando em segundo plano e atualiza
-      a UI só quando os dados realmente mudarem.
+   3. [v5] Cache persistente em sessionStorage — dados aparecem
+      instantaneamente ao trocar de página.
 
-   4. [v5] Em vez de um único listener no nó 'atlas_data' inteiro,
-      existem agora QUATRO listeners separados (notes, tasks, events,
-      notices). Cada um baixa apenas sua própria coleção, reduzindo o
-      volume de dados trafegados por evento de mudança.
+   4. [v5] Quatro listeners separados por coleção (notes, tasks,
+      events, notices) em vez de um listener no nó raiz.
 
-   5. [v5] As notificações de mudança são disparadas via debounce
-      (scheduleNotify), evitando múltiplas re-renderizações consecutivas
-      quando vários listeners respondem ao mesmo tempo na inicialização.
+   5. [v5] Notificações via debounce — evita múltiplos re-renders.
 
-   6. Gerencia a SESSÃO do usuário (aluno normal ou desenvolvedor).
-      A sessão em si (qual papel a pessoa tem NESTE navegador) continua
-      em localStorage — isso é só uma preferência local de UI, não um
-      dado compartilhado. O que importa para a segurança real é a
-      autenticação no Firebase (login anônimo) e a marcação
-      'dev_sessions/{uid}' no banco, que é o que as REGRAS do Firebase
-      checam de verdade antes de permitir qualquer escrita.
+   6. [v6] AUTENTICAÇÃO DE DESENVOLVEDOR COMPLETAMENTE SEGURA:
+      A senha de desenvolvedor NÃO existe mais neste arquivo.
+      O frontend envia a senha para uma Firebase Cloud Function
+      (verifyDevPassword) via HTTPS. A função compara com a variável
+      de ambiente DEV_PASSWORD no servidor e, se correta, grava
+      dev_sessions/{uid} = true no banco com privilégios de Admin SDK.
+      Nenhuma inspeção de DevTools, Sources ou Network consegue
+      descobrir a senha — ela nunca chega ao navegador.
 
    7. PROTEGE as operações de escrita em duas camadas:
-      a) Aqui no cliente: saveX/deleteX só tentam escrever se isDev().
-      b) No servidor (regras do Firebase): a escrita só é aceita se o
-         uid autenticado estiver marcado em 'dev_sessions'.
+      a) Cliente: saveX/deleteX só executam se isDev() = true.
+      b) Servidor: regras do Realtime Database só aceitam escrita
+         se o uid estiver em dev_sessions (verificado pelo Firebase).
 
-   IMPORTANTE — este arquivo agora é um MÓDULO ES:
-   A tag no HTML deve ser:
+   IMPORTANTE — módulo ES:
      <script type="module" src="atlas-data.js"></script>
-   (sem mais os 3 scripts separados do SDK "compat" antes dele — o
-   próprio módulo já importa o que precisa, direto de um CDN que
-   suporta ES Modules).
-
-   Como módulos carregam de forma assíncrona (deferred), qualquer script
-   no HTML que dependa de window.AtlasData deve esperar pelo evento
-   'atlas-data-ready', disparado no documento assim que tudo estiver
-   pronto:
-
-     <script type="module" src="atlas-data.js"></script>
-     <script type="module" src="atlas-editor.js"></script>
-     <script>
-       document.addEventListener('atlas-data-ready', function () {
-         if (window.AtlasData) { AtlasData.requireSession('index.html'); }
-       });
-     </script>
+   Qualquer script que dependa de AtlasData deve escutar:
+     document.addEventListener('atlas-data-ready', callback)
    ===================================================================== */
 
 import {
@@ -104,13 +75,17 @@ import {
 
   var ATLAS_SESSION_KEY = 'atlas_session';   // 'student' | 'dev' (preferência local de UI)
   var DATA_PATH = 'atlas_data';              // nó no Firebase: { notes, tasks, events, notices }
-  var DEV_SESSIONS_PATH = 'dev_sessions';    // nó no Firebase: { [uid]: true }
 
   /* [v5] Chave do sessionStorage para o cache entre páginas. */
   var CACHE_KEY = 'atlas_cache';
 
-  var STUDENT_CODE = 'atlas9d';
-  var DEV_CODE = 'Elijah044'; // comparação sensível a maiúsculas/minúsculas, como uma senha real
+  /* [v6] URL da Cloud Function que verifica a senha de desenvolvedor.
+     A senha em si NUNCA aparece aqui — fica só no servidor.
+     Troque pela URL real após o deploy:
+       firebase deploy --only functions
+     A URL aparece no terminal após o deploy, no formato:
+       https://southamerica-east1-atlas-9d.cloudfunctions.net/verifyDevPassword */
+  var CLOUD_FUNCTION_URL = 'https://southamerica-east1-atlas-9d.cloudfunctions.net/verifyDevPassword';
 
   var SUBJECTS = [
     'Matemática', 'Português', 'História', 'Geografia',
@@ -442,13 +417,21 @@ import {
    * Se a sessão local for 'dev', garante que a marcação em dev_sessions
    * também seja recriada para esse uid.
    */
+  /**
+   * Reconecta silenciosamente quando já existe sessão local mas o
+   * Firebase Auth perdeu o estado (ex.: usuário abriu uma página
+   * interna direto, sem passar pelo index.html).
+   *
+   * Nota [v6]: para sessão 'dev', NÃO regravamos dev_sessions aqui —
+   * isso exigiria a senha novamente. A sessão 'dev' no localStorage é
+   * suficiente para a UI. As regras do Firebase protegem a escrita real.
+   * Se o uid não estiver mais em dev_sessions (ex.: limpeza manual do
+   * banco), as tentativas de escrita falharão no Firebase com erro de
+   * permissão — que é o comportamento correto e seguro.
+   */
   function reauthenticate(role) {
     if (!firebaseAuthInstance) return;
-    signInAnonymously(firebaseAuthInstance).then(function (credential) {
-      if (role === 'dev' && firebaseDbInstance && credential.user) {
-        set(ref(firebaseDbInstance, DEV_SESSIONS_PATH + '/' + credential.user.uid), true);
-      }
-    }).catch(function (error) {
+    signInAnonymously(firebaseAuthInstance).catch(function (error) {
       console.error('Atlas: falha ao reconectar sessão existente ao Firebase.', error);
     });
   }
@@ -585,49 +568,123 @@ import {
     return s === 'dev' || s === 'student';
   }
 
-  function checkAccessCode(typedRaw) {
-    var typed = String(typedRaw || '').trim();
-    if (typed.toLowerCase() === STUDENT_CODE.toLowerCase()) return 'student';
-    if (typed === DEV_CODE) return 'dev';
-    return null;
-  }
-
   /**
-   * Faz o login anônimo no Firebase e, se o papel for 'dev', marca esse
-   * uid em dev_sessions/{uid} = true — é essa marcação que as regras do
-   * Firebase usam para decidir quem pode escrever de verdade.
-   * Chamar a partir do modal de acesso (index.html) após checkAccessCode.
+   * [v6] Login de aluno — sem senha, sem servidor.
+   * Apenas faz o login anônimo e grava a sessão local como 'student'.
    *
-   * @param {string} role 'student' ou 'dev'
-   * @param {function(boolean)} callback chamado com true (sucesso) ou false (falha)
+   * @param {function(boolean)} callback  true = sucesso, false = falha
    */
-  function loginWithRole(role, callback) {
-    setSessionLocal(role);
+  function loginAsStudent(callback) {
+    setSessionLocal('student');
 
     onFirebaseReady(function () {
       if (!firebaseAuthInstance) {
-        console.warn('Atlas: Firebase não inicializado — funcionando apenas localmente.');
+        /* Sem Firebase — funciona apenas localmente (modo offline). */
         callback(true);
         return;
       }
-
-      signInAnonymously(firebaseAuthInstance).then(function (credential) {
-        var theUid = credential.user.uid;
-        if (role === 'dev') {
-          set(ref(firebaseDbInstance, DEV_SESSIONS_PATH + '/' + theUid), true).then(function () {
-            callback(true);
-          }).catch(function (error) {
-            console.error('Atlas: falha ao registrar sessão de desenvolvedor.', error);
-            callback(false);
-          });
-        } else {
-          callback(true);
-        }
-      }).catch(function (error) {
-        console.error('Atlas: falha no login anônimo do Firebase.', error);
-        callback(false);
-      });
+      signInAnonymously(firebaseAuthInstance)
+        .then(function () { callback(true); })
+        .catch(function (err) {
+          console.error('Atlas: falha no login anônimo.', err);
+          callback(false);
+        });
     });
+  }
+
+  /**
+   * [v6] Login de desenvolvedor — senha verificada no SERVIDOR.
+   *
+   * Fluxo:
+   *   1. Login anônimo no Firebase para obter um uid autenticado.
+   *   2. Obtém o ID Token desse usuário (JWT assinado pelo Firebase).
+   *   3. Envia { password, idToken } para a Cloud Function via HTTPS POST.
+   *   4. A Cloud Function verifica a senha no servidor e, se correta,
+   *      grava dev_sessions/{uid} = true com Admin SDK.
+   *   5. Se ok: grava 'dev' no localStorage e chama callback(true).
+   *   6. Se senha errada: callback(false, 'wrong_password').
+   *   7. Se erro de rede: callback(false, 'network_error').
+   *
+   * A senha NUNCA é comparada no cliente. Nenhuma inspeção de DevTools
+   * consegue descobri-la — ela só existe na variável de ambiente do
+   * servidor (Firebase Functions Environment).
+   *
+   * @param {string}   password              Senha digitada pelo usuário
+   * @param {function(boolean, string)} callback
+   *   Chamado com (true, null) no sucesso ou (false, motivo) no erro.
+   *   Motivos possíveis: 'wrong_password' | 'network_error' | 'auth_error'
+   */
+  function loginAsDev(password, callback) {
+    onFirebaseReady(function () {
+      if (!firebaseAuthInstance) {
+        console.warn('Atlas: Firebase não inicializado.');
+        callback(false, 'auth_error');
+        return;
+      }
+
+      /* Passo 1: garantir que há um usuário anônimo autenticado. */
+      var authPromise = firebaseAuthInstance.currentUser
+        ? Promise.resolve(firebaseAuthInstance.currentUser)
+        : signInAnonymously(firebaseAuthInstance).then(function (c) { return c.user; });
+
+      authPromise
+        .then(function (user) {
+          /* Passo 2: obter o ID Token JWT para enviar ao servidor. */
+          return user.getIdToken(/* forceRefresh */ false);
+        })
+        .then(function (idToken) {
+          /* Passo 3: chamar a Cloud Function via HTTPS POST.
+             A senha vai no body, criptografada pelo TLS (HTTPS).
+             Ela nunca aparece em logs de console ou no código-fonte. */
+          return fetch(CLOUD_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: password, idToken: idToken })
+          });
+        })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            return { status: response.status, data: data };
+          });
+        })
+        .then(function (result) {
+          if (result.data && result.data.ok === true) {
+            /* Servidor confirmou: senha correta e dev_sessions gravado. */
+            setSessionLocal('dev');
+            callback(true, null);
+          } else if (result.status === 403) {
+            /* Senha errada — servidor respondeu explicitamente. */
+            callback(false, 'wrong_password');
+          } else {
+            console.error('Atlas: resposta inesperada da Cloud Function.', result);
+            callback(false, 'network_error');
+          }
+        })
+        .catch(function (err) {
+          console.error('Atlas: erro ao chamar Cloud Function.', err);
+          callback(false, 'network_error');
+        });
+    });
+  }
+
+  /**
+   * [v6] Mantido por compatibilidade com as outras páginas que chamam
+   * AtlasData.loginWithRole('student', callback).
+   * Para dev, use AtlasData.loginAsDev(password, callback) diretamente
+   * a partir do modal — o index.html já foi atualizado para isso.
+   *
+   * @param {string} role 'student' (único valor suportado aqui)
+   * @param {function(boolean)} callback
+   */
+  function loginWithRole(role, callback) {
+    if (role === 'student') {
+      loginAsStudent(callback);
+    } else {
+      /* Tentativa de usar loginWithRole('dev') diretamente sem senha —
+         bloqueada. Use loginAsDev(password, callback) em vez disso. */
+      console.error('Atlas: use AtlasData.loginAsDev(password, callback) para acesso dev.');
+      callback(false);
+    }
   }
 
   function requireSession(redirectTo) {
@@ -930,8 +987,8 @@ import {
     clearSession: clearSession,
     isDev: isDev,
     isLoggedIn: isLoggedIn,
-    checkAccessCode: checkAccessCode,
-    loginWithRole: loginWithRole,
+    loginWithRole: loginWithRole,    // compatibilidade — para role 'student'
+    loginAsDev: loginAsDev,          // [v6] login de dev via Cloud Function
     requireSession: requireSession,
     logout: logout,
     onFirebaseReady: onFirebaseReady,
