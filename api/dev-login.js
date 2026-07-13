@@ -10,7 +10,6 @@ export default async function handler(req, res) {
   }
 
   const DEV_PASSWORD = process.env.DEV_PASSWORD;
-
   if (!DEV_PASSWORD) {
     return res.status(500).json({ ok: false, error: 'Servidor mal configurado.' });
   }
@@ -19,29 +18,17 @@ export default async function handler(req, res) {
     return res.status(403).json({ ok: false, error: 'Senha incorreta.' });
   }
 
-  // Senha correta — gravar dev_sessions no Firebase com Admin SDK
   try {
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    const { getDatabase } = await import('firebase-admin/database');
-
-    if (!getApps().length) {
-      initializeApp({
-        credential: cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        }),
-        databaseURL: 'https://atlas-9d-default-rtdb.firebaseio.com',
-      });
-    }
-
-    // Extrai o uid do ID Token (verificação simples via Firebase Auth REST)
-    const verifyUrl = `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${process.env.FIREBASE_API_KEY}`;
-    const verifyRes = await fetch(verifyUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken }),
-    });
+    // Verificar o idToken e pegar o uid via Firebase Auth REST API
+    const apiKey = process.env.FIREBASE_API_KEY;
+    const verifyRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      }
+    );
     const verifyData = await verifyRes.json();
 
     if (!verifyData.users?.[0]?.localId) {
@@ -49,9 +36,27 @@ export default async function handler(req, res) {
     }
 
     const uid = verifyData.users[0].localId;
-    await getDatabase().ref(`dev_sessions/${uid}`).set(true);
+
+    // Gravar dev_sessions/{uid} = true via Firebase REST API
+    // usando o idToken do próprio usuário + regras do banco
+    const dbUrl = process.env.FIREBASE_DATABASE_URL;
+    const writeRes = await fetch(
+      `${dbUrl}/dev_sessions/${uid}.json?auth=${idToken}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(true),
+      }
+    );
+
+    if (!writeRes.ok) {
+      const writeErr = await writeRes.json();
+      console.error('Erro ao gravar dev_sessions:', writeErr);
+      return res.status(500).json({ ok: false, error: 'Erro ao registrar sessão.' });
+    }
 
     return res.status(200).json({ ok: true });
+
   } catch (err) {
     console.error('Erro:', err);
     return res.status(500).json({ ok: false, error: 'Erro interno.' });
