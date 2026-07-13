@@ -1083,51 +1083,45 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
     input.focus();
   });
 
+  /* [v6] doLogin — a senha vai para o SERVIDOR, nunca é comparada aqui.
+     AtlasData.loginAsDev() cuida de tudo:
+       1. Login anônimo no Firebase → obtém uid autenticado.
+       2. Pega o ID Token JWT desse usuário.
+       3. POST { password, idToken } para a Cloud Function via HTTPS.
+       4. Cloud Function verifica a senha e grava dev_sessions no servidor.
+     Nenhuma senha é comparada ou armazenada no cliente. */
   function doLogin(){
     var val = input.value;
     if(!val){ shakeInput(); return; }
     hideFeedback();
     submitBtn.disabled = true;
+    showLoading();
 
-    /* Tenta via AtlasData */
-    if(window.AtlasData && AtlasData.checkAccessCode){
-      var role = AtlasData.checkAccessCode(val);
-      if(role === 'dev'){
-        showLoading();
-        AtlasData.loginWithRole('dev', function(ok){
-          if(ok){
-            submitBtn.classList.add('success');
-            submitBtn.textContent = 'Modo ativo ✓';
-            setTimeout(function(){ window.location.href = 'dashboard.html'; }, 700);
-          } else {
-            showError('Falha ao conectar. Tente novamente.');
-            submitBtn.disabled = false;
-          }
-        });
-      } else {
-        shakeInput();
-        showError('Senha incorreta.');
-        submitBtn.disabled = false;
-      }
-      return;
-    }
-
-    /* Fallback: aguarda atlas-data-ready */
-    document.addEventListener('atlas-data-ready', function handler(){
-      document.removeEventListener('atlas-data-ready', handler);
-      var role = window.AtlasData ? AtlasData.checkAccessCode(val) : null;
-      if(role === 'dev'){
-        AtlasData.loginWithRole('dev', function(ok){
+    function runLogin(){
+      AtlasData.loginAsDev(val, function(ok, reason){
+        if(ok){
           submitBtn.classList.add('success');
           submitBtn.textContent = 'Modo ativo ✓';
           setTimeout(function(){ window.location.href = 'dashboard.html'; }, 700);
-        });
-      } else {
-        shakeInput();
-        showError('Senha incorreta.');
-        submitBtn.disabled = false;
-      }
-    });
+        } else if(reason === 'wrong_password'){
+          shakeInput();
+          showError('Senha incorreta.');
+          submitBtn.disabled = false;
+        } else {
+          showError('Erro de conexão. Verifique sua internet.');
+          submitBtn.disabled = false;
+        }
+      });
+    }
+
+    if(window.AtlasData && AtlasData.loginAsDev){
+      runLogin();
+    } else {
+      document.addEventListener('atlas-data-ready', function handler(){
+        document.removeEventListener('atlas-data-ready', handler);
+        runLogin();
+      });
+    }
   }
 
   submitBtn.addEventListener('click', doLogin);
