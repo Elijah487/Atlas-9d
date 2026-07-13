@@ -1,5 +1,11 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+
+  console.log("========== ATLAS DEV LOGIN ==========");
+  console.log("MÉTODO RECEBIDO:", req.method);
+  console.log("BODY RECEBIDO:", req.body);
+  console.log("=====================================");
+
+  if (req.method !== 'POST')  {
     return res.status(405).json({ ok: false, error: 'Método não permitido.' });
   }
 
