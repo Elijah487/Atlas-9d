@@ -12,21 +12,50 @@ if (!admin.apps.length) {
 }
 
 export default async function handler(req, res) {
+
   if (req.method !== "POST") {
-    return res.status(405).json({ok:false});
+    return res.status(405).json({
+      ok: false,
+      error: "Método não permitido"
+    });
   }
 
-  const {password, idToken} = req.body;
+  const { password, idToken } = req.body || {};
 
-  if(password !== process.env.DEV_PASSWORD){
-    return res.status(403).json({ok:false});
+  if (!password || !idToken) {
+    return res.status(400).json({
+      ok: false,
+      error: "Campos ausentes"
+    });
   }
 
-  const decoded = await admin.auth().verifyIdToken(idToken);
+  if (password !== process.env.DEV_PASSWORD) {
+    return res.status(403).json({
+      ok: false,
+      error: "Senha incorreta"
+    });
+  }
 
-  await admin.database()
-    .ref(`dev_sessions/${decoded.uid}`)
-    .set(true);
+  try {
 
-  return res.json({ok:true});
+    const decoded = await admin.auth().verifyIdToken(idToken);
+
+    await admin.database()
+      .ref(`dev_sessions/${decoded.uid}`)
+      .set(true);
+
+    return res.status(200).json({
+      ok: true
+    });
+
+  } catch (error) {
+
+    console.error("Erro:", error);
+
+    return res.status(500).json({
+      ok: false,
+      error: "Erro interno"
+    });
+
+  }
 }
