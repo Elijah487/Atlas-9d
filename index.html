@@ -1083,46 +1083,13 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
     input.focus();
   });
 
-  /* [v6] doLogin — a senha vai para o SERVIDOR, nunca é comparada aqui.
-     AtlasData.loginAsDev() cuida de tudo:
-       1. Login anônimo no Firebase → obtém uid autenticado.
-       2. Pega o ID Token JWT desse usuário.
-       3. POST { password, idToken } para a Cloud Function via HTTPS.
-       4. Cloud Function verifica a senha e grava dev_sessions no servidor.
-     Nenhuma senha é comparada ou armazenada no cliente. */
-  function doLogin(){
-    var val = input.value;
-    if(!val){ shakeInput(); return; }
-    hideFeedback();
-    submitBtn.disabled = true;
-    showLoading();
-
-    function runLogin(){
-      AtlasData.loginAsDev(val, function(ok, reason){
-        if(ok){
-          submitBtn.classList.add('success');
-          submitBtn.textContent = 'Modo ativo ✓';
-          setTimeout(function(){ window.location.href = 'dashboard.html'; }, 700);
-        } else if(reason === 'wrong_password'){
-          shakeInput();
-          showError('Senha incorreta.');
-          submitBtn.disabled = false;
-        } else {
-          showError('Erro de conexão. Verifique sua internet.');
-          submitBtn.disabled = false;
-        }
-      });
-    }
-
-    if(window.AtlasData && AtlasData.loginAsDev){
-      runLogin();
-    } else {
-      document.addEventListener('atlas-data-ready', function handler(){
-        document.removeEventListener('atlas-data-ready', handler);
-        runLogin();
-      });
-    }
-  }
+  /* [v7] doLogin — email/senha reais do Firebase Authentication.
+     O email do dev fica fixo aqui; só a senha é digitada no modal.
+     ANTES DE USAR: crie o usuário no painel do Firebase →
+       Authentication → Usuários → Adicionar usuário
+     e substitua SEU_EMAIL_AQUI pelo email que você cadastrou. */
+  var DEV_EMAIL = 'SEU_EMAIL_AQUI@gmail.com'; // ← troque pelo seu email real\n
+  function doLogin(){\n    var val = input.value;\n    if(!val){ shakeInput(); return; }\n    hideFeedback();\n    submitBtn.disabled = true;\n    showLoading();\n\n    function runLogin(){\n      AtlasData.loginAsDev(DEV_EMAIL, val, function(ok, reason){\n        if(ok){\n          submitBtn.classList.add('success');\n          submitBtn.textContent = 'Modo ativo ✓';\n          setTimeout(function(){ window.location.href = 'dashboard.html'; }, 700);\n        } else if(reason === 'wrong_password'){\n          shakeInput();\n          showError('Senha incorreta.');\n          submitBtn.disabled = false;\n        } else {\n          showError('Erro de conexão. Verifique sua internet.');\n          submitBtn.disabled = false;\n        }\n      });\n    }\n\n    if(window.AtlasData && AtlasData.loginAsDev){\n      runLogin();\n    } else {\n      document.addEventListener('atlas-data-ready', function handler(){\n        document.removeEventListener('atlas-data-ready', handler);\n        runLogin();\n      });\n    }\n  }
 
   submitBtn.addEventListener('click', doLogin);
 })();
