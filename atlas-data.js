@@ -60,7 +60,7 @@ import {
     'O.E Matemática', 'O.E Português', 'Multidisciplinar'
   ];
 
-  var BIMESTRES = ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+  var BIMESTRES = ['3º Bimestre', '4º Bimestre'];
   var NOTICE_PRIORITIES = ['Normal', 'Importante', 'Urgente'];
 
   /* ---------------------------------------------------------------
@@ -330,24 +330,46 @@ import {
      - A sessão persiste via localStorage (browserLocalPersistence).
      - Ao abrir qualquer página depois de logado, o Firebase restaura
        a sessão SEM nenhuma chamada de rede adicional.
+     - Inclui um timeout de segurança: se a chamada de rede para o
+       Firebase Auth travar (ex: bloqueador de anúncios/DNS bloqueando
+       identitytoolkit.googleapis.com), o callback é chamado com
+       reason='timeout' em vez de deixar a UI girando para sempre.
   --------------------------------------------------------------- */
   function loginAsDev(email, password, callback) {
     if (!firebaseAuthInstance) {
       callback(false, 'auth_error'); return;
     }
+
+    var settled = false;
+    function settle(ok, reason) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      callback(ok, reason);
+    }
+
+    var timeoutId = setTimeout(function () {
+      settle(false, 'timeout');
+    }, 12000);
+
     signInWithEmailAndPassword(firebaseAuthInstance, email, password)
       .then(function () {
         setSessionDev();
-        callback(true, null);
+        settle(true, null);
       })
       .catch(function (err) {
+        console.error('Atlas: falha no login dev.', err);
         var reason = 'network_error';
         if (err.code === 'auth/wrong-password' ||
             err.code === 'auth/user-not-found' ||
             err.code === 'auth/invalid-credential') {
           reason = 'wrong_password';
+        } else if (err.code === 'auth/operation-not-allowed') {
+          reason = 'provider_disabled';
+        } else if (err.code === 'auth/unauthorized-domain') {
+          reason = 'unauthorized_domain';
         }
-        callback(false, reason);
+        settle(false, reason);
       });
   }
 
