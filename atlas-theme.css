@@ -1094,6 +1094,28 @@ a,
 .chip {
   touch-action: manipulation;
 }
+/* Otimização de renderização e animações no mobile */
+.modal-overlay,
+.sidebar,
+.card,
+.btn {
+  will-change: transform, opacity;
+}
+
+.subject-grid,
+.notes-grid,
+.tasks-grid,
+.notices-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 300px;
+}
+
+button, 
+a, 
+.card, 
+.chip {
+  touch-action: manipulation;
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
