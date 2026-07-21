@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matérias — Atlas</title>
+<title>Matéria — Atlas</title>
 <style>
 
   /* ============ RESET & TOKENS (idênticos ao dashboard) ============ */
@@ -435,6 +435,441 @@
     .class-badge span:last-child { display: none; }
   }
 
+
+  /* ============ ABAS DE BIMESTRE ============ */
+  .bimestre-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0;
+  }
+  .bimestre-tab {
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    cursor: pointer;
+  }
+  .bimestre-tab:hover { color: var(--ink); }
+  .bimestre-tab.active { color: var(--blue-bright); border-color: var(--blue-bright); }
+
+  /* ============ BOTÃO "+ Adicionar" (só aparece em modo dev) ============ */
+  .btn-add {
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--blue-dim);
+    color: var(--blue-bright);
+    border: 1px solid var(--blue-dim);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-add:hover { background: var(--blue); color: #fff; }
+
+  /* Esconde elementos exclusivos de desenvolvedor por padrão.
+     O JS adiciona 'dev-mode-on' ao <body> quando a sessão é 'dev'. */
+  .dev-only { display: none; }
+  body.dev-mode-on .dev-only { display: inline-flex; }
+
+  /* ============ GRID DE ANOTAÇÕES ============ */
+  .notes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .note-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 110px;
+  }
+  .note-card:hover { border-color: var(--blue-dim); background: var(--surface-2); }
+  .note-card-title { font-size: 14.5px; font-weight: 600; }
+  .note-card-excerpt {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    flex: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+  .note-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .note-card-date { font-size: 11.5px; color: var(--ink-faint); }
+  .note-card-actions { gap: 6px; }
+  .icon-btn {
+    width: 26px; height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-faint);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
+  .icon-btn.danger:hover { color: #ff7a7a; border-color: #5c2222; }
+  .icon-btn svg { width: 13px; height: 13px; }
+
+  /* ============ EMPTY STATE ============ */
+  .empty-banner {
+    text-align: center;
+    padding: 36px 20px;
+    color: var(--ink-faint);
+    font-size: 13.5px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+  }
+  .empty-banner a { color: var(--blue-bright); font-weight: 600; }
+
+  /* ============ GRID DE TAREFAS — copiado de tarefas.html ============ */
+  .tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .task-card {
+    --sc: var(--blue-bright);
+    --sc-dim: var(--blue-dim);
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+  }
+  .task-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, var(--sc) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+  .task-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--sc);
+    background: var(--surface-2);
+    box-shadow: 0 14px 28px -14px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+  .task-card:hover::before { opacity: 0.08; }
+  .task-card:active { transform: translateY(-1px); }
+  .task-card:focus-visible { outline: 2px solid var(--sc); outline-offset: 3px; }
+
+  .task-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+  }
+  .task-subject-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 9px;
+    border-radius: 100px;
+    background: var(--sc-dim);
+    color: var(--sc);
+    flex-shrink: 0;
+  }
+  .task-due-badge {
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .task-due-badge.due-soon { color: var(--orange); font-weight: 600; }
+  .task-due-badge svg { width: 12px; height: 12px; }
+
+  .task-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+  }
+  .task-card-excerpt {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .task-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
+
+  /* Botões de editar/excluir — só aparecem em modo dev */
+  .task-card-actions {
+    display: none;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+  }
+  body.dev-mode-on .task-card-actions { display: flex; }
+
+  @media (max-width: 1180px) {
+    .tasks-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .tasks-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ============ MODAIS (criar/editar anotação e tarefa) ============ */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(4,6,10,0.78);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s, visibility 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+
+  .modal-card {
+    width: 100%;
+    max-width: 480px;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px 26px 22px;
+    position: relative;
+    box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
+  }
+  .modal-card-small { max-width: 380px; }
+
+  .modal-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-close:hover { color: var(--ink); }
+  .modal-close svg { width: 14px; height: 14px; }
+
+  .field-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+  .field-label:first-of-type { margin-top: 0; }
+
+  .field-input {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field-input:focus { outline: none; border-color: var(--blue-dim); }
+  .field-textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .btn-secondary, .btn-primary, .btn-danger {
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+  }
+  .btn-secondary { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
+  .btn-secondary:hover { color: var(--ink); }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: var(--blue-bright); }
+  .btn-danger { background: #5c2222; color: #ffb4b4; }
+  .btn-danger:hover { background: #732a2a; }
+
+  .confirm-text { font-size: 14px; color: var(--ink-dim); line-height: 1.5; }
+
+  /* ============ Leitura de anotação (modo aluno) ============ */
+  .read-note-meta { font-size: 12.5px; color: var(--ink-faint); margin-bottom: 14px; }
+  .read-note-content {
+    font-size: 14.5px;
+    color: var(--ink);
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+
+  @media (max-width: 720px) {
+    .notes-grid { grid-template-columns: 1fr 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 460px) {
+    .notes-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ============ EDITOR RICO (Atlas Editor) ============ */
+  .atlas-editor {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .atlas-editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .atlas-editor-btn {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 7px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-dim);
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .atlas-editor-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+  .atlas-editor-sep {
+    width: 1px;
+    height: 18px;
+    background: var(--line);
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+  .atlas-editor-area {
+    min-height: 160px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding: 14px 16px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--ink);
+    outline: none;
+  }
+  .atlas-editor-area:empty::before {
+    content: attr(data-placeholder);
+    color: var(--ink-faint);
+    pointer-events: none;
+  }
+
+  .atlas-editor-area h1, .atlas-editor-readonly h1 {
+    font-size: 22px; font-weight: 700; margin: 18px 0 10px; letter-spacing: -0.01em;
+  }
+  .atlas-editor-area h2, .atlas-editor-readonly h2 {
+    font-size: 18px; font-weight: 700; margin: 16px 0 8px; letter-spacing: -0.01em;
+  }
+  .atlas-editor-area h3, .atlas-editor-readonly h3 {
+    font-size: 15.5px; font-weight: 700; margin: 14px 0 6px;
+  }
+  .atlas-editor-area h1:first-child, .atlas-editor-area h2:first-child, .atlas-editor-area h3:first-child,
+  .atlas-editor-readonly h1:first-child, .atlas-editor-readonly h2:first-child, .atlas-editor-readonly h3:first-child {
+    margin-top: 0;
+  }
+  .atlas-editor-area p, .atlas-editor-readonly p { margin: 0 0 10px; }
+  .atlas-editor-area ul, .atlas-editor-area ol,
+  .atlas-editor-readonly ul, .atlas-editor-readonly ol {
+    margin: 0 0 10px; padding-left: 22px;
+  }
+  .atlas-editor-area li, .atlas-editor-readonly li { margin-bottom: 4px; }
+  .atlas-editor-area blockquote, .atlas-editor-readonly blockquote {
+    border-left: 3px solid var(--blue-dim);
+    padding: 4px 14px;
+    margin: 10px 0;
+    color: var(--ink-dim);
+    font-style: italic;
+    background: rgba(255,255,255,0.02);
+  }
+  .atlas-editor-area hr, .atlas-editor-readonly hr {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 16px 0;
+  }
+  .atlas-editor-area a, .atlas-editor-readonly a {
+    color: var(--blue-bright);
+    text-decoration: underline;
+  }
+  .atlas-editor-area img, .atlas-editor-readonly img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 10px 0;
+    display: block;
+    border: 1px solid var(--line);
+  }
+
+  .atlas-editor-readonly {
+    font-size: 14.5px;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+  .atlas-editor-empty {
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -448,6 +883,7 @@
 
 <!-- Camada central de dados e sessão, carregada como módulo ES. -->
 <script type="module" src="atlas-data.js"></script>
+<script src="atlas-editor.js"></script>
 <script>
   document.addEventListener('atlas-data-ready', function () {
     if (window.AtlasData) { AtlasData.requireSession('index.html'); }
@@ -456,7 +892,6 @@
 
 <div class="app">
 
-  <!-- ============ HEADER ============ -->
   <header>
     <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -485,7 +920,6 @@
     </div>
   </header>
 
-  <!-- ============ SIDEBAR ============ -->
   <nav class="sidebar" id="sidebar">
     <a class="nav-item fast" href="dashboard.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
@@ -513,240 +947,49 @@
 
   <!-- ============ MAIN ============ -->
   <main>
-    <h1 class="page-title">Matérias</h1>
-    <p class="page-sub">Selecione uma matéria para acessar conteúdos, apostilas e tarefas.</p>
+  <h1 class="page-title" id="pageTitle">Matéria</h1>
+  <p class="page-sub" id="pageSub">Selecione um bimestre para ver anotações e tarefas.</p>
 
-    <!-- Busca + filtros -->
+  <!-- Abas de bimestre -->
+  <section>
+    <div class="bimestre-tabs" id="bimestreTabs"></div>
+  </section>
+
+  <!-- Banner de matéria não encontrada (caso a URL não tenha ?materia= válido) -->
+  <div class="empty-banner" id="invalidSubjectBanner" style="display:none;">
+    Matéria não encontrada. <a href="materias.html">Voltar para Matérias</a>
+  </div>
+
+  <div id="subjectContent">
+
+    <!-- ===== ANOTAÇÕES ===== -->
     <section>
-      <div class="toolbar">
-        <div class="subject-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" id="subjectSearchInput" placeholder="Buscar matéria...">
-        </div>
-
-        <div class="filter-group" id="filterGroup">
-          <button class="filter-chip active fast" data-filter="todas">Todas</button>
-          <button class="filter-chip fast" data-filter="tarefas">Com tarefas</button>
-          <button class="filter-chip fast" data-filter="apostilas">Com apostilas</button>
-          <button class="filter-chip fast" data-filter="recentes">Atualizadas recentemente</button>
-        </div>
+      <div class="section-head">
+        <h2>Anotações</h2>
+        <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
       </div>
+      <div class="notes-grid" id="notesGrid"></div>
+      <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
     </section>
 
-    <!-- Grid de matérias -->
+    <!-- ===== TAREFAS ===== -->
     <section>
-      <div class="subject-grid" id="subjectGrid">
-
-        <!-- Matemática — azul -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="matemática" data-materia-real="Matemática" data-tarefas="2" data-apostilas="4" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Matemática</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">12</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>4</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">2</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- Português — vermelho -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="português" data-materia-real="Português" data-tarefas="1" data-apostilas="3" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Português</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">9</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>3</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">1</strong> tarefa</span>
-          </div>
-        </div>
-
-        <!-- História — marrom -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="história" data-materia-real="História" data-tarefas="0" data-apostilas="2" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">História</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">7</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>2</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- Geografia — verde -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="geografia" data-materia-real="Geografia" data-tarefas="1" data-apostilas="1" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9Z"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Geografia</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">5</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>1</strong> apostila</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">1</strong> tarefa</span>
-          </div>
-        </div>
-
-        <!-- Ciências — roxo -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="ciências" data-materia-real="Ciências" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2M9 2h6M9 13h6"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Ciências</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">3</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- Inglês — laranja -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="inglês" data-materia-real="Inglês" data-tarefas="0" data-apostilas="2" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Inglês</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">6</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>2</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- Arte — rosa -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="arte" data-materia-real="Arte" data-tarefas="0" data-apostilas="1" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2a10 10 0 1 0 0 20c.6 0 1-.4 1-1 0-.3-.1-.5-.3-.7-.2-.2-.3-.4-.3-.7 0-.6.4-1 1-1h1.2A4.6 4.6 0 0 0 19 14c0-6.6-3.1-12-7-12Z"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Arte</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">2</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>1</strong> apostila</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- O.E Matemática — azul claro -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="o.e matemática" data-materia-real="O.E Matemática" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">O.E Matemática</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- O.E Português — vermelho suave -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="o.e português" data-materia-real="O.E Português" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">O.E Português</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
-        <!-- Multidisciplinar — ciano/turquesa -->
-        <div class="subject-card" tabindex="0" role="button"
-             data-name="multidisciplinar" data-materia-real="Multidisciplinar" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
-          <div class="subject-card-top">
-            <div class="subject-card-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-            </div>
-            <div class="subject-card-arrow">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </div>
-          </div>
-          <div class="subject-card-name">Multidisciplinar</div>
-          <div class="subject-card-meta">
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg><strong class="note-count">0</strong> anotações</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><strong>0</strong> apostilas</span>
-            <span class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><strong class="task-count">0</strong> tarefas</span>
-          </div>
-        </div>
-
+      <div class="section-head">
+        <h2>Tarefas</h2>
+        <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
       </div>
-
-      <div class="results-empty" id="resultsEmpty">Nenhuma matéria encontrada com esses critérios.</div>
+      <div class="tasks-grid" id="tasksList"></div>
+      <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
     </section>
+
+  </div>
+
   </main>
 
 </div>
 
 <script>
-  // Mobile sidebar toggle — mesmo padrão do dashboard
+  // Mobile sidebar toggle — mesmo padrão das demais páginas
   var menuBtn = document.getElementById('menuBtn');
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
@@ -769,131 +1012,298 @@
       sidebar.classList.remove('open');
     }
   });
+</script>
 
-  /* ===================================================
-     ===== CONTADORES REAIS (anotações e tarefas) ====
-     ===================================================
-     Lê os dados do Modo Desenvolvedor (localStorage, via AtlasData)
-     e atualiza os números mostrados em cada card, além dos atributos
-     data-tarefas e data-recente usados pelos filtros abaixo.
-     Apostilas continuam com o número de exemplo (sem CRUD por enquanto).
-  ===================================================== */
-  function syncSubjectCounters() {
-    if (!window.AtlasData) return;
-    var cards = document.querySelectorAll('#subjectGrid .subject-card');
-    var todayISO = new Date().toISOString().slice(0, 10);
-    var sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+<script>
+document.addEventListener('atlas-data-ready', function () {
+  if (!window.AtlasData) return;
 
-    cards.forEach(function (card) {
-      var materiaReal = card.dataset.materiaReal;
-      if (!materiaReal) return;
+  var SUBJECTS = AtlasData.SUBJECTS;
+  var BIMESTRES = AtlasData.BIMESTRES;
 
-      var notes = AtlasData.getNotesBy(materiaReal);
-      var tasks = AtlasData.getTasksBy(materiaReal);
+  // Mapa slug -> nome de exibição da matéria
+  var SUBJECT_BY_SLUG = {};
+  SUBJECTS.forEach(function (name) {
+    SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name;
+  });
 
-      var noteCountEl = card.querySelector('.note-count');
-      if (noteCountEl) {
-        noteCountEl.textContent = notes.length;
-        var noteLabel = noteCountEl.nextSibling;
-        if (noteLabel) noteLabel.textContent = notes.length === 1 ? ' anotação' : ' anotações';
-      }
+  var params = new URLSearchParams(window.location.search);
+  var slug = params.get('materia') || '';
+  var materiaName = SUBJECT_BY_SLUG[slug] || null;
 
-      var taskCountEl = card.querySelector('.task-count');
-      if (taskCountEl) {
-        taskCountEl.textContent = tasks.length;
-        var taskLabel = taskCountEl.nextSibling;
-        if (taskLabel) taskLabel.textContent = tasks.length === 1 ? ' tarefa' : ' tarefas';
-      }
+  var pageTitle = document.getElementById('pageTitle');
+  var pageSub = document.getElementById('pageSub');
+  var invalidBanner = document.getElementById('invalidSubjectBanner');
+  var subjectContent = document.getElementById('subjectContent');
+  var tabsWrap = document.getElementById('bimestreTabs');
 
-      card.dataset.tarefas = String(tasks.length);
+  if (!materiaName) {
+    pageTitle.textContent = 'Matéria';
+    pageSub.textContent = '';
+    invalidBanner.style.display = 'block';
+    subjectContent.style.display = 'none';
+    tabsWrap.style.display = 'none';
+    return;
+  }
 
-      var recente = notes.concat(tasks).some(function (item) {
-        return (item.atualizadoEm || item.criadoEm || 0) >= sevenDaysAgo;
+  pageTitle.textContent = materiaName;
+  pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
+  document.title = materiaName + ' — Atlas';
+
+  var currentBimestre = BIMESTRES[0];
+
+  /* ---------------------------------------------------------
+     Modo Desenvolvedor — trava REAL de permissão.
+     IMPORTANTE: isDevSession() é checado em todo handler que abre
+     um modal de criação/edição/exclusão, não apenas escondido via
+     CSS. Mesmo que algum elemento fique visível por engano, o clique
+     não executa a ação se a sessão não for 'dev'. A trava definitiva
+     de qualquer forma está em atlas-data.js (saveNote/deleteNote etc.
+     já recusam a operação se não for dev), então isto aqui é uma
+     segunda camada de proteção, não a única.
+  --------------------------------------------------------- */
+  function isDevSession() {
+    return AtlasData.isDev();
+  }
+
+  if (isDevSession()) {
+    document.body.classList.add('dev-mode-on');
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function formatDateBR(isoDate) {
+    if (!isoDate) return '';
+    var parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  /**
+   * Mesma lógica usada em tarefas.html: destaca a data de entrega quando
+   * faltam até 3 dias, para manter a mesma sinalização visual em toda a
+   * plataforma.
+   */
+  function isDueSoon(isoDate) {
+    if (!isoDate) return false;
+    var due = new Date(isoDate + 'T00:00:00');
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var diffDays = Math.round((due - today) / 86400000);
+    return diffDays >= 0 && diffDays <= 3;
+  }
+
+  /**
+   * Extrai um resumo em texto puro a partir do HTML salvo, para usar
+   * como excerto nos cards (sem mostrar tags HTML cruas).
+   */
+  function htmlToExcerpt(html, maxLen) {
+    if (!html) return '';
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    // Insere um espaço explícito ao final de cada elemento de bloco/lista
+    // antes de extrair o texto, para que "Bloco A" + "Bloco B" não fiquem
+    // colados como "Bloco ABloco B" no resumo exibido no card.
+    var blockTags = ['P', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'DIV', 'BR', 'HR'];
+    Array.prototype.forEach.call(tmp.querySelectorAll(blockTags.join(',')), function (el) {
+      el.insertAdjacentText('afterend', ' ');
+    });
+    var text = (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+    return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+  }
+
+  /* ---------------------------------------------------------
+     Abas de bimestre
+  --------------------------------------------------------- */
+  function renderTabs() {
+    tabsWrap.innerHTML = BIMESTRES.map(function (b) {
+      var active = b === currentBimestre ? ' active' : '';
+      return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
+    }).join('');
+
+    Array.from(tabsWrap.querySelectorAll('.bimestre-tab')).forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        currentBimestre = tab.dataset.bimestre;
+        renderTabs();
+        renderNotes();
+        renderTasks();
       });
-      card.dataset.recente = recente ? '1' : '0';
     });
   }
 
-  syncSubjectCounters();
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) {
-      syncSubjectCounters();
-      AtlasData.onDataChange(syncSubjectCounters);
-      AtlasData.injectDevBanner();
+  /* ---------------------------------------------------------
+     Anotações
+  --------------------------------------------------------- */
+  var notesGrid = document.getElementById('notesGrid');
+  var notesEmpty = document.getElementById('notesEmpty');
+
+  // Sem modal: cada anotação e tarefa agora vive em sua própria página
+  // (anotacao.html / tarefa.html). Aqui a lista só monta os cards e navega.
+  function noteUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id); }
+  function noteEditUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id) + '&edit=1'; }
+  function noteNewUrl() {
+    return 'anotacao.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  }
+  function taskUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id); }
+  function taskEditUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id) + '&edit=1'; }
+  function taskNewUrl() {
+    return 'tarefa.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  }
+
+  function renderNotes() {
+    var notes = AtlasData.getNotesBy(materiaName, currentBimestre);
+    notesEmpty.style.display = notes.length ? 'none' : 'block';
+    notesGrid.innerHTML = notes.map(function (n) {
+      var excerpt = htmlToExcerpt(n.conteudo, 140);
+      return (
+        '<div class="note-card" data-id="' + n.id + '">' +
+          '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
+          '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
+          '<div class="note-card-foot">' +
+            '<span class="note-card-date">' + escapeHtml(formatDateBR(new Date(n.atualizadoEm || n.criadoEm).toISOString().slice(0,10))) + '</span>' +
+            '<div class="note-card-actions dev-only">' +
+              '<button type="button" class="icon-btn" data-action="edit-note" data-id="' + n.id + '" aria-label="Editar">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+              '</button>' +
+              '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + n.id + '" aria-label="Excluir">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  notesGrid.addEventListener('click', function (e) {
+    var editBtn = e.target.closest('[data-action="edit-note"]');
+    var delBtn = e.target.closest('[data-action="delete-note"]');
+    var card = e.target.closest('.note-card');
+
+    if (editBtn) {
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      window.location.href = noteEditUrl(editBtn.dataset.id);
+      return;
+    }
+    if (delBtn) {
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      if (window.confirm('Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita.')) {
+        AtlasData.deleteNote(delBtn.dataset.id);
+        renderNotes();
+      }
+      return;
+    }
+    // Qualquer usuário (aluno ou dev) pode abrir a anotação em sua página.
+    if (card) {
+      window.location.href = noteUrl(card.dataset.id);
     }
   });
 
-  /* ===================================================
-     ===== BUSCA + FILTROS + NAVEGAÇÃO PARA materia.html ====
-     =================================================== */
-  (function () {
-    const grid = document.getElementById('subjectGrid');
-    const cards = Array.from(grid.querySelectorAll('.subject-card'));
-    const searchInput = document.getElementById('subjectSearchInput');
-    const filterGroup = document.getElementById('filterGroup');
-    const filterChips = Array.from(filterGroup.querySelectorAll('.filter-chip'));
-    const emptyState = document.getElementById('resultsEmpty');
+  var addNoteBtn = document.getElementById('addNoteBtn');
+  addNoteBtn.addEventListener('click', function () {
+    if (!isDevSession()) return;
+    window.location.href = noteNewUrl();
+  });
 
-    let currentFilter = 'todas';
+  /* ---------------------------------------------------------
+     Tarefas
+  --------------------------------------------------------- */
+  var tasksList = document.getElementById('tasksList');
+  var tasksEmpty = document.getElementById('tasksEmpty');
 
-    function matchesFilter(card) {
-      switch (currentFilter) {
-        case 'tarefas':
-          return parseInt(card.dataset.tarefas, 10) > 0;
-        case 'apostilas':
-          return parseInt(card.dataset.apostilas, 10) > 0;
-        case 'recentes':
-          return card.dataset.recente === '1';
-        default:
-          return true;
+  function renderTasks() {
+    var tasks = AtlasData.getTasksBy(materiaName, currentBimestre).slice().sort(function (a, b) {
+      return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
+    });
+    tasksEmpty.style.display = tasks.length ? 'none' : 'block';
+
+    tasksList.innerHTML = tasks.map(function (t) {
+      var excerpt = htmlToExcerpt(t.resposta, 110);
+      var dueSoon = isDueSoon(t.dataEntrega);
+      var excerptHtml = excerpt
+        ? '<div class="task-card-excerpt">' + escapeHtml(excerpt) + '</div>'
+        : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
+
+      return (
+        '<div class="task-card" data-id="' + t.id + '" tabindex="0" role="button">' +
+          '<div class="task-card-top">' +
+            '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+              escapeHtml(formatDateBR(t.dataEntrega)) +
+            '</span>' +
+            '<div class="task-card-actions">' +
+              '<button type="button" class="icon-btn" data-action="edit-task" data-id="' + t.id + '" aria-label="Editar">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+              '</button>' +
+              '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + t.id + '" aria-label="Excluir">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
+          excerptHtml +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  tasksList.addEventListener('click', function (e) {
+    var editBtn = e.target.closest('[data-action="edit-task"]');
+    var delBtn = e.target.closest('[data-action="delete-task"]');
+    var card = e.target.closest('.task-card');
+
+    if (editBtn) {
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      window.location.href = taskEditUrl(editBtn.dataset.id);
+      return;
+    }
+    if (delBtn) {
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      if (window.confirm('Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.')) {
+        AtlasData.deleteTask(delBtn.dataset.id);
+        renderTasks();
       }
+      return;
     }
-
-    function applyFilters() {
-      const term = searchInput.value.trim().toLowerCase();
-      let visibleCount = 0;
-
-      cards.forEach((card) => {
-        const matchesSearch = !term || card.dataset.name.includes(term);
-        const show = matchesSearch && matchesFilter(card);
-        card.classList.toggle('hidden', !show);
-        if (show) visibleCount++;
-      });
-
-      emptyState.classList.toggle('show', visibleCount === 0);
+    if (card) {
+      window.location.href = taskUrl(card.dataset.id);
     }
+  });
+  tasksList.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var card = e.target.closest('.task-card');
+    if (card) { e.preventDefault(); window.location.href = taskUrl(card.dataset.id); }
+  });
 
-    searchInput.addEventListener('input', applyFilters);
+  var addTaskBtn = document.getElementById('addTaskBtn');
+  addTaskBtn.addEventListener('click', function () {
+    if (!isDevSession()) return;
+    window.location.href = taskNewUrl();
+  });
 
-    filterChips.forEach((chip) => {
-      chip.addEventListener('click', () => {
-        filterChips.forEach((c) => c.classList.remove('active'));
-        chip.classList.add('active');
-        currentFilter = chip.dataset.filter;
-        applyFilters();
-      });
-    });
+  /* ---------------------------------------------------------
+     Inicialização + sincronização entre páginas/abas
+  --------------------------------------------------------- */
+  renderTabs();
+  renderNotes();
+  renderTasks();
 
-    // Navegação: ao clicar (ou Enter/Espaço com foco) em uma matéria, abre materia.html
-    // Por enquanto todas as matérias levam à mesma estrutura visual base;
-    // o parâmetro ?materia= identifica qual foi escolhida para uso futuro.
-    function goToSubject(card) {
-      var materiaReal = card.dataset.materiaReal || card.dataset.name;
-      var slug = window.AtlasData ? AtlasData.slugify(materiaReal) :
-        materiaReal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
-      window.location.href = 'materia.html?materia=' + encodeURIComponent(slug);
-    }
+  AtlasData.onDataChange(function () {
+    renderNotes();
+    renderTasks();
+  });
 
-    cards.forEach((card) => {
-      card.addEventListener('click', () => goToSubject(card));
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          goToSubject(card);
-        }
-      });
-    });
-  })();
+  AtlasData.injectDevBanner();
+});
+
 </script>
 
 </body>
