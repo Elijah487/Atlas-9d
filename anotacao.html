@@ -179,8 +179,8 @@
   @media (max-width: 460px) { .class-badge span:last-child { display: none; } }
 
   /* ============ dev-only ============ */
-  .dev-only { display: none; }
-  body.dev-mode-on .dev-only { display: inline-flex; }
+  .dev-only { display: none !important; }
+  body.dev-mode-on .dev-only { display: inline-flex !important; }
 
   /* ============ PÁGINA-DOCUMENTO (leitura tipo Notion) ============ */
   .doc-page { max-width: 740px; margin: 0 auto; }
@@ -341,7 +341,6 @@
 </head>
 <body>
 
-<!-- Camada central de dados e sessão, carregada como módulo ES. -->
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
 <script>
@@ -405,7 +404,6 @@
     <div class="sidebar-divider"></div>
   </nav>
 
-  <!-- ============ MAIN ============ -->
   <main>
     <div class="doc-page">
 
@@ -414,12 +412,10 @@
         <span id="backLinkText">Voltar</span>
       </a>
 
-      <!-- ===== Não encontrada ===== -->
       <div class="empty-banner" id="notFoundBanner" style="display:none;">
         Anotação não encontrada ou removida. <a href="materias.html" style="color:var(--blue-bright); font-weight:600;">Voltar para Matérias</a>
       </div>
 
-      <!-- ===== MODO LEITURA ===== -->
       <div id="viewMode" style="display:none;">
         <div class="doc-badges">
           <span class="doc-badge" id="viewMateria">Matéria</span>
@@ -440,7 +436,6 @@
         </section>
       </div>
 
-      <!-- ===== MODO FORMULÁRIO (criar/editar — dev) ===== -->
       <div id="formMode" style="display:none;">
         <h1 class="doc-title" id="formTitle">Nova anotação</h1>
 
@@ -474,7 +469,6 @@
         </form>
       </div>
 
-      <!-- ===== Bloqueado (sem permissão de dev) ===== -->
       <div class="empty-banner" id="forbiddenBanner" style="display:none;">
         Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
       </div>
@@ -512,7 +506,13 @@ document.addEventListener('atlas-data-ready', function () {
   var BIMESTRES = AtlasData.BIMESTRES;
 
   function isDevSession() { return AtlasData.isDev(); }
-  if (isDevSession()) { document.body.classList.add('dev-mode-on'); }
+  
+  // Aplica/Remove classe de modo dev no body de forma reativa
+  if (isDevSession()) { 
+    document.body.classList.add('dev-mode-on'); 
+  } else {
+    document.body.classList.remove('dev-mode-on');
+  }
 
   function escapeHtml(str) {
     return String(str || '')
@@ -555,23 +555,27 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Confirmação de exclusão sem popup: primeiro clique arma o
-     botão (fica vermelho pedindo confirmação), segundo clique em
-     até 4s executa a exclusão. Esperar cancela.
+     Confirmação de exclusão sem popup
   --------------------------------------------------------- */
   function armConfirm(btn, defaultLabel, confirmLabel, onConfirm) {
     var armed = false;
     var timer = null;
     btn.textContent = defaultLabel;
-    btn.addEventListener('click', function () {
+    
+    // Evita duplicar listeners
+    var newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener('click', function (e) {
+      e.preventDefault();
       if (!armed) {
         armed = true;
-        btn.textContent = confirmLabel;
-        btn.classList.add('confirming');
+        newBtn.textContent = confirmLabel;
+        newBtn.classList.add('confirming');
         timer = setTimeout(function () {
           armed = false;
-          btn.textContent = defaultLabel;
-          btn.classList.remove('confirming');
+          newBtn.textContent = defaultLabel;
+          newBtn.classList.remove('confirming');
         }, 4000);
         return;
       }
@@ -606,9 +610,8 @@ document.addEventListener('atlas-data-ready', function () {
     document.getElementById('viewEditBtn').onclick = function () {
       window.location.href = 'anotacao.html?id=' + encodeURIComponent(note.id) + '&editar=1';
     };
+
     var delBtn = document.getElementById('viewDeleteBtn');
-    delBtn.replaceWith(delBtn.cloneNode(true)); // limpa listeners de renders anteriores
-    delBtn = document.getElementById('viewDeleteBtn');
     armConfirm(delBtn, 'Excluir', 'Confirmar exclusão?', function () {
       if (!isDevSession()) return;
       AtlasData.deleteNote(note.id);
