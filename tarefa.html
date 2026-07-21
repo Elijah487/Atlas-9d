@@ -165,6 +165,10 @@
   /* ============ MAIN ============ */
   main { grid-area: main; padding: 24px 28px 48px; overflow-x: hidden; }
 
+  @media (max-width: 1180px) {
+    .app { grid-template-columns: 220px 1fr; }
+  }
+
   @media (max-width: 720px) {
     .app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
     .sidebar {
@@ -443,12 +447,6 @@
 
         <hr class="doc-divider">
         <section>
-          <div class="doc-section-label">Conteúdo da tarefa</div>
-          <div class="atlas-editor-readonly" id="viewEnunciado"></div>
-        </section>
-
-        <hr class="doc-divider">
-        <section>
           <div class="doc-section-label">Resposta / gabarito</div>
           <div class="atlas-editor-readonly" id="viewResposta"></div>
         </section>
@@ -477,9 +475,6 @@
 
           <label class="field-label" for="taskDataEntrega">Data de entrega</label>
           <input type="date" id="taskDataEntrega" class="field-input" required>
-
-          <label class="field-label">Conteúdo da tarefa</label>
-          <div id="taskEnunciadoEditor"></div>
 
           <label class="field-label">Resposta / gabarito (opcional)</label>
           <div id="taskRespostaEditor"></div>
@@ -531,6 +526,15 @@ document.addEventListener('atlas-data-ready', function () {
   var SUBJECTS = AtlasData.SUBJECTS;
   var BIMESTRES = AtlasData.BIMESTRES;
 
+  /* ---------------------------------------------------------
+     Modo Desenvolvedor — trava REAL de permissão.
+     Os botões "Editar"/"Excluir" (view) e o botão "Excluir tarefa"
+     (form) só ficam funcionais e visíveis quando isDevSession() é
+     true — checado antes de ligar os listeners e antes de exibir o
+     próprio formulário de criação/edição (ver initForm). A trava
+     definitiva de qualquer forma é em atlas-data.js: saveTask/
+     deleteTask recusam a operação se a sessão não for dev.
+  --------------------------------------------------------- */
   function isDevSession() { return AtlasData.isDev(); }
   if (isDevSession()) { document.body.classList.add('dev-mode-on'); }
 
@@ -623,35 +627,38 @@ document.addEventListener('atlas-data-ready', function () {
     document.getElementById('viewDueText').textContent = task.dataEntrega ? ('Entrega em ' + formatDateBR(task.dataEntrega)) : 'Sem data definida';
     document.getElementById('viewTitle').textContent = task.titulo;
 
-    var enunciadoHtml = task.enunciado && task.enunciado.trim()
-      ? task.enunciado
-      : '<p class="atlas-editor-empty">Nenhum conteúdo cadastrado para esta tarefa ainda.</p>';
     var respostaHtml = task.resposta && task.resposta.trim()
       ? task.resposta
       : '<p class="atlas-editor-empty">Sem resposta/gabarito cadastrado para esta tarefa ainda.</p>';
 
-    var enunciadoEl = document.getElementById('viewEnunciado');
     var respostaEl = document.getElementById('viewResposta');
     if (window.AtlasEditor) {
-      AtlasEditor.renderReadOnly(enunciadoEl, enunciadoHtml);
       AtlasEditor.renderReadOnly(respostaEl, respostaHtml);
     } else {
-      enunciadoEl.innerHTML = enunciadoHtml;
       respostaEl.innerHTML = respostaHtml;
     }
 
-    document.getElementById('viewEditBtn').onclick = function () {
-      window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
-    };
+    // Os botões de editar/excluir só recebem listener funcional quando
+    // a sessão é dev — para não-dev eles ficam sem ação (além de
+    // escondidos via CSS .dev-only), então mesmo que fiquem visíveis
+    // por algum motivo, clicar neles não faz nada.
+    var editBtn = document.getElementById('viewEditBtn');
     var delBtn = document.getElementById('viewDeleteBtn');
-    delBtn.className = 'btn-danger';
-    delBtn.replaceWith(delBtn.cloneNode(true)); // limpa listeners de renders anteriores
-    delBtn = document.getElementById('viewDeleteBtn');
-    armConfirm(delBtn, 'Excluir', 'Confirmar exclusão?', function () {
-      if (!isDevSession()) return;
-      AtlasData.deleteTask(task.id);
-      window.location.href = backLink.href;
-    });
+    // Limpa listeners de renders anteriores (troca de tarefa via onDataChange).
+    var editBtnClone = editBtn.cloneNode(true);
+    editBtn.replaceWith(editBtnClone);
+    var delBtnClone = delBtn.cloneNode(true);
+    delBtn.replaceWith(delBtnClone);
+
+    if (isDevSession()) {
+      editBtnClone.addEventListener('click', function () {
+        window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
+      });
+      armConfirm(delBtnClone, 'Excluir', 'Confirmar exclusão?', function () {
+        AtlasData.deleteTask(task.id);
+        window.location.href = backLink.href;
+      });
+    }
 
     showOnly(viewMode);
   }
@@ -695,15 +702,9 @@ document.addEventListener('atlas-data-ready', function () {
     fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
     fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
 
-    var enunciadoEditor = AtlasEditor.create(document.getElementById('taskEnunciadoEditor'), {
-      placeholder: 'Escreva o enunciado, cole imagens, tabelas ou trechos de código...',
-      minHeight: '200px'
-    });
-    enunciadoEditor.setHTML(existing ? existing.enunciado : '');
-
     var respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
       placeholder: 'Resposta ou gabarito (opcional)...',
-      minHeight: '160px'
+      minHeight: '200px'
     });
     respostaEditor.setHTML(existing ? existing.resposta : '');
 
@@ -727,7 +728,6 @@ document.addEventListener('atlas-data-ready', function () {
         materia: materiaVal,
         bimestre: document.getElementById('taskBimestre').value,
         dataEntrega: document.getElementById('taskDataEntrega').value,
-        enunciado: enunciadoEditor.getHTML(),
         resposta: respostaEditor.getHTML()
       });
       if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
