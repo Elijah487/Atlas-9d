@@ -178,10 +178,6 @@
   }
   @media (max-width: 460px) { .class-badge span:last-child { display: none; } }
 
-  /* ============ dev-only ============ */
-  .dev-only { display: none; }
-  body.dev-mode-on .dev-only { display: inline-flex; }
-
   /* ============ PÁGINA-DOCUMENTO (leitura tipo Notion) ============ */
   .doc-page { max-width: 740px; margin: 0 auto; }
 
@@ -341,7 +337,6 @@
 </head>
 <body>
 
-<!-- Camada central de dados e sessão, carregada como módulo ES. -->
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
 <script>
@@ -405,7 +400,6 @@
     <div class="sidebar-divider"></div>
   </nav>
 
-  <!-- ============ MAIN ============ -->
   <main>
     <div class="doc-page">
 
@@ -414,12 +408,10 @@
         <span id="backLinkText">Voltar</span>
       </a>
 
-      <!-- ===== Não encontrada ===== -->
       <div class="empty-banner" id="notFoundBanner" style="display:none;">
         Anotação não encontrada ou removida. <a href="materias.html" style="color:var(--blue-bright); font-weight:600;">Voltar para Matérias</a>
       </div>
 
-      <!-- ===== MODO LEITURA ===== -->
       <div id="viewMode" style="display:none;">
         <div class="doc-badges">
           <span class="doc-badge" id="viewMateria">Matéria</span>
@@ -428,7 +420,7 @@
         </div>
         <div class="doc-title-row">
           <h1 class="doc-title" id="viewTitle">Título da anotação</h1>
-          <div class="doc-actions dev-only">
+          <div class="doc-actions" id="viewActions">
             <button type="button" class="btn-secondary" id="viewEditBtn">Editar</button>
             <button type="button" class="btn-danger" id="viewDeleteBtn">Excluir</button>
           </div>
@@ -440,7 +432,6 @@
         </section>
       </div>
 
-      <!-- ===== MODO FORMULÁRIO (criar/editar — dev) ===== -->
       <div id="formMode" style="display:none;">
         <h1 class="doc-title" id="formTitle">Nova anotação</h1>
 
@@ -465,7 +456,7 @@
           <div id="noteConteudoEditor"></div>
 
           <div class="form-actions">
-            <button type="button" class="btn-danger dev-only" id="noteDeleteBtn" style="display:none;">Excluir anotação</button>
+            <button type="button" class="btn-danger" id="noteDeleteBtn" style="display:none;">Excluir anotação</button>
             <div class="form-actions-main" style="margin-left:auto;">
               <a class="btn-secondary" id="noteCancelBtn" href="materias.html">Cancelar</a>
               <button type="submit" class="btn-primary">Salvar anotação</button>
@@ -474,7 +465,6 @@
         </form>
       </div>
 
-      <!-- ===== Bloqueado (sem permissão de dev) ===== -->
       <div class="empty-banner" id="forbiddenBanner" style="display:none;">
         Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
       </div>
@@ -511,8 +501,11 @@ document.addEventListener('atlas-data-ready', function () {
   var SUBJECTS = AtlasData.SUBJECTS;
   var BIMESTRES = AtlasData.BIMESTRES;
 
-  function isDevSession() { return AtlasData.isDev(); }
-  if (isDevSession()) { document.body.classList.add('dev-mode-on'); }
+  function isDevSession() {
+    return AtlasData.isDev();
+  }
+
+  document.body.classList.toggle('dev-mode-on', isDevSession());
 
   function escapeHtml(str) {
     return String(str || '')
@@ -592,6 +585,11 @@ document.addEventListener('atlas-data-ready', function () {
     var ts = note.atualizadoEm || note.criadoEm;
     document.getElementById('viewDate').textContent = ts ? formatDateBR(new Date(ts).toISOString().slice(0, 10)) : '';
     document.getElementById('viewTitle').textContent = note.titulo;
+
+    var viewActions = document.getElementById('viewActions');
+    if (viewActions) {
+      viewActions.style.display = isDevSession() ? 'flex' : 'none';
+    }
 
     var conteudoHtml = note.conteudo && note.conteudo.trim()
       ? note.conteudo
