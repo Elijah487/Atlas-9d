@@ -545,143 +545,107 @@
   </main>
 
 </div>
-
 <script>
-document.addEventListener('atlas-data-ready', function () {
-  if (!window.AtlasData) return;
-
-  var SUBJECTS = AtlasData.SUBJECTS || [];
-  var BIMESTRES = AtlasData.BIMESTRES || [];
-
-  var SUBJECT_BY_SLUG = {};
-  SUBJECTS.forEach(function (name) {
-    if (name) {
-      SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name;
-    }
-  });
-
-  var params = new URLSearchParams(window.location.search);
-  var slug = params.get('materia') || '';
-  var materiaName = SUBJECT_BY_SLUG[slug] || null;
-
-  var pageTitle = document.getElementById('pageTitle');
-  var pageSub = document.getElementById('pageSub');
-  var invalidBanner = document.getElementById('invalidSubjectBanner');
-  var subjectContent = document.getElementById('subjectContent');
-  var tabsWrap = document.getElementById('bimestreTabs');
-
-  if (!materiaName) {
-    if (pageTitle) pageTitle.textContent = 'Matéria';
-    if (pageSub) pageSub.textContent = '';
-    if (invalidBanner) invalidBanner.style.display = 'block';
-    if (subjectContent) subjectContent.style.display = 'none';
-    if (tabsWrap) tabsWrap.style.display = 'none';
-    return;
+  // Mobile sidebar toggle — mesmo padrão das demais telas
+  var menuBtn = document.getElementById('menuBtn');
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      if (window.AtlasData) {
+        AtlasData.logout();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  }
+  var sidebar = document.getElementById('sidebar');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function () {
+      sidebar.classList.toggle('open');
+    });
   }
 
-  pageTitle.textContent = materiaName;
-  pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
-  document.title = materiaName + ' — Atlas';
+  /* ---------------------------------------------------------
+     Lógica da página da matéria
+  --------------------------------------------------------- */
+  var params = new URLSearchParams(window.location.search);
+  var slugParam = params.get('materia') || 'matematica';
 
-  var currentBimestre = BIMESTRES[0] || '1º Bimestre';
+  function findSubjectBySlug(slug) {
+    if (!window.AtlasData) return null;
+    return AtlasData.SUBJECTS.find(function (s) {
+      return AtlasData.slugify(s.nome) === slug;
+    });
+  }
+
+  var subjectObj = findSubjectBySlug(slugParam);
+  var materiaName = subjectObj ? subjectObj.nome : 'Matemática';
+
+  document.title = materiaName + ' — Atlas';
+  document.getElementById('materiaTitle').textContent = materiaName;
+
+  var currentBimestre = 1;
+
+  var notesList = document.getElementById('notesList');
+  var tasksList = document.getElementById('tasksList');
+  var tabsContainer = document.getElementById('bimestreTabs');
 
   function isDevSession() {
-    return !!(AtlasData.isDev && AtlasData.isDev());
-  }
-
-  if (isDevSession()) {
-    document.body.classList.add('dev-mode-on');
+    return window.AtlasData && AtlasData.isDev && AtlasData.isDev();
   }
 
   function escapeHtml(str) {
-    return String(str || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
-  function formatDateBR(isoDate) {
-    if (!isoDate) return '';
-    var parts = String(isoDate).split('-');
-    if (parts.length !== 3) return isoDate;
-    return parts[2] + '/' + parts[1] + '/' + parts[0];
-  }
-
-  function getSafeDateFormatted(dateVal) {
-    if (!dateVal) return '';
-    try {
-      var d = new Date(dateVal);
-      if (isNaN(d.getTime())) return '';
-      return formatDateBR(d.toISOString().slice(0, 10));
-    } catch (e) {
-      return '';
-    }
-  }
-
-  function isDueSoon(isoDate) {
-    if (!isoDate) return false;
-    var due = new Date(isoDate + 'T00:00:00');
-    if (isNaN(due.getTime())) return false;
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    var diffDays = Math.round((due - today) / 86400000);
-    return diffDays >= 0 && diffDays <= 3;
-  }
-
-  function htmlToExcerpt(html, maxLen) {
-    if (!html) return '';
+  function stripHtml(html) {
     var tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    var blockTags = ['P', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'DIV', 'BR', 'HR'];
-    Array.prototype.forEach.call(tmp.querySelectorAll(blockTags.join(',')), function (el) {
-      el.insertAdjacentText('afterend', ' ');
-    });
-    var text = (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
-    return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+    tmp.innerHTML = html || '';
+    return tmp.textContent || tmp.innerText || '';
   }
 
-  function renderTabs() {
-    if (!tabsWrap) return;
-    tabsWrap.innerHTML = BIMESTRES.map(function (b) {
-      var active = b === currentBimestre ? ' active' : '';
-      return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
-    }).join('');
-
-    Array.from(tabsWrap.querySelectorAll('.bimestre-tab')).forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        currentBimestre = tab.dataset.bimestre;
-        renderTabs();
-        renderNotes();
-        renderTasks();
-      });
-    });
+  function formatDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    var day = String(d.getDate()).padStart(2, '0');
+    var month = String(d.getMonth() + 1).padStart(2, '0');
+    return day + '/' + month + '/' + d.getFullYear();
   }
 
   function armConfirm(btn, onConfirm) {
-    if (btn.dataset.armed === '1') {
-      clearTimeout(Number(btn.dataset.timer));
+    if (btn.dataset.confirming === 'true') {
       onConfirm();
       return;
     }
-    btn.dataset.armed = '1';
+    btn.dataset.confirming = 'true';
     btn.classList.add('confirming');
-    btn.setAttribute('aria-label', 'Confirmar exclusão');
-    var t = setTimeout(function () {
-      btn.dataset.armed = '0';
+    var originalTitle = btn.getAttribute('title') || '';
+    btn.setAttribute('title', 'Clique novamente para confirmar a exclusão');
+
+    var timer = setTimeout(function () {
+      btn.dataset.confirming = 'false';
       btn.classList.remove('confirming');
-      btn.setAttribute('aria-label', 'Excluir');
-    }, 4000);
-    btn.dataset.timer = String(t);
+      btn.setAttribute('title', originalTitle);
+    }, 3000);
+
+    btn._confirmTimer = timer;
   }
 
   function noteActionsHtml(n) {
     if (!isDevSession()) return '';
     return (
       '<div class="note-card-actions dev-only">' +
-        '<a class="icon-btn" data-action="edit-note" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" aria-label="Editar">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '<a class="icon-btn" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" title="Editar anotação" data-action="edit-note">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
         '</a>' +
-        '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + escapeHtml(n.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+        '<button type="button" class="icon-btn danger" title="Excluir anotação" data-action="delete-note" data-id="' + escapeHtml(n.id) + '">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
         '</button>' +
       '</div>'
     );
@@ -691,171 +655,180 @@ document.addEventListener('atlas-data-ready', function () {
     if (!isDevSession()) return '';
     return (
       '<div class="task-card-actions dev-only">' +
-        '<a class="icon-btn" data-action="edit-task" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" aria-label="Editar">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '<a class="icon-btn" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" title="Editar tarefa" data-action="edit-task">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
         '</a>' +
-        '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + escapeHtml(t.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+        '<button type="button" class="icon-btn danger" title="Excluir tarefa" data-action="delete-task" data-id="' + escapeHtml(t.id) + '">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>' +
         '</button>' +
       '</div>'
     );
   }
 
-  /* ---------------------------------------------------------
-     Anotações
-  --------------------------------------------------------- */
-  var notesGrid = document.getElementById('notesGrid');
-  var notesEmpty = document.getElementById('notesEmpty');
-
-  function renderNotes() {
-    var notes = (AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || [];
-    if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
-
-    if (notesGrid) {
-      notesGrid.innerHTML = notes.map(function (n) {
-        var excerpt = htmlToExcerpt(n.conteudo, 140);
-        var dateText = getSafeDateFormatted(n.atualizadoEm || n.criadoEm);
-        return (
-          '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '">' +
-            '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
-            '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
-            '<div class="note-card-foot">' +
-              '<span class="note-card-date">' + escapeHtml(dateText) + '</span>' +
-              noteActionsHtml(n) +
-            '</div>' +
-          '</div>'
-        );
-      }).join('');
-    }
+  /* Renderização das abas */
+  function renderTabs() {
+    tabsContainer.innerHTML = AtlasData.BIMESTRES.map(function (b) {
+      var activeClass = b.id === currentBimestre ? 'active' : '';
+      return '<button class="tab-btn ' + activeClass + '" data-bimestre="' + b.id + '">' + escapeHtml(b.nome) + '</button>';
+    }).join('');
   }
 
-  if (notesGrid) {
-    notesGrid.addEventListener('click', function (e) {
-      var editBtn = e.target.closest('[data-action="edit-note"]');
-      var delBtn = e.target.closest('[data-action="delete-note"]');
+  tabsContainer.addEventListener('click', function (e) {
+    var btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    currentBimestre = parseInt(btn.dataset.bimestre, 10);
+    renderTabs();
+    renderNotes();
+    renderTasks();
+  });
 
-      if (editBtn) {
-        e.stopPropagation();
-        return; // Permite que a tag <a> navegue normalmente
-      }
+  /* Renderização das Anotações */
+  function renderNotes() {
+    var notes = AtlasData.getNotesBy(materiaName, currentBimestre);
+    if (!notes.length) {
+      notesList.innerHTML = '<div class="empty-state">Nenhuma anotação cadastrada para esta matéria neste bimestre.</div>';
+      return;
+    }
 
-      if (delBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!isDevSession()) return;
-        armConfirm(delBtn, function () {
-          AtlasData.deleteNote(delBtn.dataset.id);
-          renderNotes();
-        });
-        return;
-      }
+    notesList.innerHTML = notes.map(function (n) {
+      var excerptText = stripHtml(n.conteudo || '');
+      if (excerptText.length > 120) excerptText = excerptText.slice(0, 120) + '…';
+      var excerptHtml = excerptText ? '<div class="note-card-excerpt">' + escapeHtml(excerptText) + '</div>' : '';
 
+      return (
+        '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" tabindex="0" role="link" style="cursor:pointer;">' +
+          '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
+          excerptHtml +
+          '<div class="note-card-foot">' +
+            '<span class="note-card-date">' + formatDate(n.dataCriacao || n.data) + '</span>' +
+            noteActionsHtml(n) +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  notesList.addEventListener('click', function (e) {
+    var editLink = e.target.closest('[data-action="edit-note"]');
+    var delBtn = e.target.closest('[data-action="delete-note"]');
+
+    if (editLink) {
+      if (!isDevSession()) { e.preventDefault(); }
+      return;
+    }
+    if (delBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      armConfirm(delBtn, function () {
+        AtlasData.deleteNote(delBtn.dataset.id);
+        renderNotes();
+      });
+      return;
+    }
+
+    var card = e.target.closest('.note-card');
+    if (card && card.dataset.href) {
+      window.location.href = card.dataset.href;
+    }
+  });
+
+  notesList.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
       var card = e.target.closest('.note-card');
-      if (card && card.dataset.href) {
+      if (card && card.dataset.href && !e.target.closest('.note-card-actions')) {
+        e.preventDefault();
         window.location.href = card.dataset.href;
       }
-    });
-  }
+    }
+  });
 
   var addNoteBtn = document.getElementById('addNoteBtn');
-  if (addNoteBtn) {
-    addNoteBtn.addEventListener('click', function () {
-      if (!isDevSession()) return;
-      window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
-    });
-  }
+  addNoteBtn.addEventListener('click', function () {
+    if (!isDevSession()) return;
+    window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  });
 
-  /* ---------------------------------------------------------
-     Tarefas
-  --------------------------------------------------------- */
-  var tasksList = document.getElementById('tasksList');
-  var tasksEmpty = document.getElementById('tasksEmpty');
-
+  /* Renderização das Tarefas */
   function renderTasks() {
-    var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice().sort(function (a, b) {
-      return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
-    });
-    if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
-
-    if (tasksList) {
-      tasksList.innerHTML = tasks.map(function (t) {
-        var excerpt = htmlToExcerpt(t.resposta, 110);
-        var dueSoon = isDueSoon(t.dataEntrega);
-        var excerptHtml = excerpt
-          ? '<div class="task-card-excerpt">' + escapeHtml(excerpt) + '</div>'
-          : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
-
-        return (
-          '<div class="task-card" data-href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + escapeHtml(t.id) + '">' +
-            '<div class="task-card-top">' +
-              '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
-                escapeHtml(formatDateBR(t.dataEntrega)) +
-              '</span>' +
-              taskActionsHtml(t) +
-            '</div>' +
-            '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
-            excerptHtml +
-          '</div>'
-        );
-      }).join('');
+    var tasks = AtlasData.getTasksBy(materiaName, currentBimestre);
+    if (!tasks.length) {
+      tasksList.innerHTML = '<div class="empty-state">Nenhuma tarefa cadastrada para esta matéria neste bimestre.</div>';
+      return;
     }
+
+    tasksList.innerHTML = tasks.map(function (t) {
+      var statusClass = t.concluida ? 'status-done' : (t.atrasada ? 'status-late' : 'status-pending');
+      var statusLabel = t.concluida ? 'Concluída' : (t.atrasada ? 'Atrasada' : 'Pendente');
+
+      var excerptText = stripHtml(t.descricao || '');
+      if (excerptText.length > 100) excerptText = excerptText.slice(0, 100) + '…';
+      var excerptHtml = excerptText ? '<div class="task-card-excerpt">' + escapeHtml(excerptText) + '</div>' : '';
+
+      return (
+        '<div class="task-card" data-href="tarefa.html?id=' + encodeURIComponent(t.id) + '" tabindex="0" role="link" style="cursor:pointer;">' +
+          '<div class="task-card-head">' +
+            '<span class="task-status ' + statusClass + '">' + statusLabel + '</span>' +
+            '<span class="task-date">' + formatDate(t.prazo || t.data) + '</span>' +
+            taskActionsHtml(t) +
+          '</div>' +
+          '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
+          excerptHtml +
+        '</div>'
+      );
+    }).join('');
   }
 
-  if (tasksList) {
-    tasksList.addEventListener('click', function (e) {
-      var editBtn = e.target.closest('[data-action="edit-task"]');
-      var delBtn = e.target.closest('[data-action="delete-task"]');
+  tasksList.addEventListener('click', function (e) {
+    var editLink = e.target.closest('[data-action="edit-task"]');
+    var delBtn = e.target.closest('[data-action="delete-task"]');
 
-      if (editBtn) {
-        e.stopPropagation();
-        return;
-      }
+    if (editLink) {
+      if (!isDevSession()) { e.preventDefault(); }
+      return;
+    }
+    if (delBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!isDevSession()) return;
+      armConfirm(delBtn, function () {
+        AtlasData.deleteTask(delBtn.dataset.id);
+        renderTasks();
+      });
+      return;
+    }
 
-      if (delBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!isDevSession()) return;
-        armConfirm(delBtn, function () {
-          AtlasData.deleteTask(delBtn.dataset.id);
-          renderTasks();
-        });
-        return;
-      }
+    var card = e.target.closest('.task-card');
+    if (card && card.dataset.href) {
+      window.location.href = card.dataset.href;
+    }
+  });
 
+  tasksList.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
       var card = e.target.closest('.task-card');
-      if (card && card.dataset.href) {
+      if (card && card.dataset.href && !e.target.closest('.task-card-actions')) {
+        e.preventDefault();
         window.location.href = card.dataset.href;
       }
-    });
-  }
+    }
+  });
 
   var addTaskBtn = document.getElementById('addTaskBtn');
-  if (addTaskBtn) {
-    addTaskBtn.addEventListener('click', function () {
-      if (!isDevSession()) return;
-      window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
-    });
-  }
+  addTaskBtn.addEventListener('click', function () {
+    if (!isDevSession()) return;
+    window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  });
 
-  /* ---------------------------------------------------------
-     Inicialização
-  --------------------------------------------------------- */
+  /* Inicialização e sincronização */
   renderTabs();
   renderNotes();
   renderTasks();
 
-  if (typeof AtlasData.onDataChange === 'function') {
-    AtlasData.onDataChange(function () {
-      renderNotes();
-      renderTasks();
-    });
-  }
-
-  if (typeof AtlasData.injectDevBanner === 'function') {
-    AtlasData.injectDevBanner();
-  }
-});
+  AtlasData.onDataChange(function () {
+    renderNotes();
+    renderTasks();
+  });
 </script>
 
 </body>
