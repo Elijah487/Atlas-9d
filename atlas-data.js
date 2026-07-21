@@ -103,6 +103,15 @@ import {
   }
 
   /* ---------------------------------------------------------------
+     Sincronização de Estado DEV na UI
+  --------------------------------------------------------------- */
+  function updateDevMode() {
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.toggle('dev-mode-on', isDev());
+    }
+  }
+
+  /* ---------------------------------------------------------------
      Cache em sessionStorage (mantém dados ao trocar de página)
   --------------------------------------------------------------- */
   function saveToSessionStorage() {
@@ -244,8 +253,6 @@ import {
   }
 
   function initFirebase() {
-    /* Restaura cache do sessionStorage imediatamente — dados aparecem
-       instantaneamente ao trocar de página na mesma sessão do navegador. */
     if (loadFromSessionStorage()) {
       scheduleNotify();
     }
@@ -261,34 +268,23 @@ import {
       return;
     }
 
-    /* Leitura pública — abre os listeners imediatamente, sem esperar
-       autenticação. As regras do Firebase permitem .read: true, portanto
-       não há round-trip de auth antes de os dados chegarem. */
     attachDataListeners();
-
-    /* Dispara ready logo após abrir os listeners, sem depender de auth.
-       Páginas de alunos não precisam de nenhum estado de autenticação. */
     markFirebaseReady();
 
-    /* Auth persistido para o dev: o Firebase restaura a sessão do dev
-       do localStorage sem nenhuma chamada de rede. O onAuthStateChanged
-       só serve para manter o isDev() atualizado caso o dev faça logout
-       em outra aba. Nenhum aluno é afetado por este bloco. */
     setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function (e) {
       console.warn('Atlas: não foi possível definir persistência LOCAL.', e);
     });
 
     onAuthStateChanged(firebaseAuthInstance, function (user) {
-
-    if (user) {
+      if (user) {
         setSessionDev();
-        return;
-    }
+      } else {
+        updateDevMode();
+      }
+    });
 
-    // Não limpar a sessão aqui.
-    // O logout já faz isso explicitamente.
-
-});
+    // Garante que o estado inicial do DOM reflete o estado atual salvo no localStorage
+    updateDevMode();
   }
 
   /* ---------------------------------------------------------------
@@ -304,41 +300,34 @@ import {
 
   function setSessionDev() {
     if (!hasLocalStorage()) return;
-    try { global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
+    try { 
+      global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev'); 
+      updateDevMode();
+    } catch (e) {}
   }
 
   function clearSessionLocal() {
     if (!hasLocalStorage()) return;
-    try { global.localStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
+    try { 
+      global.localStorage.removeItem(ATLAS_SESSION_KEY); 
+      updateDevMode();
+    } catch (e) {}
   }
 
   function isDev() {
     return getSession() === 'dev';
   }
 
-  /* isLoggedIn mantido por compatibilidade com páginas que chamam
-     AtlasData.isLoggedIn() — agora sempre retorna true (leitura pública). */
   function isLoggedIn() {
     return true;
   }
 
-  /* requireSession mantido por compatibilidade — não redireciona mais,
-     pois alunos acessam sem login. */
   function requireSession() {
     return true;
   }
 
   /* ---------------------------------------------------------------
-     Login dev via Email/Senha do Firebase Auth
-     - Não existe mais senha comparada no cliente nem Cloud Function.
-     - O Firebase Auth valida as credenciais nos servidores deles.
-     - A sessão persiste via localStorage (browserLocalPersistence).
-     - Ao abrir qualquer página depois de logado, o Firebase restaura
-       a sessão SEM nenhuma chamada de rede adicional.
-     - Inclui um timeout de segurança: se a chamada de rede para o
-       Firebase Auth travar (ex: bloqueador de anúncios/DNS bloqueando
-       identitytoolkit.googleapis.com), o callback é chamado com
-       reason='timeout' em vez de deixar a UI girando para sempre.
+     Login / Logout dev
   --------------------------------------------------------------- */
   function loginAsDev(email, password, callback) {
     if (!firebaseAuthInstance) {
@@ -378,10 +367,8 @@ import {
       });
   }
 
-  /* Mantido por compatibilidade com index.html legado */
   function loginWithRole(role, callback) {
     if (role === 'student') {
-      /* Alunos não precisam de login — apenas marca e redireciona. */
       if (callback) callback(true);
     } else {
       console.error('Atlas: use AtlasData.loginAsDev(email, password, callback).');
@@ -577,7 +564,7 @@ import {
   }
 
   /* ---------------------------------------------------------------
-     Exposição pública — API idêntica à v6 para compatibilidade
+     Exposição pública — API central do Atlas
   --------------------------------------------------------------- */
   global.AtlasData = {
     SUBJECTS:          SUBJECTS,
@@ -591,9 +578,10 @@ import {
     getSession:     getSession,
     clearSession:   clearSession,
     isDev:          isDev,
+    updateDevMode:  updateDevMode,
     isLoggedIn:     isLoggedIn,
     loginWithRole:  loginWithRole,
-    loginAsDev:     loginAsDev,       // agora recebe (email, password, callback)
+    loginAsDev:     loginAsDev,
     requireSession: requireSession,
     logout:         logout,
     onFirebaseReady:onFirebaseReady,
