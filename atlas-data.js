@@ -224,16 +224,9 @@ import {
     onValue(
       ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
       function (snapshot) {
-        var newData = objectToArray(snapshot.val());
-        var currentDataString = JSON.stringify(cache[collectionName]);
-        var newDataString = JSON.stringify(newData);
-
-        // Só atualiza o cache e re-renderiza a tela se os dados realmente mudaram
-        if (currentDataString !== newDataString) {
-          cache[collectionName] = newData;
-          saveToSessionStorage();
-          scheduleNotify();
-        }
+        cache[collectionName] = objectToArray(snapshot.val());
+        saveToSessionStorage();
+        scheduleNotify();
       },
       function (error) {
         console.error('Atlas: erro ao escutar "' + collectionName + '".', error);
