@@ -547,31 +547,6 @@
 </div>
 
 <script>
-  var menuBtn = document.getElementById('menuBtn');
-  var logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
-      } else {
-        window.location.href = 'index.html';
-      }
-    });
-  }
-  var sidebar = document.getElementById('sidebar');
-  if (menuBtn) {
-    menuBtn.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
-    });
-  }
-  document.addEventListener('click', function (e) {
-    if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
-      sidebar.classList.remove('open');
-    }
-  });
-</script>
-
-<script>
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
@@ -631,7 +606,7 @@ document.addEventListener('atlas-data-ready', function () {
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
 
-  // Função para tratar e formatar datas de anotações com segurança
+  // Tratamento seguro para formatação de data
   function getSafeDateFormatted(dateVal) {
     if (!dateVal) return '';
     try {
@@ -730,7 +705,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Anotações
+     Anotações (Usa <div> para evitar links aninhados no HTML)
   --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
@@ -738,20 +713,20 @@ document.addEventListener('atlas-data-ready', function () {
   function renderNotes() {
     var notes = AtlasData.getNotesBy(materiaName, currentBimestre) || [];
     if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
-    
+
     if (notesGrid) {
       notesGrid.innerHTML = notes.map(function (n) {
         var excerpt = htmlToExcerpt(n.conteudo, 140);
         var dateText = getSafeDateFormatted(n.atualizadoEm || n.criadoEm);
         return (
-          '<a class="note-card" href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '">' +
+          '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '">' +
             '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
             '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
             '<div class="note-card-foot">' +
               '<span class="note-card-date">' + escapeHtml(dateText) + '</span>' +
               noteActionsHtml(n) +
             '</div>' +
-          '</a>'
+          '</div>'
         );
       }).join('');
     }
@@ -762,10 +737,8 @@ document.addEventListener('atlas-data-ready', function () {
       var editLink = e.target.closest('[data-action="edit-note"]');
       var delBtn = e.target.closest('[data-action="delete-note"]');
 
-      if (editLink) {
-        if (!isDevSession()) { e.preventDefault(); }
-        return;
-      }
+      if (editLink) return;
+
       if (delBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -775,6 +748,11 @@ document.addEventListener('atlas-data-ready', function () {
           renderNotes();
         });
         return;
+      }
+
+      var card = e.target.closest('.note-card');
+      if (card && card.dataset.href) {
+        window.location.href = card.dataset.href;
       }
     });
   }
@@ -788,7 +766,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Tarefas
+     Tarefas (Usa <div> para evitar links aninhados no HTML)
   --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList');
   var tasksEmpty = document.getElementById('tasksEmpty');
@@ -808,7 +786,7 @@ document.addEventListener('atlas-data-ready', function () {
           : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
 
         return (
-          '<a class="task-card" href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + escapeHtml(t.id) + '">' +
+          '<div class="task-card" data-href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + escapeHtml(t.id) + '">' +
             '<div class="task-card-top">' +
               '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
@@ -818,7 +796,7 @@ document.addEventListener('atlas-data-ready', function () {
             '</div>' +
             '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
             excerptHtml +
-          '</a>'
+          '</div>'
         );
       }).join('');
     }
@@ -829,10 +807,8 @@ document.addEventListener('atlas-data-ready', function () {
       var editLink = e.target.closest('[data-action="edit-task"]');
       var delBtn = e.target.closest('[data-action="delete-task"]');
 
-      if (editLink) {
-        if (!isDevSession()) { e.preventDefault(); }
-        return;
-      }
+      if (editLink) return;
+
       if (delBtn) {
         e.preventDefault();
         e.stopPropagation();
@@ -842,6 +818,11 @@ document.addEventListener('atlas-data-ready', function () {
           renderTasks();
         });
         return;
+      }
+
+      var card = e.target.closest('.task-card');
+      if (card && card.dataset.href) {
+        window.location.href = card.dataset.href;
       }
     });
   }
