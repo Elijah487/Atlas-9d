@@ -1,26 +1,8 @@
 /* =====================================================================
-   ATLAS — Camada central de dados e sessão (v7 — leitura pública)
-   ---------------------------------------------------------------------
-   Arquitetura v7:
-   - Leitura: PÚBLICA — sem nenhum login para alunos. O Firebase lê os
-     dados diretamente sem autenticação. Nenhuma chamada de rede de auth.
-   - Escrita (modo dev): login real com Email/Senha do Firebase Auth.
-     O dev faz login UMA vez; o Firebase mantém a sessão indefinidamente
-     via localStorage. Nenhum round-trip de rede em navegações futuras.
-   - Removido completamente: signInAnonymously, dev_sessions, Cloud Function.
-   - Regras do Firebase necessárias:
-       { "rules": {
-           "atlas_data": { ".read": true, ".write": "auth != null && auth.uid === 'SEU_UID_AQUI'" },
-           "dev_sessions": { ".read": false, ".write": false }
-       }}
-     Substitua SEU_UID_AQUI pelo uid do seu usuário de email/senha
-     (visível no painel Firebase → Authentication → Usuários).
+   ATLAS — Camada central de dados e sessão (v7.1 — Correção de Reload/Sessão)
    ===================================================================== */
 
-import {
-  initializeApp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
   setPersistence,
@@ -29,7 +11,6 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
 import {
   getDatabase,
   ref,
@@ -50,7 +31,7 @@ import {
     appId: "1:967138045816:web:c90ba328cc71bf6dcf628d"
   };
 
-  var ATLAS_SESSION_KEY = 'atlas_session';  // 'dev' | null
+  var ATLAS_SESSION_KEY = 'atlas_session';
   var DATA_PATH = 'atlas_data';
   var CACHE_KEY  = 'atlas_cache';
 
@@ -63,9 +44,7 @@ import {
   var BIMESTRES = ['3º Bimestre', '4º Bimestre'];
   var NOTICE_PRIORITIES = ['Normal', 'Importante', 'Urgente'];
 
-  /* ---------------------------------------------------------------
-     Estado interno
-  --------------------------------------------------------------- */
+  /* --- Estado interno --- */
   var cache = emptyData();
   var changeCallbacks = [];
   var firebaseAuthInstance = null;
@@ -76,9 +55,7 @@ import {
   var atlasDataReadyEventDispatched = false;
   var notifyTimer = null;
 
-  /* ---------------------------------------------------------------
-     Utilitários
-  --------------------------------------------------------------- */
+  /* --- Utilitários --- */
   function uid() {
     return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
   }
@@ -102,14 +79,12 @@ import {
     try { return !!global.sessionStorage; } catch (e) { return false; }
   }
 
-  /* ---------------------------------------------------------------
-     Cache em sessionStorage (mantém dados ao trocar de página)
-  --------------------------------------------------------------- */
+  /* --- Cache em sessionStorage --- */
   function saveToSessionStorage() {
     if (!hasSessionStorage()) return;
     try {
       global.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-    } catch (e) { /* QuotaExceededError — ignorar */ }
+    } catch (e) {}
   }
 
   function loadFromSessionStorage() {
@@ -127,13 +102,11 @@ import {
         };
         return true;
       }
-    } catch (e) { /* JSON inválido — ignorar */ }
+    } catch (e) {}
     return false;
   }
 
-  /* ---------------------------------------------------------------
-     Notificação via debounce (agrupa renders simultâneos)
-  --------------------------------------------------------------- */
+  /* --- Notificação via debounce --- */
   function scheduleNotify() {
     clearTimeout(notifyTimer);
     notifyTimer = setTimeout(function () { notifyChange(); }, 0);
@@ -145,9 +118,7 @@ import {
     });
   }
 
-  /* ---------------------------------------------------------------
-     Sanitização de HTML (editor rico)
-  --------------------------------------------------------------- */
+  /* --- Sanitização de HTML --- */
   function sanitizeHtml(html) {
     if (!html) return '';
     if (typeof document === 'undefined') return String(html);
@@ -193,9 +164,7 @@ import {
     return template.innerHTML;
   }
 
-  /* ---------------------------------------------------------------
-     Firebase — inicialização
-  --------------------------------------------------------------- */
+  /* --- Firebase — Inicialização e Escuta --- */
   function onFirebaseReady(callback) {
     if (firebaseReady) callback();
     else firebaseReadyCallbacks.push(callback);
@@ -244,11 +213,7 @@ import {
   }
 
   function initFirebase() {
-    /* Restaura cache do sessionStorage imediatamente — dados aparecem
-       instantaneamente ao trocar de página na mesma sessão do navegador. */
-    if (loadFromSessionStorage()) {
-      scheduleNotify();
-    }
+    var hasCache = loadFromSessionStorage();
 
     var app;
     try {
@@ -261,34 +226,40 @@ import {
       return;
     }
 
-    /* Leitura pública — abre os listeners imediatamente, sem esperar
-       autenticação. As regras do Firebase permitem .read: true, portanto
-       não há round-trip de auth antes de os dados chegarem. */
     attachDataListeners();
 
-    /* Dispara ready logo após abrir os listeners, sem depender de auth.
-       Páginas de alunos não precisam de nenhum estado de autenticação. */
-    markFirebaseReady();
+    // Se já temos cache local, libera o atlas-data-ready imediatamente para não haver delay na tela
+    if (hasCache) {
+      markFirebaseReady();
+    } else {
+      // Caso seja o primeiro acesso, aguarda 100ms para receber dados do Firebase antes de renderizar
+      setTimeout(function () {
+        markFirebaseReady();
+      }, 100);
+    }
 
-    /* Auth persistido para o dev: o Firebase restaura a sessão do dev
-       do localStorage sem nenhuma chamada de rede. O onAuthStateChanged
-       só serve para manter o isDev() atualizado caso o dev faça logout
-       em outra aba. Nenhum aluno é afetado por este bloco. */
     setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function (e) {
       console.warn('Atlas: não foi possível definir persistência LOCAL.', e);
     });
 
+    // Correção de sessão no carregamento da página
+    var firstAuthCheckDone = false;
     onAuthStateChanged(firebaseAuthInstance, function (user) {
-      /* Se o dev fez signOut em outra aba, limpa a sessão local. */
-      if (!user && getSession() === 'dev') {
-        clearSessionLocal();
+      if (firstAuthCheckDone) {
+        if (!user && getSession() === 'dev') {
+          clearSessionLocal();
+          scheduleNotify();
+        }
+      } else {
+        firstAuthCheckDone = true;
+        if (user) {
+          setSessionDev();
+        }
       }
     });
   }
 
-  /* ---------------------------------------------------------------
-     Sessão dev (localStorage — persiste entre abas)
-  --------------------------------------------------------------- */
+  /* --- Sessão dev --- */
   function getSession() {
     if (!hasLocalStorage()) return null;
     try {
@@ -311,30 +282,14 @@ import {
     return getSession() === 'dev';
   }
 
-  /* isLoggedIn mantido por compatibilidade com páginas que chamam
-     AtlasData.isLoggedIn() — agora sempre retorna true (leitura pública). */
   function isLoggedIn() {
     return true;
   }
 
-  /* requireSession mantido por compatibilidade — não redireciona mais,
-     pois alunos acessam sem login. */
   function requireSession() {
     return true;
   }
 
-  /* ---------------------------------------------------------------
-     Login dev via Email/Senha do Firebase Auth
-     - Não existe mais senha comparada no cliente nem Cloud Function.
-     - O Firebase Auth valida as credenciais nos servidores deles.
-     - A sessão persiste via localStorage (browserLocalPersistence).
-     - Ao abrir qualquer página depois de logado, o Firebase restaura
-       a sessão SEM nenhuma chamada de rede adicional.
-     - Inclui um timeout de segurança: se a chamada de rede para o
-       Firebase Auth travar (ex: bloqueador de anúncios/DNS bloqueando
-       identitytoolkit.googleapis.com), o callback é chamado com
-       reason='timeout' em vez de deixar a UI girando para sempre.
-  --------------------------------------------------------------- */
   function loginAsDev(email, password, callback) {
     if (!firebaseAuthInstance) {
       callback(false, 'auth_error'); return;
@@ -373,13 +328,10 @@ import {
       });
   }
 
-  /* Mantido por compatibilidade com index.html legado */
   function loginWithRole(role, callback) {
     if (role === 'student') {
-      /* Alunos não precisam de login — apenas marca e redireciona. */
       if (callback) callback(true);
     } else {
-      console.error('Atlas: use AtlasData.loginAsDev(email, password, callback).');
       if (callback) callback(false);
     }
   }
@@ -402,9 +354,7 @@ import {
     }
   }
 
-  /* ---------------------------------------------------------------
-     Persistência no Firebase (só dev pode escrever)
-  --------------------------------------------------------------- */
+  /* --- Persistência no Firebase --- */
   function persistCollection(collectionName, list) {
     if (!firebaseDbInstance) {
       console.error('Atlas: Firebase não conectado.'); return false;
@@ -417,9 +367,7 @@ import {
     return true;
   }
 
-  /* ---------------------------------------------------------------
-     CRUD — Anotações
-  --------------------------------------------------------------- */
+  /* --- CRUD Anotações --- */
   function getNotes() { return cache.notes; }
 
   function getNotesBy(materia, bimestre) {
@@ -448,9 +396,7 @@ import {
     persistCollection('notes', cache.notes.filter(function (n) { return n.id !== id; })); return true;
   }
 
-  /* ---------------------------------------------------------------
-     CRUD — Tarefas
-  --------------------------------------------------------------- */
+  /* --- CRUD Tarefas --- */
   function getTasks() { return cache.tasks; }
 
   function getTasksBy(materia, bimestre) {
@@ -479,9 +425,7 @@ import {
     persistCollection('tasks', cache.tasks.filter(function (t) { return t.id !== id; })); return true;
   }
 
-  /* ---------------------------------------------------------------
-     CRUD — Eventos
-  --------------------------------------------------------------- */
+  /* --- CRUD Eventos --- */
   function getEvents() { return cache.events; }
 
   function saveEvent(evt) {
@@ -500,9 +444,7 @@ import {
     persistCollection('events', cache.events.filter(function (e) { return e.id !== id; })); return true;
   }
 
-  /* ---------------------------------------------------------------
-     CRUD — Avisos
-  --------------------------------------------------------------- */
+  /* --- CRUD Avisos --- */
   function getNotices() { return cache.notices; }
 
   function saveNotice(notice) {
@@ -522,16 +464,11 @@ import {
     persistCollection('notices', cache.notices.filter(function (n) { return n.id !== id; })); return true;
   }
 
-  /* ---------------------------------------------------------------
-     Callbacks de atualização
-  --------------------------------------------------------------- */
+  /* --- Callbacks e Banner --- */
   function onDataChange(callback) {
     changeCallbacks.push(callback);
   }
 
-  /* ---------------------------------------------------------------
-     Banner modo dev
-  --------------------------------------------------------------- */
   function injectDevBanner() {
     if (!isDev()) return;
     if (document.getElementById('atlasDevBanner')) return;
@@ -571,9 +508,7 @@ import {
     if (exitBtn) exitBtn.addEventListener('click', function () { logout(); });
   }
 
-  /* ---------------------------------------------------------------
-     Exposição pública — API idêntica à v6 para compatibilidade
-  --------------------------------------------------------------- */
+  /* --- API Exposta --- */
   global.AtlasData = {
     SUBJECTS:          SUBJECTS,
     BIMESTRES:         BIMESTRES,
@@ -588,7 +523,7 @@ import {
     isDev:          isDev,
     isLoggedIn:     isLoggedIn,
     loginWithRole:  loginWithRole,
-    loginAsDev:     loginAsDev,       // agora recebe (email, password, callback)
+    loginAsDev:     loginAsDev,
     requireSession: requireSession,
     logout:         logout,
     onFirebaseReady:onFirebaseReady,
