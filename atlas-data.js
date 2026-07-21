@@ -101,7 +101,7 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
 
   _loadLocal();
 
-  /* ============ MÉTODOS DE TAREFA (CORRIGIDOS) ============ */
+  /* ============ MÉTODOS DE TAREFA ============ */
   function getTasks() {
     return _data.tasks || [];
   }
@@ -116,10 +116,7 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
   }
 
   function saveTask(task) {
-    if (!task || !task.titulo || !task.materia) {
-      console.warn('AtlasData.saveTask: Campos obrigatórios ausentes.');
-      return null;
-    }
+    if (!task || !task.titulo || !task.materia) return null;
 
     var tasks = getTasks();
     var existingIndex = task.id ? tasks.findIndex(function (t) { return t.id === task.id; }) : -1;
@@ -144,10 +141,7 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
     _saveLocal();
 
     try {
-      var taskRef = ref(db, 'atlas_data/tasks/' + taskData.id);
-      set(taskRef, taskData).catch(function (err) {
-        console.error('AtlasData: Erro de escrita no Firebase:', err);
-      });
+      set(ref(db, 'atlas_data/tasks/' + taskData.id), taskData);
     } catch (err) {
       console.error('AtlasData: Falha na requisição ao Firebase:', err);
     }
@@ -168,10 +162,7 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
     _saveLocal();
 
     try {
-      var taskRef = ref(db, 'atlas_data/tasks/' + id);
-      set(taskRef, null).catch(function (err) {
-        console.error('AtlasData: Erro ao remover do Firebase:', err);
-      });
+      set(ref(db, 'atlas_data/tasks/' + id), null);
     } catch (err) {
       console.error('AtlasData: Falha ao remover do Firebase:', err);
     }
@@ -181,10 +172,7 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
   }
 
   /* ============ MÉTODOS DE ANOTAÇÕES ============ */
-  function getNotes() {
-    return _data.notes || [];
-  }
-
+  function getNotes() { return _data.notes || []; }
   function getNotesBy(filter) {
     filter = filter || {};
     return getNotes().filter(function (n) {
@@ -193,13 +181,10 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
       return true;
     });
   }
-
   function saveNote(note) {
     if (!note || !note.titulo || !note.materia) return null;
-
     var notes = getNotes();
     var existingIndex = note.id ? notes.findIndex(function (n) { return n.id === note.id; }) : -1;
-
     var noteData = {
       id: (existingIndex >= 0) ? notes[existingIndex].id : (note.id || 'note-' + uid()),
       titulo: String(note.titulo).trim(),
@@ -209,56 +194,32 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
       criadoEm: (existingIndex >= 0 && notes[existingIndex].criadoEm) ? notes[existingIndex].criadoEm : new Date().toISOString(),
       atualizadoEm: new Date().toISOString()
     };
-
-    if (existingIndex >= 0) {
-      notes[existingIndex] = noteData;
-    } else {
-      notes.push(noteData);
-    }
+    if (existingIndex >= 0) notes[existingIndex] = noteData;
+    else notes.push(noteData);
     _data.notes = notes;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/notes/' + noteData.id), noteData);
-    } catch (err) {
-      console.error('AtlasData: Erro ao salvar nota:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/notes/' + noteData.id), noteData); } catch (err) {}
     notifyDataChange();
     return noteData;
   }
-
   function deleteNote(id) {
     if (!id) return false;
     var notes = getNotes();
     var filtered = notes.filter(function (n) { return n.id !== id; });
-
     if (filtered.length === notes.length) return false;
-
     _data.notes = filtered;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/notes/' + id), null);
-    } catch (err) {
-      console.error('AtlasData: Erro ao deletar nota:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/notes/' + id), null); } catch (err) {}
     notifyDataChange();
     return true;
   }
 
   /* ============ MÉTODOS DE CALENDÁRIO / EVENTOS ============ */
-  function getEvents() {
-    return _data.events || [];
-  }
-
+  function getEvents() { return _data.events || []; }
   function saveEvent(evt) {
     if (!evt || !evt.titulo || !evt.data) return null;
-
     var events = getEvents();
     var existingIndex = evt.id ? events.findIndex(function (e) { return e.id === evt.id; }) : -1;
-
     var evtData = {
       id: (existingIndex >= 0) ? events[existingIndex].id : (evt.id || 'evt-' + uid()),
       titulo: String(evt.titulo).trim(),
@@ -267,102 +228,73 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
       materia: evt.materia || '',
       descricao: evt.descricao || ''
     };
-
-    if (existingIndex >= 0) {
-      events[existingIndex] = evtData;
-    } else {
-      events.push(evtData);
-    }
+    if (existingIndex >= 0) events[existingIndex] = evtData;
+    else events.push(evtData);
     _data.events = events;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/events/' + evtData.id), evtData);
-    } catch (err) {
-      console.error('AtlasData: Erro ao salvar evento:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/events/' + evtData.id), evtData); } catch (err) {}
     notifyDataChange();
     return evtData;
   }
-
   function deleteEvent(id) {
     if (!id) return false;
     var events = getEvents();
     var filtered = events.filter(function (e) { return e.id !== id; });
-
     if (filtered.length === events.length) return false;
-
     _data.events = filtered;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/events/' + id), null);
-    } catch (err) {
-      console.error('AtlasData: Erro ao excluir evento:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/events/' + id), null); } catch (err) {}
     notifyDataChange();
     return true;
   }
 
   /* ============ MÉTODOS DE AVISOS / MURAL ============ */
-  function getNotices() {
-    return _data.notices || [];
-  }
-
+  function getNotices() { return _data.notices || []; }
   function saveNotice(notice) {
     if (!notice || !notice.titulo) return null;
-
     var notices = getNotices();
     var existingIndex = notice.id ? notices.findIndex(function (n) { return n.id === notice.id; }) : -1;
-
     var noticeData = {
       id: (existingIndex >= 0) ? notices[existingIndex].id : (notice.id || 'notice-' + uid()),
       titulo: String(notice.titulo).trim(),
       conteudo: notice.conteudo || '',
       data: notice.data || new Date().toISOString()
     };
-
-    if (existingIndex >= 0) {
-      notices[existingIndex] = noticeData;
-    } else {
-      notices.push(noticeData);
-    }
+    if (existingIndex >= 0) notices[existingIndex] = noticeData;
+    else notices.push(noticeData);
     _data.notices = notices;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/notices/' + noticeData.id), noticeData);
-    } catch (err) {
-      console.error('AtlasData: Erro ao salvar aviso:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/notices/' + noticeData.id), noticeData); } catch (err) {}
     notifyDataChange();
     return noticeData;
   }
-
   function deleteNotice(id) {
     if (!id) return false;
     var notices = getNotices();
     var filtered = notices.filter(function (n) { return n.id !== id; });
-
     if (filtered.length === notices.length) return false;
-
     _data.notices = filtered;
     _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/notices/' + id), null);
-    } catch (err) {
-      console.error('AtlasData: Erro ao deletar aviso:', err);
-    }
-
+    try { set(ref(db, 'atlas_data/notices/' + id), null); } catch (err) {}
     notifyDataChange();
     return true;
   }
 
   /* ============ AUTENTICAÇÃO E SESSÃO ============ */
+  function login(email, password) {
+    return signInWithEmailAndPassword(auth, email, password)
+      .then(function (userCredential) {
+        var user = userCredential.user;
+        localStorage.setItem('atlas_user_session', 'true');
+        
+        // Verifica se é o Dev exato pelas regras do Firebase
+        if (user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') {
+          localStorage.setItem('atlas_dev_session', 'true');
+        }
+        return user;
+      });
+  }
+
   function isDev() {
     var user = auth.currentUser;
     if (user && user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') return true;
@@ -400,25 +332,14 @@ import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from
     SUBJECTS: SUBJECTS,
     BIMESTRES: BIMESTRES,
     slugify: slugify,
-    // Tarefas
-    getTasks: getTasks,
-    getTasksBy: getTasksBy,
-    saveTask: saveTask,
-    deleteTask: deleteTask,
-    // Anotações
-    getNotes: getNotes,
-    getNotesBy: getNotesBy,
-    saveNote: saveNote,
-    deleteNote: deleteNote,
-    // Eventos
-    getEvents: getEvents,
-    saveEvent: saveEvent,
-    deleteEvent: deleteEvent,
-    // Avisos
-    getNotices: getNotices,
-    saveNotice: saveNotice,
-    deleteNotice: deleteNotice,
-    // Sessão e Utils
+    
+    getTasks: getTasks, getTasksBy: getTasksBy, saveTask: saveTask, deleteTask: deleteTask,
+    getNotes: getNotes, getNotesBy: getNotesBy, saveNote: saveNote, deleteNote: deleteNote,
+    getEvents: getEvents, saveEvent: saveEvent, deleteEvent: deleteEvent,
+    getNotices: getNotices, saveNotice: saveNotice, deleteNotice: deleteNotice,
+    
+    // Auth (Adicionado!)
+    login: login,
     isDev: isDev,
     requireSession: requireSession,
     logout: logout,
