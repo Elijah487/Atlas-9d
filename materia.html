@@ -578,13 +578,16 @@ document.addEventListener('atlas-data-ready', function () {
   var SUBJECTS = AtlasData.SUBJECTS || [];
   var BIMESTRES = AtlasData.BIMESTRES || [];
 
-  var params = new URLSearchParams(window.location.search);
-  var rawParam = params.get('materia') || '';
-  var slug = AtlasData.slugify(rawParam);
+  var SUBJECT_BY_SLUG = {};
+  SUBJECTS.forEach(function (name) {
+    if (name) {
+      SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name;
+    }
+  });
 
-  var materiaName = SUBJECTS.find(function (s) {
-    return AtlasData.slugify(s) === slug;
-  }) || null;
+  var params = new URLSearchParams(window.location.search);
+  var slug = params.get('materia') || '';
+  var materiaName = SUBJECT_BY_SLUG[slug] || null;
 
   var pageTitle = document.getElementById('pageTitle');
   var pageSub = document.getElementById('pageSub');
@@ -593,26 +596,22 @@ document.addEventListener('atlas-data-ready', function () {
   var tabsWrap = document.getElementById('bimestreTabs');
 
   if (!materiaName) {
-    if (pageTitle) pageTitle.textContent = 'Matéria não encontrada';
-    if (pageSub) pageSub.textContent = 'A matéria informada na URL não existe ou é inválida.';
+    if (pageTitle) pageTitle.textContent = 'Matéria';
+    if (pageSub) pageSub.textContent = '';
     if (invalidBanner) invalidBanner.style.display = 'block';
     if (subjectContent) subjectContent.style.display = 'none';
     if (tabsWrap) tabsWrap.style.display = 'none';
     return;
   }
 
-  if (invalidBanner) invalidBanner.style.display = 'none';
-  if (subjectContent) subjectContent.style.display = 'block';
-  if (tabsWrap) tabsWrap.style.display = 'flex';
-
-  if (pageTitle) pageTitle.textContent = materiaName;
-  if (pageSub) pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
+  pageTitle.textContent = materiaName;
+  pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
   document.title = materiaName + ' — Atlas';
 
   var currentBimestre = BIMESTRES[0] || '1º Bimestre';
 
   function isDevSession() {
-    return typeof AtlasData.isDev === 'function' && AtlasData.isDev();
+    return AtlasData.isDev && AtlasData.isDev();
   }
 
   if (isDevSession()) {
@@ -632,9 +631,22 @@ document.addEventListener('atlas-data-ready', function () {
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
 
+  // Função para tratar e formatar datas de anotações com segurança
+  function getSafeDateFormatted(dateVal) {
+    if (!dateVal) return '';
+    try {
+      var d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '';
+      return formatDateBR(d.toISOString().slice(0, 10));
+    } catch (e) {
+      return '';
+    }
+  }
+
   function isDueSoon(isoDate) {
     if (!isoDate) return false;
     var due = new Date(isoDate + 'T00:00:00');
+    if (isNaN(due.getTime())) return false;
     var today = new Date();
     today.setHours(0, 0, 0, 0);
     var diffDays = Math.round((due - today) / 86400000);
@@ -653,8 +665,10 @@ document.addEventListener('atlas-data-ready', function () {
     return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   }
 
+  /* ---------------------------------------------------------
+     Abas de bimestre
+  --------------------------------------------------------- */
   function renderTabs() {
-    if (!tabsWrap) return;
     tabsWrap.innerHTML = BIMESTRES.map(function (b) {
       var active = b === currentBimestre ? ' active' : '';
       return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
@@ -689,83 +703,58 @@ document.addEventListener('atlas-data-ready', function () {
 
   function noteActionsHtml(n) {
     if (!isDevSession()) return '';
-    return `
-      <div class="note-card-actions">
-        <a class="icon-btn" href="anotacao.html?id=${encodeURIComponent(n.id)}&editar=1" data-action="edit-note" onclick="event.stopPropagation();" aria-label="Editar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-          </svg>
-        </a>
-        <button type="button" class="icon-btn danger" data-action="delete-note" data-id="${n.id}" onclick="event.stopPropagation();" aria-label="Excluir">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"/>
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/>
-          </svg>
-        </button>
-      </div>
-    `;
+    return (
+      '<div class="note-card-actions dev-only">' +
+        '<a class="icon-btn" data-action="edit-note" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" aria-label="Editar">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '</a>' +
+        '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + escapeHtml(n.id) + '" aria-label="Excluir">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+        '</button>' +
+      '</div>'
+    );
   }
 
   function taskActionsHtml(t) {
     if (!isDevSession()) return '';
-    return `
-      <div class="task-card-actions">
-        <a class="icon-btn" href="tarefa.html?id=${encodeURIComponent(t.id)}&editar=1" data-action="edit-task" onclick="event.stopPropagation();" aria-label="Editar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-          </svg>
-        </a>
-        <button type="button" class="icon-btn danger" data-action="delete-task" data-id="${t.id}" onclick="event.stopPropagation();" aria-label="Excluir">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 6h18"/>
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/>
-          </svg>
-        </button>
-      </div>
-    `;
+    return (
+      '<div class="task-card-actions dev-only">' +
+        '<a class="icon-btn" data-action="edit-task" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" aria-label="Editar">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '</a>' +
+        '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + escapeHtml(t.id) + '" aria-label="Excluir">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+        '</button>' +
+      '</div>'
+    );
   }
 
-  /* --- ANOTAÇÕES --- */
+  /* ---------------------------------------------------------
+     Anotações
+  --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
   function renderNotes() {
-    if (!notesGrid) return;
-    var notes = AtlasData.getNotesBy ? (AtlasData.getNotesBy(materiaName, currentBimestre) || []) : [];
-    
+    var notes = AtlasData.getNotesBy(materiaName, currentBimestre) || [];
     if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
-
-    notesGrid.innerHTML = notes.map(function (n) {
-      var excerpt = htmlToExcerpt(n.conteudo, 110);
-      
-      var formattedDate = '';
-      var rawDate = n.atualizadoEm || n.criadoEm;
-      if (rawDate) {
-        try {
-          var d = new Date(rawDate);
-          formattedDate = !isNaN(d.getTime()) ? formatDateBR(d.toISOString().slice(0, 10)) : formatDateBR(rawDate);
-        } catch (e) {
-          formattedDate = '';
-        }
-      }
-
-      return `
-        <a class="note-card" href="anotacao.html?id=${encodeURIComponent(n.id)}" data-id="${n.id}">
-          <div class="note-card-top">
-            <span class="note-card-date">${escapeHtml(formattedDate)}</span>
-          </div>
-          <div class="note-card-title">
-            ${escapeHtml(n.titulo)}
-          </div>
-          <div class="note-card-excerpt ${excerpt ? "" : "is-empty"}">
-            ${excerpt ? escapeHtml(excerpt) : "Sem conteúdo cadastrado ainda."}
-          </div>
-          ${noteActionsHtml(n)}
-        </a>
-      `;
-    }).join("");
+    
+    if (notesGrid) {
+      notesGrid.innerHTML = notes.map(function (n) {
+        var excerpt = htmlToExcerpt(n.conteudo, 140);
+        var dateText = getSafeDateFormatted(n.atualizadoEm || n.criadoEm);
+        return (
+          '<a class="note-card" href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '">' +
+            '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
+            '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
+            '<div class="note-card-foot">' +
+              '<span class="note-card-date">' + escapeHtml(dateText) + '</span>' +
+              noteActionsHtml(n) +
+            '</div>' +
+          '</a>'
+        );
+      }).join('');
+    }
   }
 
   if (notesGrid) {
@@ -782,7 +771,7 @@ document.addEventListener('atlas-data-ready', function () {
         e.stopPropagation();
         if (!isDevSession()) return;
         armConfirm(delBtn, function () {
-          if (AtlasData.deleteNote) AtlasData.deleteNote(delBtn.dataset.id);
+          AtlasData.deleteNote(delBtn.dataset.id);
           renderNotes();
         });
         return;
@@ -790,7 +779,6 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
-  /* --- BOTÕES ADICIONAR --- */
   var addNoteBtn = document.getElementById('addNoteBtn');
   if (addNoteBtn) {
     addNoteBtn.addEventListener('click', function () {
@@ -799,49 +787,41 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
-  var addTaskBtn = document.getElementById('addTaskBtn');
-  if (addTaskBtn) {
-    addTaskBtn.addEventListener('click', function () {
-      if (!isDevSession()) return;
-      window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
-    });
-  }
-
-  /* --- TAREFAS --- */
+  /* ---------------------------------------------------------
+     Tarefas
+  --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList');
   var tasksEmpty = document.getElementById('tasksEmpty');
 
   function renderTasks() {
-    if (!tasksList) return;
-    var rawTasks = AtlasData.getTasksBy ? (AtlasData.getTasksBy(materiaName, currentBimestre) || []) : [];
-    
-    var tasks = rawTasks.slice().sort(function (a, b) {
+    var tasks = (AtlasData.getTasksBy(materiaName, currentBimestre) || []).slice().sort(function (a, b) {
       return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
     });
-    
     if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
 
-    tasksList.innerHTML = tasks.map(function (t) {
-      var excerpt = htmlToExcerpt(t.resposta, 110);
-      var dueSoon = isDueSoon(t.dataEntrega);
+    if (tasksList) {
+      tasksList.innerHTML = tasks.map(function (t) {
+        var excerpt = htmlToExcerpt(t.resposta, 110);
+        var dueSoon = isDueSoon(t.dataEntrega);
+        var excerptHtml = excerpt
+          ? '<div class="task-card-excerpt">' + escapeHtml(excerpt) + '</div>'
+          : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
 
-      return `
-        <a class="task-card" href="tarefa.html?id=${encodeURIComponent(t.id)}">
-          <div class="task-card-top">
-            <span class="task-due-badge ${dueSoon ? "due-soon" : ""}">
-              ${formatDateBR(t.dataEntrega)}
-            </span>
-          </div>
-          <div class="task-card-title">
-            ${escapeHtml(t.titulo)}
-          </div>
-          <div class="task-card-excerpt ${excerpt ? "" : "is-empty"}">
-            ${excerpt ? escapeHtml(excerpt) : "Sem resposta/gabarito cadastrado ainda."}
-          </div>
-          ${taskActionsHtml(t)}
-        </a>
-      `;
-    }).join("");
+        return (
+          '<a class="task-card" href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + escapeHtml(t.id) + '">' +
+            '<div class="task-card-top">' +
+              '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+                escapeHtml(formatDateBR(t.dataEntrega)) +
+              '</span>' +
+              taskActionsHtml(t) +
+            '</div>' +
+            '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
+            excerptHtml +
+          '</a>'
+        );
+      }).join('');
+    }
   }
 
   if (tasksList) {
@@ -858,7 +838,7 @@ document.addEventListener('atlas-data-ready', function () {
         e.stopPropagation();
         if (!isDevSession()) return;
         armConfirm(delBtn, function () {
-          if (AtlasData.deleteTask) AtlasData.deleteTask(delBtn.dataset.id);
+          AtlasData.deleteTask(delBtn.dataset.id);
           renderTasks();
         });
         return;
@@ -866,9 +846,31 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
+  var addTaskBtn = document.getElementById('addTaskBtn');
+  if (addTaskBtn) {
+    addTaskBtn.addEventListener('click', function () {
+      if (!isDevSession()) return;
+      window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+    });
+  }
+
+  /* ---------------------------------------------------------
+     Inicialização + Sincronização
+  --------------------------------------------------------- */
   renderTabs();
   renderNotes();
   renderTasks();
+
+  if (typeof AtlasData.onDataChange === 'function') {
+    AtlasData.onDataChange(function () {
+      renderNotes();
+      renderTasks();
+    });
+  }
+
+  if (typeof AtlasData.injectDevBanner === 'function') {
+    AtlasData.injectDevBanner();
+  }
 });
 </script>
 
