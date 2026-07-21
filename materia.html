@@ -984,105 +984,6 @@
 
   </div>
 
-  <!-- ============ MODAL: Anotação (criar/editar) ============ -->
-  <div class="modal-overlay" id="noteModalOverlay">
-    <div class="modal-card">
-      <button class="modal-close" id="noteModalClose" type="button" aria-label="Fechar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <h3 id="noteModalTitle">Nova anotação</h3>
-
-      <form id="noteForm">
-        <input type="hidden" id="noteId">
-
-        <label class="field-label" for="noteTitulo">Título</label>
-        <input type="text" id="noteTitulo" class="field-input" placeholder="Ex: Equações de 2º grau" required>
-
-        <div class="field-row">
-          <div>
-            <label class="field-label" for="noteMateria">Matéria</label>
-            <select id="noteMateria" class="field-input"></select>
-          </div>
-          <div>
-            <label class="field-label" for="noteBimestre">Bimestre</label>
-            <select id="noteBimestre" class="field-input"></select>
-          </div>
-        </div>
-
-        <label class="field-label" for="noteConteudo">Conteúdo</label>
-        <div id="noteConteudoEditor"></div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="noteCancelBtn">Cancelar</button>
-          <button type="submit" class="btn-primary">Salvar anotação</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ============ MODAL: Tarefa (criar/editar) ============ -->
-  <div class="modal-overlay" id="taskModalOverlay">
-    <div class="modal-card">
-      <button class="modal-close" id="taskModalClose" type="button" aria-label="Fechar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <h3 id="taskModalTitle">Nova tarefa</h3>
-
-      <form id="taskForm">
-        <input type="hidden" id="taskId">
-
-        <label class="field-label" for="taskTitulo">Título</label>
-        <input type="text" id="taskTitulo" class="field-input" placeholder="Ex: Lista 5 — Equações" required>
-
-        <div class="field-row">
-          <div>
-            <label class="field-label" for="taskMateria">Matéria</label>
-            <select id="taskMateria" class="field-input"></select>
-          </div>
-          <div>
-            <label class="field-label" for="taskBimestre">Bimestre</label>
-            <select id="taskBimestre" class="field-input"></select>
-          </div>
-        </div>
-
-        <label class="field-label" for="taskDataEntrega">Data de entrega</label>
-        <input type="date" id="taskDataEntrega" class="field-input" required>
-
-        <label class="field-label" for="taskResposta">Resposta / gabarito (opcional)</label>
-        <div id="taskRespostaEditor"></div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="taskCancelBtn">Cancelar</button>
-          <button type="submit" class="btn-primary">Salvar tarefa</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ============ MODAL: Confirmar exclusão ============ -->
-  <div class="modal-overlay" id="confirmDeleteOverlay">
-    <div class="modal-card modal-card-small">
-      <h3>Excluir item</h3>
-      <p class="confirm-text" id="confirmDeleteText">Tem certeza que deseja excluir este item? Esta ação não pode ser desfeita.</p>
-      <div class="modal-actions">
-        <button type="button" class="btn-secondary" id="confirmDeleteCancel">Cancelar</button>
-        <button type="button" class="btn-danger" id="confirmDeleteConfirm">Excluir</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ============ MODAL: Leitura de anotação (modo aluno) ============ -->
-  <div class="modal-overlay" id="readNoteOverlay">
-    <div class="modal-card">
-      <button class="modal-close" id="readNoteClose" type="button" aria-label="Fechar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <h3 id="readNoteTitle">Título da anotação</h3>
-      <p class="read-note-meta" id="readNoteMeta"></p>
-      <div class="read-note-content" id="readNoteContent"></div>
-    </div>
-  </div>
-
   </main>
 
 </div>
@@ -1240,13 +1141,26 @@ document.addEventListener('atlas-data-ready', function () {
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
+  // Sem modal: cada anotação e tarefa agora vive em sua própria página
+  // (anotacao.html / tarefa.html). Aqui a lista só monta os cards e navega.
+  function noteUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id); }
+  function noteEditUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id) + '&edit=1'; }
+  function noteNewUrl() {
+    return 'anotacao.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  }
+  function taskUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id); }
+  function taskEditUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id) + '&edit=1'; }
+  function taskNewUrl() {
+    return 'tarefa.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  }
+
   function renderNotes() {
     var notes = AtlasData.getNotesBy(materiaName, currentBimestre);
     notesEmpty.style.display = notes.length ? 'none' : 'block';
     notesGrid.innerHTML = notes.map(function (n) {
       var excerpt = htmlToExcerpt(n.conteudo, 140);
       return (
-        '<div class="note-card" data-id="' + n.id + '" data-action="read">' +
+        '<div class="note-card" data-id="' + n.id + '">' +
           '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
           '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
           '<div class="note-card-foot">' +
@@ -1270,122 +1184,31 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = e.target.closest('[data-action="delete-note"]');
     var card = e.target.closest('.note-card');
 
-    // Trava real: só dev pode editar/excluir, mesmo que o botão exista no DOM.
     if (editBtn) {
       e.stopPropagation();
       if (!isDevSession()) return;
-      openNoteModal(editBtn.dataset.id);
+      window.location.href = noteEditUrl(editBtn.dataset.id);
       return;
     }
     if (delBtn) {
       e.stopPropagation();
       if (!isDevSession()) return;
-      askDelete('note', delBtn.dataset.id, 'Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita.');
+      if (window.confirm('Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita.')) {
+        AtlasData.deleteNote(delBtn.dataset.id);
+        renderNotes();
+      }
       return;
     }
-    // Qualquer usuário (aluno ou dev) pode abrir a anotação para LEITURA.
+    // Qualquer usuário (aluno ou dev) pode abrir a anotação em sua página.
     if (card) {
-      openReadNote(card.dataset.id);
+      window.location.href = noteUrl(card.dataset.id);
     }
   });
-
-  /* ----- Modal: ler anotação (somente leitura, qualquer usuário) ----- */
-  var readNoteOverlay = document.getElementById('readNoteOverlay');
-  var readNoteTitle = document.getElementById('readNoteTitle');
-  var readNoteMeta = document.getElementById('readNoteMeta');
-  var readNoteContent = document.getElementById('readNoteContent');
-
-  function openReadNote(id) {
-    var note = AtlasData.getNotes().find(function (n) { return n.id === id; });
-    if (!note) return;
-    readNoteTitle.textContent = note.titulo;
-    readNoteMeta.textContent = note.materia + ' · ' + note.bimestre;
-    if (window.AtlasEditor) {
-      AtlasEditor.renderReadOnly(readNoteContent, note.conteudo);
-    } else {
-      readNoteContent.innerHTML = note.conteudo || '';
-    }
-    readNoteOverlay.classList.add('open');
-  }
-  document.getElementById('readNoteClose').addEventListener('click', function () {
-    readNoteOverlay.classList.remove('open');
-  });
-  readNoteOverlay.addEventListener('click', function (e) {
-    if (e.target === readNoteOverlay) readNoteOverlay.classList.remove('open');
-  });
-
-  /* ----- Modal: criar/editar anotação (SOMENTE modo dev) ----- */
-  var noteModalOverlay = document.getElementById('noteModalOverlay');
-  var noteModalTitle = document.getElementById('noteModalTitle');
-  var noteForm = document.getElementById('noteForm');
-  var noteIdInput = document.getElementById('noteId');
-  var noteTituloInput = document.getElementById('noteTitulo');
-  var noteMateriaSelect = document.getElementById('noteMateria');
-  var noteBimestreSelect = document.getElementById('noteBimestre');
-
-  // Editor rico para o conteúdo da anotação (substitui o antigo <textarea>).
-  var noteContentEditor = window.AtlasEditor
-    ? AtlasEditor.create(document.getElementById('noteConteudoEditor'), {
-        placeholder: 'Escreva a anotação aqui...',
-        minHeight: '160px'
-      })
-    : null;
-
-  function fillSelect(select, options, selected) {
-    select.innerHTML = options.map(function (opt) {
-      var sel = opt === selected ? ' selected' : '';
-      return '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
-    }).join('');
-  }
-
-  function openNoteModal(id) {
-    if (!isDevSession()) return; // trava real — função nunca abre fora do modo dev
-    var note = id ? AtlasData.getNotes().find(function (n) { return n.id === id; }) : null;
-    noteModalTitle.textContent = note ? 'Editar anotação' : 'Nova anotação';
-    noteIdInput.value = note ? note.id : '';
-    noteTituloInput.value = note ? note.titulo : '';
-    if (noteContentEditor) {
-      noteContentEditor.setHTML(note ? note.conteudo : '');
-    }
-    fillSelect(noteMateriaSelect, SUBJECTS, note ? note.materia : materiaName);
-    fillSelect(noteBimestreSelect, BIMESTRES, note ? note.bimestre : currentBimestre);
-    noteModalOverlay.classList.add('open');
-    setTimeout(function () { noteTituloInput.focus(); }, 100);
-  }
-
-  function closeNoteModal() {
-    noteModalOverlay.classList.remove('open');
-    noteForm.reset();
-    if (noteContentEditor) noteContentEditor.clear();
-  }
 
   var addNoteBtn = document.getElementById('addNoteBtn');
   addNoteBtn.addEventListener('click', function () {
     if (!isDevSession()) return;
-    openNoteModal(null);
-  });
-  document.getElementById('noteModalClose').addEventListener('click', closeNoteModal);
-  document.getElementById('noteCancelBtn').addEventListener('click', closeNoteModal);
-  noteModalOverlay.addEventListener('click', function (e) { if (e.target === noteModalOverlay) closeNoteModal(); });
-
-  noteForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!isDevSession()) { closeNoteModal(); return; }
-
-    // BUG 2 corrigido: o conteúdo agora vem do editor rico (innerHTML real
-    // capturado no momento do submit), não de um <textarea>.value que
-    // podia ficar vazio dependendo do fluxo do navegador.
-    var conteudoHTML = noteContentEditor ? noteContentEditor.getHTML() : '';
-
-    AtlasData.saveNote({
-      id: noteIdInput.value || null,
-      titulo: noteTituloInput.value.trim(),
-      materia: noteMateriaSelect.value,
-      bimestre: noteBimestreSelect.value,
-      conteudo: conteudoHTML
-    });
-    closeNoteModal();
-    renderNotes();
+    window.location.href = noteNewUrl();
   });
 
   /* ---------------------------------------------------------
@@ -1438,142 +1261,32 @@ document.addEventListener('atlas-data-ready', function () {
     if (editBtn) {
       e.stopPropagation();
       if (!isDevSession()) return;
-      openTaskModal(editBtn.dataset.id);
+      window.location.href = taskEditUrl(editBtn.dataset.id);
       return;
     }
     if (delBtn) {
       e.stopPropagation();
       if (!isDevSession()) return;
-      askDelete('task', delBtn.dataset.id, 'Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.');
+      if (window.confirm('Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.')) {
+        AtlasData.deleteTask(delBtn.dataset.id);
+        renderTasks();
+      }
       return;
     }
     if (card) {
-      openReadTask(card.dataset.id);
+      window.location.href = taskUrl(card.dataset.id);
     }
   });
   tasksList.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     var card = e.target.closest('.task-card');
-    if (card) { e.preventDefault(); openReadTask(card.dataset.id); }
+    if (card) { e.preventDefault(); window.location.href = taskUrl(card.dataset.id); }
   });
-
-  /* ----- Modal: ler tarefa (somente leitura, qualquer usuário) ----- */
-  var readNoteContentTask = readNoteContent; // reaproveita o mesmo modal de leitura
-  function openReadTask(id) {
-    var task = AtlasData.getTasks().find(function (t) { return t.id === id; });
-    if (!task) return;
-    readNoteTitle.textContent = task.titulo;
-    readNoteMeta.textContent = task.materia + ' · ' + task.bimestre + ' · entrega em ' + formatDateBR(task.dataEntrega);
-    var contentHtml = task.resposta && task.resposta.trim()
-      ? task.resposta
-      : '<p class="atlas-editor-empty">Sem resposta/gabarito cadastrado para esta tarefa ainda.</p>';
-    if (window.AtlasEditor) {
-      AtlasEditor.renderReadOnly(readNoteContentTask, contentHtml);
-    } else {
-      readNoteContentTask.innerHTML = contentHtml;
-    }
-    readNoteOverlay.classList.add('open');
-  }
-
-  /* ----- Modal: criar/editar tarefa (SOMENTE modo dev) ----- */
-  var taskModalOverlay = document.getElementById('taskModalOverlay');
-  var taskModalTitle = document.getElementById('taskModalTitle');
-  var taskForm = document.getElementById('taskForm');
-  var taskIdInput = document.getElementById('taskId');
-  var taskTituloInput = document.getElementById('taskTitulo');
-  var taskMateriaSelect = document.getElementById('taskMateria');
-  var taskBimestreSelect = document.getElementById('taskBimestre');
-  var taskDataInput = document.getElementById('taskDataEntrega');
-
-  // Editor rico para a resposta/gabarito da tarefa.
-  var taskRespostaEditor = window.AtlasEditor
-    ? AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
-        placeholder: 'Resposta esperada ou orientações de correção...',
-        minHeight: '120px'
-      })
-    : null;
-
-  function openTaskModal(id) {
-    if (!isDevSession()) return;
-    var task = id ? AtlasData.getTasks().find(function (t) { return t.id === id; }) : null;
-    taskModalTitle.textContent = task ? 'Editar tarefa' : 'Nova tarefa';
-    taskIdInput.value = task ? task.id : '';
-    taskTituloInput.value = task ? task.titulo : '';
-    taskDataInput.value = task ? task.dataEntrega : '';
-    if (taskRespostaEditor) {
-      taskRespostaEditor.setHTML(task ? task.resposta : '');
-    }
-    fillSelect(taskMateriaSelect, SUBJECTS, task ? task.materia : materiaName);
-    fillSelect(taskBimestreSelect, BIMESTRES, task ? task.bimestre : currentBimestre);
-    taskModalOverlay.classList.add('open');
-    setTimeout(function () { taskTituloInput.focus(); }, 100);
-  }
-
-  function closeTaskModal() {
-    taskModalOverlay.classList.remove('open');
-    taskForm.reset();
-    if (taskRespostaEditor) taskRespostaEditor.clear();
-  }
 
   var addTaskBtn = document.getElementById('addTaskBtn');
   addTaskBtn.addEventListener('click', function () {
     if (!isDevSession()) return;
-    openTaskModal(null);
-  });
-  document.getElementById('taskModalClose').addEventListener('click', closeTaskModal);
-  document.getElementById('taskCancelBtn').addEventListener('click', closeTaskModal);
-  taskModalOverlay.addEventListener('click', function (e) { if (e.target === taskModalOverlay) closeTaskModal(); });
-
-  taskForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    if (!isDevSession()) { closeTaskModal(); return; }
-
-    var respostaHTML = taskRespostaEditor ? taskRespostaEditor.getHTML() : '';
-
-    AtlasData.saveTask({
-      id: taskIdInput.value || null,
-      titulo: taskTituloInput.value.trim(),
-      materia: taskMateriaSelect.value,
-      bimestre: taskBimestreSelect.value,
-      dataEntrega: taskDataInput.value,
-      resposta: respostaHTML
-    });
-    closeTaskModal();
-    renderTasks();
-  });
-
-  /* ---------------------------------------------------------
-     Confirmação de exclusão (compartilhada entre nota e tarefa)
-  --------------------------------------------------------- */
-  var confirmOverlay = document.getElementById('confirmDeleteOverlay');
-  var confirmText = document.getElementById('confirmDeleteText');
-  var pendingDelete = null; // { type: 'note'|'task', id }
-
-  function askDelete(type, id, message) {
-    if (!isDevSession()) return;
-    pendingDelete = { type: type, id: id };
-    confirmText.textContent = message;
-    confirmOverlay.classList.add('open');
-  }
-
-  document.getElementById('confirmDeleteCancel').addEventListener('click', function () {
-    pendingDelete = null;
-    confirmOverlay.classList.remove('open');
-  });
-  confirmOverlay.addEventListener('click', function (e) {
-    if (e.target === confirmOverlay) { pendingDelete = null; confirmOverlay.classList.remove('open'); }
-  });
-  document.getElementById('confirmDeleteConfirm').addEventListener('click', function () {
-    if (!pendingDelete || !isDevSession()) { pendingDelete = null; confirmOverlay.classList.remove('open'); return; }
-    if (pendingDelete.type === 'note') {
-      AtlasData.deleteNote(pendingDelete.id);
-      renderNotes();
-    } else if (pendingDelete.type === 'task') {
-      AtlasData.deleteTask(pendingDelete.id);
-      renderTasks();
-    }
-    pendingDelete = null;
-    confirmOverlay.classList.remove('open');
+    window.location.href = taskNewUrl();
   });
 
   /* ---------------------------------------------------------
