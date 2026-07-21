@@ -6,7 +6,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import {
   getAuth,
   setPersistence,
-  inMemoryPersistence,
+  browserSessionPersistence,
   signInWithEmailAndPassword,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -323,7 +323,18 @@ import {
     attachDataListeners();
     markFirebaseReady();
 
-    setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function () {});
+    /* browserSessionPersistence: a sessão do Firebase Auth (necessária
+       para o Realtime Database aceitar escritas, conforme as regras
+       "auth != null && auth.uid === ...") agora sobrevive à navegação
+       entre páginas na mesma aba — igual ao sessionStorage já usado
+       para a flag local 'atlas_session'. Antes, com inMemoryPersistence,
+       o login era perdido a cada troca de página (cada .html é um
+       reload completo), então toda escrita no Firebase era rejeitada
+       silenciosamente pelas regras de segurança, mesmo com a UI ainda
+       mostrando "modo dev ativo". */
+    setPersistence(firebaseAuthInstance, browserSessionPersistence).catch(function (e) {
+      console.error('Atlas: falha ao definir persistência de sessão.', e);
+    });
   }
 
   /* --- Sessão --- */
@@ -375,7 +386,9 @@ import {
     cache[collectionName] = list;
     saveToSessionStorage();
     if (firebaseDbInstance) {
-      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list);
+      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (err) {
+        console.error('Atlas: falha ao salvar "' + collectionName + '" no Firebase.', err);
+      });
     }
     return true;
   }
