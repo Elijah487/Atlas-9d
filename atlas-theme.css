@@ -1066,7 +1066,34 @@ select.field-input { color-scheme: dark; }
     box-shadow: 4px 0 24px rgba(0,0,0,0.6), 1px 0 0 var(--line-mid) !important;
   }
 }
+/* =====================================================================
+   ATLAS v7.3 — Performance & Rendering Boost
+   ===================================================================== */
 
+/* Otimização de GPU para Elementos Animados e Modais */
+.modal-overlay,
+.sidebar,
+.card,
+.btn {
+  will-change: transform, opacity;
+}
+
+/* Redução de cálculos de layout para conteúdos longos no mobile */
+.subject-grid,
+.notes-grid,
+.tasks-grid,
+.notices-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 300px;
+}
+
+/* Toque instantâneo sem atraso de 300ms nos botões mobile */
+button, 
+a, 
+.card, 
+.chip {
+  touch-action: manipulation;
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
