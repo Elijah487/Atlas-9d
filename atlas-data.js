@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados e sessão (v7.3 — Performance & Launch)
+   ATLAS — Camada central de dados, sessão e mídias (v7.3 — Storage Architecture)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -16,6 +16,13 @@ import {
   onValue,
   set
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 (function (global) {
   'use strict';
@@ -43,12 +50,13 @@ import {
   var BIMESTRES = ['3º Bimestre', '4º Bimestre'];
   var NOTICE_PRIORITIES = ['Normal', 'Importante', 'Urgente'];
 
-  /* --- Estado interno com controle de alteração (Dirty Checking) --- */
+  /* --- Estado interno --- */
   var cache = emptyData();
   var lastCacheHash = '';
   var changeCallbacks = [];
   var firebaseAuthInstance = null;
   var firebaseDbInstance = null;
+  var firebaseStorageInstance = null;
   var firebaseReady = false;
   var firebaseReadyCallbacks = [];
   var dataListenerAttached = false;
@@ -74,7 +82,7 @@ import {
     try { return !!global.sessionStorage; } catch (e) { return false; }
   }
 
-  /* --- Persistência rápida em sessionStorage --- */
+  /* --- Storage / Cache --- */
   function saveToSessionStorage() {
     if (!hasSessionStorage()) return;
     try {
@@ -107,7 +115,6 @@ import {
     return false;
   }
 
-  /* --- Notificação via requestAnimationFrame (Agrupamento de DOM/Batching) --- */
   function scheduleNotify() {
     if (notifyRafId) cancelAnimationFrame(notifyRafId);
     notifyRafId = requestAnimationFrame(function () {
@@ -121,7 +128,6 @@ import {
     }
   }
 
-  /* --- Sanitização otimizada --- */
   function sanitizeHtml(html) {
     if (!html) return '';
     if (typeof document === 'undefined') return String(html);
@@ -130,7 +136,104 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Firebase com listeners otimizados --- */
+  /* --- Otimização e Processamento de Imagem (WebP / 1200px / Quality 75%) --- */
+  function compressAndProcessImage(file, maxWidth, quality) {
+    maxWidth = maxWidth || 1200;
+    quality = quality || 0.75;
+
+    return new Promise(function (resolve, reject) {
+      if (!file || !file.type.match(/image.*/)) {
+        reject(new Error('O arquivo fornecido não é uma imagem válida.'));
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var width = img.width;
+          var height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            function (blob) {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Erro ao converter imagem no Canvas.'));
+              }
+            },
+            'image/webp',
+            quality
+          );
+        };
+        img.onerror = function (err) { reject(err); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function (err) { reject(err); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* --- Upload de Imagem para o Firebase Storage --- */
+  function uploadImageToStorage(file, folderName, customId) {
+    return new Promise(function (resolve, reject) {
+      if (!firebaseStorageInstance) {
+        reject(new Error('Firebase Storage não inicializado.'));
+        return;
+      }
+
+      compressAndProcessImage(file, 1200, 0.75)
+        .then(function (compressedBlob) {
+          var filename = (customId || uid()) + '_' + Date.now() + '.webp';
+          var fullPath = 'imagens/' + folderName + '/' + filename;
+          var fileRef = storageRef(firebaseStorageInstance, fullPath);
+
+          return uploadBytes(fileRef, compressedBlob, { contentType: 'image/webp' })
+            .then(function () {
+              return getDownloadURL(fileRef);
+            });
+        })
+        .then(function (downloadURL) {
+          resolve(downloadURL);
+        })
+        .catch(function (err) {
+          console.error('Atlas: erro no processamento/upload da imagem.', err);
+          reject(err);
+        });
+    });
+  }
+
+  /* --- Exclusão de Imagem do Firebase Storage --- */
+  function deleteImageFromStorageByUrl(url) {
+    if (!firebaseStorageInstance || !url || !url.includes('firebasestorage.googleapis.com')) {
+      return Promise.resolve(false);
+    }
+    try {
+      var fileRef = storageRef(firebaseStorageInstance, url);
+      return deleteObject(fileRef)
+        .then(function () { return true; })
+        .catch(function (e) {
+          console.warn('Atlas: erro ao remover arquivo do Storage (ou já inexistente).', e);
+          return false;
+        });
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+  }
+
+  /* --- Firebase Initialization --- */
   function onFirebaseReady(callback) {
     if (firebaseReady) callback();
     else firebaseReadyCallbacks.push(callback);
@@ -186,15 +289,15 @@ import {
   function initFirebase() {
     var hasCache = loadFromSessionStorage();
 
-    // Libera a renderização instantânea via cache local
     if (hasCache) {
       markFirebaseReady();
     }
 
     try {
       var app = initializeApp(FIREBASE_CONFIG);
-      firebaseAuthInstance = getAuth(app);
-      firebaseDbInstance   = getDatabase(app);
+      firebaseAuthInstance    = getAuth(app);
+      firebaseDbInstance      = getDatabase(app);
+      firebaseStorageInstance = getStorage(app);
     } catch (e) {
       console.error('Atlas: falha ao inicializar o Firebase.', e);
       markFirebaseReady();
@@ -210,7 +313,7 @@ import {
     setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function () {});
   }
 
-  /* --- Sessão DEV em sessionStorage --- */
+  /* --- Sessão DEV --- */
   function getSession() {
     if (!hasSessionStorage()) return null;
     try {
@@ -261,7 +364,7 @@ import {
 
   function clearSession() { logout(); }
 
-  /* --- Persistência de Coleções --- */
+  /* --- Persistência Realtime Database --- */
   function persistCollection(collectionName, list) {
     if (!firebaseDbInstance) return false;
     cache[collectionName] = list;
@@ -270,53 +373,93 @@ import {
     return true;
   }
 
-  /* --- CRUDs --- */
+  /* --- CRUD Anotações --- */
   function getNotes() { return cache.notes; }
   function getNotesBy(materia, bimestre) {
     return getNotes().filter(function (n) { return n.materia === materia && (!bimestre || n.bimestre === bimestre); });
   }
+
   function saveNote(note) {
     if (!isDev()) return null;
     var list = cache.notes.slice();
     var clean = {
       titulo: String(note.titulo || '').trim(),
-      materia: note.materia, bimestre: note.bimestre,
+      materia: note.materia,
+      bimestre: note.bimestre,
+      imagemUrl: note.imagemUrl || '',
       conteudo: sanitizeHtml(note.conteudo || '')
     };
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
-      if (idx !== -1) { clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() }); list[idx] = clean; }
-    } else { clean.id = uid(); clean.criadoEm = Date.now(); clean.atualizadoEm = Date.now(); list.push(clean); }
-    persistCollection('notes', list); return clean;
-  }
-  function deleteNote(id) {
-    if (!isDev()) return false;
-    persistCollection('notes', cache.notes.filter(function (n) { return n.id !== id; })); return true;
+      if (idx !== -1) { 
+        clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() }); 
+        list[idx] = clean; 
+      }
+    } else { 
+      clean.id = uid(); 
+      clean.criadoEm = Date.now(); 
+      clean.atualizadoEm = Date.now(); 
+      list.push(clean); 
+    }
+    persistCollection('notes', list); 
+    return clean;
   }
 
+  function deleteNote(id) {
+    if (!isDev()) return false;
+    var target = cache.notes.find(function (n) { return n.id === id; });
+    if (target && target.imagemUrl) {
+      deleteImageFromStorageByUrl(target.imagemUrl);
+    }
+    persistCollection('notes', cache.notes.filter(function (n) { return n.id !== id; })); 
+    return true;
+  }
+
+  /* --- CRUD Tarefas --- */
   function getTasks() { return cache.tasks; }
   function getTasksBy(materia, bimestre) {
     return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
   }
+
   function saveTask(task) {
     if (!isDev()) return null;
     var list = cache.tasks.slice();
     var clean = {
       titulo: String(task.titulo || '').trim(),
-      materia: task.materia, bimestre: task.bimestre, dataEntrega: task.dataEntrega,
-      enunciado: sanitizeHtml(task.enunciado || ''), resposta: sanitizeHtml(task.resposta || '')
+      materia: task.materia, 
+      bimestre: task.bimestre, 
+      dataEntrega: task.dataEntrega,
+      imagemUrl: task.imagemUrl || '',
+      enunciado: sanitizeHtml(task.enunciado || ''), 
+      resposta: sanitizeHtml(task.resposta || '')
     };
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
-      if (idx !== -1) { clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() }); list[idx] = clean; }
-    } else { clean.id = uid(); clean.criadoEm = Date.now(); clean.atualizadoEm = Date.now(); list.push(clean); }
-    persistCollection('tasks', list); return clean;
-  }
-  function deleteTask(id) {
-    if (!isDev()) return false;
-    persistCollection('tasks', cache.tasks.filter(function (t) { return t.id !== id; })); return true;
+      if (idx !== -1) { 
+        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() }); 
+        list[idx] = clean; 
+      }
+    } else { 
+      clean.id = uid(); 
+      clean.criadoEm = Date.now(); 
+      clean.atualizadoEm = Date.now(); 
+      list.push(clean); 
+    }
+    persistCollection('tasks', list); 
+    return clean;
   }
 
+  function deleteTask(id) {
+    if (!isDev()) return false;
+    var target = cache.tasks.find(function (t) { return t.id === id; });
+    if (target && target.imagemUrl) {
+      deleteImageFromStorageByUrl(target.imagemUrl);
+    }
+    persistCollection('tasks', cache.tasks.filter(function (t) { return t.id !== id; })); 
+    return true;
+  }
+
+  /* --- CRUD Eventos --- */
   function getEvents() { return cache.events; }
   function saveEvent(evt) {
     if (!isDev()) return null;
@@ -333,6 +476,7 @@ import {
     persistCollection('events', cache.events.filter(function (e) { return e.id !== id; })); return true;
   }
 
+  /* --- CRUD Avisos --- */
   function getNotices() { return cache.notices; }
   function saveNotice(notice) {
     if (!isDev()) return null;
@@ -383,20 +527,28 @@ import {
     requireSession: requireSession,
     logout:         logout,
     onFirebaseReady:onFirebaseReady,
+
+    uploadImageToStorage:        uploadImageToStorage,
+    deleteImageFromStorageByUrl: deleteImageFromStorageByUrl,
+
     getNotes:    getNotes,
     getNotesBy:  getNotesBy,
     saveNote:    saveNote,
     deleteNote:  deleteNote,
+
     getTasks:    getTasks,
     getTasksBy:  getTasksBy,
     saveTask:    saveTask,
     deleteTask:  deleteTask,
+
     getEvents:   getEvents,
     saveEvent:   saveEvent,
     deleteEvent: deleteEvent,
+
     getNotices:  getNotices,
     saveNotice:  saveNotice,
     deleteNotice:deleteNotice,
+
     onDataChange:    onDataChange,
     injectDevBanner: injectDevBanner
   };
