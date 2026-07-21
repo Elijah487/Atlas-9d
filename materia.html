@@ -576,12 +576,11 @@
   });
 </script>
 
-<script>
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
-  var SUBJECTS = AtlasData.SUBJECTS;
-  var BIMESTRES = AtlasData.BIMESTRES;
+  var SUBJECTS = AtlasData.SUBJECTS || [];
+  var BIMESTRES = AtlasData.BIMESTRES || [];
 
   var SUBJECT_BY_SLUG = {};
   SUBJECTS.forEach(function (name) {
@@ -599,22 +598,22 @@ document.addEventListener('atlas-data-ready', function () {
   var tabsWrap = document.getElementById('bimestreTabs');
 
   if (!materiaName) {
-    pageTitle.textContent = 'Matéria';
-    pageSub.textContent = '';
-    invalidBanner.style.display = 'block';
-    subjectContent.style.display = 'none';
-    tabsWrap.style.display = 'none';
+    if (pageTitle) pageTitle.textContent = 'Matéria';
+    if (pageSub) pageSub.textContent = '';
+    if (invalidBanner) invalidBanner.style.display = 'block';
+    if (subjectContent) subjectContent.style.display = 'none';
+    if (tabsWrap) tabsWrap.style.display = 'none';
     return;
   }
 
-  pageTitle.textContent = materiaName;
-  pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
+  if (pageTitle) pageTitle.textContent = materiaName;
+  if (pageSub) pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
   document.title = materiaName + ' — Atlas';
 
-  var currentBimestre = BIMESTRES[0];
+  var currentBimestre = BIMESTRES[0] || '1º Bimestre';
 
   function isDevSession() {
-    return AtlasData.isDev();
+    return typeof AtlasData.isDev === 'function' && AtlasData.isDev();
   }
 
   if (isDevSession()) {
@@ -629,7 +628,7 @@ document.addEventListener('atlas-data-ready', function () {
 
   function formatDateBR(isoDate) {
     if (!isoDate) return '';
-    var parts = isoDate.split('-');
+    var parts = String(isoDate).split('-');
     if (parts.length !== 3) return isoDate;
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
@@ -656,6 +655,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   function renderTabs() {
+    if (!tabsWrap) return;
     tabsWrap.innerHTML = BIMESTRES.map(function (b) {
       var active = b === currentBimestre ? ' active' : '';
       return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
@@ -728,16 +728,30 @@ document.addEventListener('atlas-data-ready', function () {
     `;
   }
 
+  /* --- ANOTAÇÕES --- */
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
   function renderNotes() {
-    var notes = AtlasData.getNotesBy(materiaName, currentBimestre);
-    notesEmpty.style.display = notes.length ? 'none' : 'block';
+    if (!notesGrid) return;
+    var notes = AtlasData.getNotesBy ? (AtlasData.getNotesBy(materiaName, currentBimestre) || []) : [];
+    
+    if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
 
     notesGrid.innerHTML = notes.map(function (n) {
       var excerpt = htmlToExcerpt(n.conteudo, 110);
-      var formattedDate = formatDateBR(new Date(n.atualizadoEm || n.criadoEm).toISOString().slice(0,10));
+      
+      // Tratamento seguro para data sem estourar exceção
+      var formattedDate = '';
+      var rawDate = n.atualizadoEm || n.criadoEm;
+      if (rawDate) {
+        try {
+          var d = new Date(rawDate);
+          formattedDate = !isNaN(d.getTime()) ? formatDateBR(d.toISOString().slice(0, 10)) : formatDateBR(rawDate);
+        } catch (e) {
+          formattedDate = '';
+        }
+      }
 
       return `
         <a class="note-card" href="anotacao.html?id=${encodeURIComponent(n.id)}" data-id="${n.id}">
@@ -756,26 +770,29 @@ document.addEventListener('atlas-data-ready', function () {
     }).join("");
   }
 
-  notesGrid.addEventListener('click', function (e) {
-    var editLink = e.target.closest('[data-action="edit-note"]');
-    var delBtn = e.target.closest('[data-action="delete-note"]');
+  if (notesGrid) {
+    notesGrid.addEventListener('click', function (e) {
+      var editLink = e.target.closest('[data-action="edit-note"]');
+      var delBtn = e.target.closest('[data-action="delete-note"]');
 
-    if (editLink) {
-      if (!isDevSession()) { e.preventDefault(); }
-      return;
-    }
-    if (delBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!isDevSession()) return;
-      armConfirm(delBtn, function () {
-        AtlasData.deleteNote(delBtn.dataset.id);
-        renderNotes();
-      });
-      return;
-    }
-  });
+      if (editLink) {
+        if (!isDevSession()) { e.preventDefault(); }
+        return;
+      }
+      if (delBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDevSession()) return;
+        armConfirm(delBtn, function () {
+          if (AtlasData.deleteNote) AtlasData.deleteNote(delBtn.dataset.id);
+          renderNotes();
+        });
+        return;
+      }
+    });
+  }
 
+  /* --- BOTÕES ADICIONAR --- */
   var addNoteBtn = document.getElementById('addNoteBtn');
   if (addNoteBtn) {
     addNoteBtn.addEventListener('click', function () {
@@ -792,14 +809,19 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
+  /* --- TAREFAS --- */
   var tasksList = document.getElementById('tasksList');
   var tasksEmpty = document.getElementById('tasksEmpty');
 
   function renderTasks() {
-    var tasks = AtlasData.getTasksBy(materiaName, currentBimestre).slice().sort(function (a, b) {
+    if (!tasksList) return;
+    var rawTasks = AtlasData.getTasksBy ? (AtlasData.getTasksBy(materiaName, currentBimestre) || []) : [];
+    
+    var tasks = rawTasks.slice().sort(function (a, b) {
       return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
     });
-    tasksEmpty.style.display = tasks.length ? 'none' : 'block';
+    
+    if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
 
     tasksList.innerHTML = tasks.map(function (t) {
       var excerpt = htmlToExcerpt(t.resposta, 110);
@@ -824,30 +846,32 @@ document.addEventListener('atlas-data-ready', function () {
     }).join("");
   }
 
-  tasksList.addEventListener('click', function (e) {
-    var editLink = e.target.closest('[data-action="edit-task"]');
-    var delBtn = e.target.closest('[data-action="delete-task"]');
+  if (tasksList) {
+    tasksList.addEventListener('click', function (e) {
+      var editLink = e.target.closest('[data-action="edit-task"]');
+      var delBtn = e.target.closest('[data-action="delete-task"]');
 
-    if (editLink) {
-      if (!isDevSession()) { e.preventDefault(); }
-      return;
-    }
-    if (delBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!isDevSession()) return;
-      armConfirm(delBtn, function () {
-        AtlasData.deleteTask(delBtn.dataset.id);
-        renderTasks();
-      });
-      return;
-    }
-  });
+      if (editLink) {
+        if (!isDevSession()) { e.preventDefault(); }
+        return;
+      }
+      if (delBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDevSession()) return;
+        armConfirm(delBtn, function () {
+          if (AtlasData.deleteTask) AtlasData.deleteTask(delBtn.dataset.id);
+          renderTasks();
+        });
+        return;
+      }
+    });
+  }
 
+  // Inicializa a renderização
   renderTabs();
   renderNotes();
   renderTasks();
 });
-</script>
 </body>
 </html>
