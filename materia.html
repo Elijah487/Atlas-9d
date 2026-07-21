@@ -597,17 +597,32 @@
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
+  // Atualiza a interface global do modo DEV
+  AtlasData.updateDevMode();
+
   var SUBJECTS = AtlasData.SUBJECTS;
   var BIMESTRES = AtlasData.BIMESTRES;
 
-  var SUBJECT_BY_SLUG = {};
-  SUBJECTS.forEach(function (name) {
-    SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name;
-  });
-
   var params = new URLSearchParams(window.location.search);
-  var slug = params.get('materia') || '';
-  var materiaName = SUBJECT_BY_SLUG[slug] || null;
+  // Aceita tanto ?materia= quanto ?id=
+  var rawQuery = params.get('materia') || params.get('id') || '';
+
+  // Busca robusta da matéria (por Nome, Slug ou ID)
+  function findSubject(query) {
+    if (!query) return null;
+    var cleanQuery = query.toLowerCase().trim();
+
+    return SUBJECTS.find(function (name) {
+      var slug = AtlasData.slugify(name);
+      return (
+        name.toLowerCase() === cleanQuery ||
+        slug === cleanQuery ||
+        ('id_' + slug) === cleanQuery
+      );
+    }) || null;
+  }
+
+  var materiaName = findSubject(rawQuery);
 
   var pageTitle = document.getElementById('pageTitle');
   var pageSub = document.getElementById('pageSub');
@@ -629,24 +644,6 @@ document.addEventListener('atlas-data-ready', function () {
   document.title = materiaName + ' — Atlas';
 
   var currentBimestre = BIMESTRES[0];
-
-  /* ---------------------------------------------------------
-     Modo Desenvolvedor — trava REAL de permissão.
-     isDevSession() é checado ANTES de construir o HTML dos botões
-     de editar/excluir (ver noteActionsHtml/taskActionsHtml): se a
-     sessão não é dev, esse HTML nunca é gerado, então os botões não
-     existem no DOM. A classe .dev-only + CSS é só uma segunda
-     camada (evita flash visual em edge cases). A trava definitiva
-     de qualquer forma é em atlas-data.js: saveNote/deleteNote/
-     saveTask/deleteTask recusam a operação se não for dev.
-  --------------------------------------------------------- */
-  function isDevSession() {
-    return AtlasData.isDev();
-  }
-
-  if (isDevSession()) {
-    document.body.classList.add('dev-mode-on');
-  }
 
   function escapeHtml(str) {
     return String(str || '')
@@ -702,8 +699,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Confirmação de exclusão sem popup: primeiro clique arma o
-     botão (pede confirmação por 4s); segundo clique executa.
+     Confirmação de exclusão sem popup
   --------------------------------------------------------- */
   function armConfirm(btn, onConfirm) {
     if (btn.dataset.armed === '1') {
@@ -722,14 +718,8 @@ document.addEventListener('atlas-data-ready', function () {
     btn.dataset.timer = String(t);
   }
 
-  /**
-   * Só é chamada dentro do map() dos cards, e só retorna HTML não-vazio
-   * quando isDevSession() é true. Para um aluno, o innerHTML final do
-   * card NUNCA contém a marcação dos botões de editar/excluir — não é
-   * uma questão de CSS escondendo algo que existe no DOM.
-   */
   function noteActionsHtml(n) {
-    if (!isDevSession()) return '';
+    if (!AtlasData.isDev()) return '';
     return (
       '<div class="note-card-actions dev-only">' +
         '<a class="icon-btn" data-action="edit-note" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" aria-label="Editar">' +
@@ -743,7 +733,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   function taskActionsHtml(t) {
-    if (!isDevSession()) return '';
+    if (!AtlasData.isDev()) return '';
     return (
       '<div class="task-card-actions dev-only">' +
         '<a class="icon-btn" data-action="edit-task" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" aria-label="Editar">' +
@@ -785,27 +775,28 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = e.target.closest('[data-action="delete-note"]');
 
     if (editLink) {
-      if (!isDevSession()) { e.preventDefault(); }
+      if (!AtlasData.isDev()) { e.preventDefault(); }
       return;
     }
     if (delBtn) {
       e.preventDefault();
       e.stopPropagation();
-      if (!isDevSession()) return;
+      if (!AtlasData.isDev()) return;
       armConfirm(delBtn, function () {
         AtlasData.deleteNote(delBtn.dataset.id);
         renderNotes();
       });
       return;
     }
-    // Clique no restante do card: navega normalmente (link <a>) para leitura.
   });
 
   var addNoteBtn = document.getElementById('addNoteBtn');
-  addNoteBtn.addEventListener('click', function () {
-    if (!isDevSession()) return;
-    window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
-  });
+  if (addNoteBtn) {
+    addNoteBtn.addEventListener('click', function () {
+      if (!AtlasData.isDev()) return;
+      window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+    });
+  }
 
   /* ---------------------------------------------------------
      Tarefas
@@ -847,30 +838,31 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = e.target.closest('[data-action="delete-task"]');
 
     if (editLink) {
-      if (!isDevSession()) { e.preventDefault(); }
+      if (!AtlasData.isDev()) { e.preventDefault(); }
       return;
     }
     if (delBtn) {
       e.preventDefault();
       e.stopPropagation();
-      if (!isDevSession()) return;
+      if (!AtlasData.isDev()) return;
       armConfirm(delBtn, function () {
         AtlasData.deleteTask(delBtn.dataset.id);
         renderTasks();
       });
       return;
     }
-    // Clique no restante do card: navega normalmente (link <a>) para leitura.
   });
 
   var addTaskBtn = document.getElementById('addTaskBtn');
-  addTaskBtn.addEventListener('click', function () {
-    if (!isDevSession()) return;
-    window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
-  });
+  if (addTaskBtn) {
+    addTaskBtn.addEventListener('click', function () {
+      if (!AtlasData.isDev()) return;
+      window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+    });
+  }
 
   /* ---------------------------------------------------------
-     Inicialização + sincronização entre páginas/abas
+     Inicialização + sincronização
   --------------------------------------------------------- */
   renderTabs();
   renderNotes();
@@ -883,7 +875,6 @@ document.addEventListener('atlas-data-ready', function () {
 
   AtlasData.injectDevBanner();
 });
-
 </script>
 
 </body>
