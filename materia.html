@@ -453,11 +453,6 @@
 
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
-<script>
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
-  });
-</script>
 
 <div class="app">
 
@@ -576,20 +571,20 @@
   });
 </script>
 
+<script>
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
   var SUBJECTS = AtlasData.SUBJECTS || [];
   var BIMESTRES = AtlasData.BIMESTRES || [];
 
-  var SUBJECT_BY_SLUG = {};
-  SUBJECTS.forEach(function (name) {
-    SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name;
-  });
-
   var params = new URLSearchParams(window.location.search);
-  var slug = params.get('materia') || '';
-  var materiaName = SUBJECT_BY_SLUG[slug] || null;
+  var rawParam = params.get('materia') || '';
+  var slug = AtlasData.slugify(rawParam);
+
+  var materiaName = SUBJECTS.find(function (s) {
+    return AtlasData.slugify(s) === slug;
+  }) || null;
 
   var pageTitle = document.getElementById('pageTitle');
   var pageSub = document.getElementById('pageSub');
@@ -598,13 +593,17 @@ document.addEventListener('atlas-data-ready', function () {
   var tabsWrap = document.getElementById('bimestreTabs');
 
   if (!materiaName) {
-    if (pageTitle) pageTitle.textContent = 'Matéria';
-    if (pageSub) pageSub.textContent = '';
+    if (pageTitle) pageTitle.textContent = 'Matéria não encontrada';
+    if (pageSub) pageSub.textContent = 'A matéria informada na URL não existe ou é inválida.';
     if (invalidBanner) invalidBanner.style.display = 'block';
     if (subjectContent) subjectContent.style.display = 'none';
     if (tabsWrap) tabsWrap.style.display = 'none';
     return;
   }
+
+  if (invalidBanner) invalidBanner.style.display = 'none';
+  if (subjectContent) subjectContent.style.display = 'block';
+  if (tabsWrap) tabsWrap.style.display = 'flex';
 
   if (pageTitle) pageTitle.textContent = materiaName;
   if (pageSub) pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
@@ -741,7 +740,6 @@ document.addEventListener('atlas-data-ready', function () {
     notesGrid.innerHTML = notes.map(function (n) {
       var excerpt = htmlToExcerpt(n.conteudo, 110);
       
-      // Tratamento seguro para data sem estourar exceção
       var formattedDate = '';
       var rawDate = n.atualizadoEm || n.criadoEm;
       if (rawDate) {
@@ -868,10 +866,11 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
-  // Inicializa a renderização
   renderTabs();
   renderNotes();
   renderTasks();
 });
+</script>
+
 </body>
 </html>
