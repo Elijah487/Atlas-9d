@@ -220,7 +220,7 @@ import {
     return Object.keys(value).map(function (k) { return value[k]; });
   }
 
- function makeCollectionListener(collectionName) {
+  function makeCollectionListener(collectionName) {
     onValue(
       ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
       function (snapshot) {
@@ -244,48 +244,11 @@ import {
   }
 
   function initFirebase() {
-    /* Restaura cache do sessionStorage imediatamente */
+    /* Restaura cache do sessionStorage imediatamente — dados aparecem
+       instantaneamente ao trocar de página na mesma sessão do navegador. */
     if (loadFromSessionStorage()) {
       scheduleNotify();
     }
-
-    var app;
-    try {
-      app = initializeApp(FIREBASE_CONFIG);
-      firebaseAuthInstance = getAuth(app);
-      firebaseDbInstance   = getDatabase(app);
-    } catch (e) {
-      console.error('Atlas: falha ao inicializar o Firebase.', e);
-      markFirebaseReady();
-      return;
-    }
-
-    attachDataListeners();
-    markFirebaseReady();
-
-    // Define a persistência local
-    setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function (e) {
-      console.warn('Atlas: não foi possível definir persistência LOCAL.', e);
-    });
-
-    // CORREÇÃO AQUI: Não apaga a sessão imediatamente no primeiro disparo de estado nulo
-    var firstAuthCheckDone = false;
-    onAuthStateChanged(firebaseAuthInstance, function (user) {
-      if (firstAuthCheckDone) {
-        // Só desloga se já tiver terminado a checagem inicial e o usuário for explicitamente deslogado
-        if (!user && getSession() === 'dev') {
-          clearSessionLocal();
-          scheduleNotify();
-        }
-      } else {
-        firstAuthCheckDone = true;
-        // Se após a verificação inicial houver um usuário ativo no Firebase, garante a flag de dev
-        if (user) {
-          setSessionDev();
-        }
-      }
-    });
-  }
 
     var app;
     try {
