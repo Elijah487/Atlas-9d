@@ -6,7 +6,7 @@
 <title>Anotação — Atlas</title>
 <style>
 
-  /* ============ RESET & TOKENS (idênticos às demais páginas) ============ */
+  /* ============ RESET & TOKENS ============ */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
@@ -182,7 +182,7 @@
   .dev-only { display: none !important; }
   body.dev-mode-on .dev-only { display: inline-flex !important; }
 
-  /* ============ PÁGINA-DOCUMENTO (leitura tipo Notion) ============ */
+  /* ============ PÁGINA-DOCUMENTO ============ */
   .doc-page { max-width: 740px; margin: 0 auto; }
 
   .back-link {
@@ -205,11 +205,12 @@
   .doc-title { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
   .doc-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 4px; }
 
-  .doc-divider { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
-  .doc-section-label {
-    font-size: 12px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 14px;
+  .doc-cover-img {
+    width: 100%; max-height: 380px; object-fit: cover;
+    border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--line);
   }
+
+  .doc-divider { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
 
   @media (max-width: 720px) {
     .doc-title { font-size: 23px; }
@@ -232,11 +233,12 @@
   .btn-secondary:hover { color: var(--ink); }
   .btn-primary { background: var(--blue); color: #fff; }
   .btn-primary:hover { background: var(--blue-bright); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
   .btn-danger { background: #5c2222; color: #ffb4b4; }
   .btn-danger:hover { background: #732a2a; }
   .btn-danger.confirming { background: #ff3d50; color: #fff; }
 
-  /* ============ FORMULÁRIO (criar/editar — página própria) ============ */
+  /* ============ FORMULÁRIO ============ */
   .field-label {
     display: block;
     font-size: 12.5px;
@@ -275,7 +277,7 @@
   }
   .form-actions-main { display: flex; gap: 10px; }
 
-  /* ============ EDITOR RICO (Atlas Editor) ============ */
+  /* ============ EDITOR RICO ============ */
   .atlas-editor {
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
@@ -301,25 +303,6 @@
   }
   .atlas-editor-area:empty::before {
     content: attr(data-placeholder); color: var(--ink-faint); pointer-events: none;
-  }
-
-  .atlas-editor-area h1, .atlas-editor-readonly h1 { font-size: 24px; font-weight: 700; margin: 20px 0 10px; letter-spacing: -0.01em; }
-  .atlas-editor-area h2, .atlas-editor-readonly h2 { font-size: 19px; font-weight: 700; margin: 18px 0 8px; letter-spacing: -0.01em; }
-  .atlas-editor-area h3, .atlas-editor-readonly h3 { font-size: 16px; font-weight: 700; margin: 15px 0 6px; }
-  .atlas-editor-area h1:first-child, .atlas-editor-area h2:first-child, .atlas-editor-area h3:first-child,
-  .atlas-editor-readonly h1:first-child, .atlas-editor-readonly h2:first-child, .atlas-editor-readonly h3:first-child { margin-top: 0; }
-  .atlas-editor-area p, .atlas-editor-readonly p { margin: 0 0 12px; }
-  .atlas-editor-area ul, .atlas-editor-area ol,
-  .atlas-editor-readonly ul, .atlas-editor-readonly ol { margin: 0 0 12px; padding-left: 22px; }
-  .atlas-editor-area li, .atlas-editor-readonly li { margin-bottom: 5px; }
-  .atlas-editor-area blockquote, .atlas-editor-readonly blockquote {
-    border-left: 3px solid var(--blue-dim); padding: 5px 16px; margin: 12px 0;
-    color: var(--ink-dim); font-style: italic; background: rgba(255,255,255,0.02);
-  }
-  .atlas-editor-area hr, .atlas-editor-readonly hr { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
-  .atlas-editor-area a, .atlas-editor-readonly a { color: var(--blue-bright); text-decoration: underline; }
-  .atlas-editor-area img, .atlas-editor-readonly img {
-    max-width: 100%; border-radius: 8px; margin: 12px 0; display: block; border: 1px solid var(--line);
   }
 
   .atlas-editor-readonly { font-size: 15.5px; line-height: 1.75; color: var(--ink); }
@@ -430,6 +413,8 @@
           </div>
         </div>
 
+        <img id="viewCapaImg" class="doc-cover-img" style="display:none;" alt="Capa da anotação">
+
         <hr class="doc-divider">
         <section>
           <div class="atlas-editor-readonly" id="viewConteudo"></div>
@@ -456,6 +441,9 @@
             </div>
           </div>
 
+          <label class="field-label" for="noteImageInput">Imagem / Capa (Opcional — Máx 10 MB)</label>
+          <input type="file" id="noteImageInput" class="field-input" accept="image/*">
+
           <label class="field-label">Conteúdo</label>
           <div id="noteConteudoEditor"></div>
 
@@ -463,7 +451,7 @@
             <button type="button" class="btn-danger dev-only" id="noteDeleteBtn" style="display:none;">Excluir anotação</button>
             <div class="form-actions-main" style="margin-left:auto;">
               <a class="btn-secondary" id="noteCancelBtn" href="materias.html">Cancelar</a>
-              <button type="submit" class="btn-primary">Salvar anotação</button>
+              <button type="submit" class="btn-primary" id="noteSubmitBtn">Salvar anotação</button>
             </div>
           </div>
         </form>
@@ -479,7 +467,6 @@
 </div>
 
 <script>
-  // Mobile sidebar toggle — mesmo padrão das demais páginas
   var menuBtn = document.getElementById('menuBtn');
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
@@ -507,7 +494,6 @@ document.addEventListener('atlas-data-ready', function () {
 
   function isDevSession() { return AtlasData.isDev(); }
   
-  // Aplica/Remove classe de modo dev no body de forma reativa
   if (isDevSession()) { 
     document.body.classList.add('dev-mode-on'); 
   } else {
@@ -554,15 +540,11 @@ document.addEventListener('atlas-data-ready', function () {
     });
   }
 
-  /* ---------------------------------------------------------
-     Confirmação de exclusão sem popup
-  --------------------------------------------------------- */
   function armConfirm(btn, defaultLabel, confirmLabel, onConfirm) {
     var armed = false;
     var timer = null;
     btn.textContent = defaultLabel;
     
-    // Evita duplicar listeners
     var newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
 
@@ -597,6 +579,14 @@ document.addEventListener('atlas-data-ready', function () {
     document.getElementById('viewDate').textContent = ts ? formatDateBR(new Date(ts).toISOString().slice(0, 10)) : '';
     document.getElementById('viewTitle').textContent = note.titulo;
 
+    var capaImg = document.getElementById('viewCapaImg');
+    if (note.imagemUrl) {
+      capaImg.src = note.imagemUrl;
+      capaImg.style.display = 'block';
+    } else {
+      capaImg.style.display = 'none';
+    }
+
     var conteudoHtml = note.conteudo && note.conteudo.trim()
       ? note.conteudo
       : '<p class="atlas-editor-empty">Sem conteúdo.</p>';
@@ -614,8 +604,9 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = document.getElementById('viewDeleteBtn');
     armConfirm(delBtn, 'Excluir', 'Confirmar exclusão?', function () {
       if (!isDevSession()) return;
-      AtlasData.deleteNote(note.id);
-      window.location.href = backLink.href;
+      AtlasData.deleteNote(note.id).then(function () {
+        window.location.href = backLink.href;
+      });
     });
 
     showOnly(viewMode);
@@ -671,28 +662,53 @@ document.addEventListener('atlas-data-ready', function () {
     if (existing) {
       deleteBtn.style.display = 'inline-flex';
       armConfirm(deleteBtn, 'Excluir anotação', 'Confirmar exclusão?', function () {
-        AtlasData.deleteNote(existing.id);
-        window.location.href = backLink.href;
+        AtlasData.deleteNote(existing.id).then(function () {
+          window.location.href = backLink.href;
+        });
       });
     }
 
+    /* FIX DEFINITIVO DO ENVIO ASSÍNCRONO DE FORMULÁRIO */
     document.getElementById('noteForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      var saved = AtlasData.saveNote({
-        id: existing ? existing.id : '',
-        titulo: document.getElementById('noteTitulo').value,
-        materia: document.getElementById('noteMateria').value,
-        bimestre: document.getElementById('noteBimestre').value,
-        conteudo: conteudoEditor.getHTML()
+      
+      var submitBtn = document.getElementById('noteSubmitBtn');
+      var fileInput = document.getElementById('noteImageInput');
+      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      var targetId = existing ? existing.id : AtlasData.uid();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Salvando...';
+
+      AtlasData.uploadImageToStorage(file, 'anotacoes', targetId, function (percent) {
+        submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
+      })
+      .then(function (imageUrl) {
+        var saved = AtlasData.saveNote({
+          id: targetId,
+          titulo: document.getElementById('noteTitulo').value,
+          materia: document.getElementById('noteMateria').value,
+          bimestre: document.getElementById('noteBimestre').value,
+          imagemUrl: imageUrl,
+          conteudo: conteudoEditor.getHTML()
+        });
+
+        if (saved) {
+          window.location.href = 'anotacao.html?id=' + encodeURIComponent(saved.id);
+        }
+      })
+      .catch(function (err) {
+        alert(err.message || 'Erro ao processar o salvamento.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Salvar anotação';
       });
-      if (saved) { window.location.href = 'anotacao.html?id=' + encodeURIComponent(saved.id); }
     });
 
     showOnly(formMode);
   }
 
   /* ---------------------------------------------------------
-     Roteamento por parâmetros da URL
+     Roteamento
   --------------------------------------------------------- */
   function init() {
     if (isNewFlag) { initForm(); return; }
