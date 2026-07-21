@@ -586,7 +586,7 @@ document.addEventListener('atlas-data-ready', function () {
   var currentBimestre = BIMESTRES[0] || '1º Bimestre';
 
   function isDevSession() {
-    return AtlasData.isDev && AtlasData.isDev();
+    return !!(AtlasData.isDev && AtlasData.isDev());
   }
 
   if (isDevSession()) {
@@ -606,7 +606,6 @@ document.addEventListener('atlas-data-ready', function () {
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
 
-  // Tratamento seguro para formatação de data
   function getSafeDateFormatted(dateVal) {
     if (!dateVal) return '';
     try {
@@ -640,10 +639,8 @@ document.addEventListener('atlas-data-ready', function () {
     return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
   }
 
-  /* ---------------------------------------------------------
-     Abas de bimestre
-  --------------------------------------------------------- */
   function renderTabs() {
+    if (!tabsWrap) return;
     tabsWrap.innerHTML = BIMESTRES.map(function (b) {
       var active = b === currentBimestre ? ' active' : '';
       return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
@@ -705,13 +702,13 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Anotações (Usa <div> para evitar links aninhados no HTML)
+     Anotações
   --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
   function renderNotes() {
-    var notes = AtlasData.getNotesBy(materiaName, currentBimestre) || [];
+    var notes = (AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || [];
     if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
 
     if (notesGrid) {
@@ -734,10 +731,13 @@ document.addEventListener('atlas-data-ready', function () {
 
   if (notesGrid) {
     notesGrid.addEventListener('click', function (e) {
-      var editLink = e.target.closest('[data-action="edit-note"]');
+      var editBtn = e.target.closest('[data-action="edit-note"]');
       var delBtn = e.target.closest('[data-action="delete-note"]');
 
-      if (editLink) return;
+      if (editBtn) {
+        e.stopPropagation();
+        return; // Permite que a tag <a> navegue normalmente
+      }
 
       if (delBtn) {
         e.preventDefault();
@@ -766,13 +766,13 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Tarefas (Usa <div> para evitar links aninhados no HTML)
+     Tarefas
   --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList');
   var tasksEmpty = document.getElementById('tasksEmpty');
 
   function renderTasks() {
-    var tasks = (AtlasData.getTasksBy(materiaName, currentBimestre) || []).slice().sort(function (a, b) {
+    var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice().sort(function (a, b) {
       return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
     });
     if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
@@ -804,10 +804,13 @@ document.addEventListener('atlas-data-ready', function () {
 
   if (tasksList) {
     tasksList.addEventListener('click', function (e) {
-      var editLink = e.target.closest('[data-action="edit-task"]');
+      var editBtn = e.target.closest('[data-action="edit-task"]');
       var delBtn = e.target.closest('[data-action="delete-task"]');
 
-      if (editLink) return;
+      if (editBtn) {
+        e.stopPropagation();
+        return;
+      }
 
       if (delBtn) {
         e.preventDefault();
@@ -836,7 +839,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Inicialização + Sincronização
+     Inicialização
   --------------------------------------------------------- */
   renderTabs();
   renderNotes();
