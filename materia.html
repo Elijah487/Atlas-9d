@@ -523,6 +523,7 @@
   }
   .icon-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
   .icon-btn.danger:hover { color: #ff7a7a; border-color: #5c2222; }
+  .icon-btn.danger.confirming { background: #5c2222; color: #ffb4b4; border-color: #732a2a; }
   .icon-btn svg { width: 13px; height: 13px; }
 
   /* ============ EMPTY STATE ============ */
@@ -1141,17 +1142,32 @@ document.addEventListener('atlas-data-ready', function () {
   var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
-  // Sem modal: cada anotação e tarefa agora vive em sua própria página
-  // (anotacao.html / tarefa.html). Aqui a lista só monta os cards e navega.
-  function noteUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id); }
-  function noteEditUrl(id) { return 'anotacao.html?id=' + encodeURIComponent(id) + '&edit=1'; }
-  function noteNewUrl() {
-    return 'anotacao.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+  function fillSelect(select, options, selected) {
+    select.innerHTML = options.map(function (opt) {
+      var sel = opt === selected ? ' selected' : '';
+      return '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
+    }).join('');
   }
-  function taskUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id); }
-  function taskEditUrl(id) { return 'tarefa.html?id=' + encodeURIComponent(id) + '&edit=1'; }
-  function taskNewUrl() {
-    return 'tarefa.html?materia=' + encodeURIComponent(slug) + '&bimestre=' + encodeURIComponent(currentBimestre);
+
+  /* ---------------------------------------------------------
+     Confirmação de exclusão sem popup: primeiro clique arma o
+     botão (pede confirmação por 4s); segundo clique executa.
+  --------------------------------------------------------- */
+  function armConfirm(btn, onConfirm) {
+    if (btn.dataset.armed === '1') {
+      clearTimeout(Number(btn.dataset.timer));
+      onConfirm();
+      return;
+    }
+    btn.dataset.armed = '1';
+    btn.classList.add('confirming');
+    btn.setAttribute('aria-label', 'Confirmar exclusão');
+    var t = setTimeout(function () {
+      btn.dataset.armed = '0';
+      btn.classList.remove('confirming');
+      btn.setAttribute('aria-label', 'Excluir');
+    }, 4000);
+    btn.dataset.timer = String(t);
   }
 
   function renderNotes() {
@@ -1160,55 +1176,51 @@ document.addEventListener('atlas-data-ready', function () {
     notesGrid.innerHTML = notes.map(function (n) {
       var excerpt = htmlToExcerpt(n.conteudo, 140);
       return (
-        '<div class="note-card" data-id="' + n.id + '">' +
+        '<a class="note-card" href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + n.id + '">' +
           '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
           '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
           '<div class="note-card-foot">' +
             '<span class="note-card-date">' + escapeHtml(formatDateBR(new Date(n.atualizadoEm || n.criadoEm).toISOString().slice(0,10))) + '</span>' +
             '<div class="note-card-actions dev-only">' +
-              '<button type="button" class="icon-btn" data-action="edit-note" data-id="' + n.id + '" aria-label="Editar">' +
+              '<a class="icon-btn" data-action="edit-note" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" aria-label="Editar">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
-              '</button>' +
+              '</a>' +
               '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + n.id + '" aria-label="Excluir">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
               '</button>' +
             '</div>' +
           '</div>' +
-        '</div>'
+        '</a>'
       );
     }).join('');
   }
 
   notesGrid.addEventListener('click', function (e) {
-    var editBtn = e.target.closest('[data-action="edit-note"]');
+    var editLink = e.target.closest('[data-action="edit-note"]');
     var delBtn = e.target.closest('[data-action="delete-note"]');
-    var card = e.target.closest('.note-card');
 
-    if (editBtn) {
-      e.stopPropagation();
-      if (!isDevSession()) return;
-      window.location.href = noteEditUrl(editBtn.dataset.id);
+    // Trava real: só dev pode editar/excluir, mesmo que o botão exista no DOM.
+    if (editLink) {
+      if (!isDevSession()) { e.preventDefault(); }
       return;
     }
     if (delBtn) {
+      e.preventDefault();
       e.stopPropagation();
       if (!isDevSession()) return;
-      if (window.confirm('Tem certeza que deseja excluir esta anotação? Esta ação não pode ser desfeita.')) {
+      armConfirm(delBtn, function () {
         AtlasData.deleteNote(delBtn.dataset.id);
         renderNotes();
-      }
+      });
       return;
     }
-    // Qualquer usuário (aluno ou dev) pode abrir a anotação em sua página.
-    if (card) {
-      window.location.href = noteUrl(card.dataset.id);
-    }
+    // Clique no restante do card: navega normalmente (link <a>) para leitura.
   });
 
   var addNoteBtn = document.getElementById('addNoteBtn');
   addNoteBtn.addEventListener('click', function () {
     if (!isDevSession()) return;
-    window.location.href = noteNewUrl();
+    window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
   });
 
   /* ---------------------------------------------------------
@@ -1231,16 +1243,16 @@ document.addEventListener('atlas-data-ready', function () {
         : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
 
       return (
-        '<div class="task-card" data-id="' + t.id + '" tabindex="0" role="button">' +
+        '<a class="task-card" href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + t.id + '">' +
           '<div class="task-card-top">' +
             '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
               escapeHtml(formatDateBR(t.dataEntrega)) +
             '</span>' +
             '<div class="task-card-actions">' +
-              '<button type="button" class="icon-btn" data-action="edit-task" data-id="' + t.id + '" aria-label="Editar">' +
+              '<a class="icon-btn" data-action="edit-task" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" aria-label="Editar">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
-              '</button>' +
+              '</a>' +
               '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + t.id + '" aria-label="Excluir">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
               '</button>' +
@@ -1248,45 +1260,36 @@ document.addEventListener('atlas-data-ready', function () {
           '</div>' +
           '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
           excerptHtml +
-        '</div>'
+        '</a>'
       );
     }).join('');
   }
 
   tasksList.addEventListener('click', function (e) {
-    var editBtn = e.target.closest('[data-action="edit-task"]');
+    var editLink = e.target.closest('[data-action="edit-task"]');
     var delBtn = e.target.closest('[data-action="delete-task"]');
-    var card = e.target.closest('.task-card');
 
-    if (editBtn) {
-      e.stopPropagation();
-      if (!isDevSession()) return;
-      window.location.href = taskEditUrl(editBtn.dataset.id);
+    if (editLink) {
+      if (!isDevSession()) { e.preventDefault(); }
       return;
     }
     if (delBtn) {
+      e.preventDefault();
       e.stopPropagation();
       if (!isDevSession()) return;
-      if (window.confirm('Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.')) {
+      armConfirm(delBtn, function () {
         AtlasData.deleteTask(delBtn.dataset.id);
         renderTasks();
-      }
+      });
       return;
     }
-    if (card) {
-      window.location.href = taskUrl(card.dataset.id);
-    }
-  });
-  tasksList.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    var card = e.target.closest('.task-card');
-    if (card) { e.preventDefault(); window.location.href = taskUrl(card.dataset.id); }
+    // Clique no restante do card: navega normalmente (link <a>) para leitura.
   });
 
   var addTaskBtn = document.getElementById('addTaskBtn');
   addTaskBtn.addEventListener('click', function () {
     if (!isDevSession()) return;
-    window.location.href = taskNewUrl();
+    window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
   });
 
   /* ---------------------------------------------------------
