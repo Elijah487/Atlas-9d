@@ -598,9 +598,13 @@ document.addEventListener('atlas-data-ready', function () {
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* ---------------------------------------------------------
+     Tratamento SEGURO de Formatação de Datas
+  --------------------------------------------------------- */
   function formatDateBR(isoDate) {
-    if (!isoDate) return '';
-    var parts = String(isoDate).split('-');
+    if (!isoDate || typeof isoDate !== 'string') return '';
+    var clean = isoDate.split('T')[0];
+    var parts = clean.split('-');
     if (parts.length !== 3) return isoDate;
     return parts[2] + '/' + parts[1] + '/' + parts[0];
   }
@@ -617,13 +621,18 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   function isDueSoon(isoDate) {
-    if (!isoDate) return false;
-    var due = new Date(isoDate + 'T00:00:00');
-    if (isNaN(due.getTime())) return false;
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    var diffDays = Math.round((due - today) / 86400000);
-    return diffDays >= 0 && diffDays <= 3;
+    if (!isoDate || typeof isoDate !== 'string') return false;
+    try {
+      var clean = isoDate.split('T')[0];
+      var due = new Date(clean + 'T00:00:00');
+      if (isNaN(due.getTime())) return false;
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      var diffDays = Math.round((due - today) / 86400000);
+      return diffDays >= 0 && diffDays <= 3;
+    } catch (e) {
+      return false;
+    }
   }
 
   function htmlToExcerpt(html, maxLen) {
@@ -639,7 +648,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Abas de bimestre
+     Abas de Bimestre
   --------------------------------------------------------- */
   function renderTabs() {
     if (!tabsWrap) return;
@@ -704,7 +713,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Anotações (Card corrigido para <div>)
+     Anotações (Card corrigido com <div class="note-card">)
   --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid') || document.getElementById('notesList');
   var notesEmpty = document.getElementById('notesEmpty');
@@ -768,7 +777,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Tarefas (Card corrigido para <div> — Impede a duplicação)
+     Tarefas (Card corrigido com <div class="task-card">)
   --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList') || document.getElementById('tasksGrid');
   var tasksEmpty = document.getElementById('tasksEmpty');
