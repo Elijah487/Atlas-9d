@@ -279,11 +279,16 @@ import {
     });
 
     onAuthStateChanged(firebaseAuthInstance, function (user) {
-      /* Se o dev fez signOut em outra aba, limpa a sessão local. */
-      if (!user && getSession() === 'dev') {
-        clearSessionLocal();
-      }
-    });
+
+    if (user) {
+        setSessionDev();
+        return;
+    }
+
+    // Não limpar a sessão aqui.
+    // O logout já faz isso explicitamente.
+
+});
   }
 
   /* ---------------------------------------------------------------
