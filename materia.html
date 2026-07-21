@@ -231,11 +231,6 @@
   }
   .btn-add:hover { background: var(--blue); color: #fff; }
 
-  /* Esconde elementos exclusivos de desenvolvedor por padrão.
-     O JS adiciona 'dev-mode-on' ao <body> quando a sessão é 'dev'.
-     Isto é a SEGUNDA camada de defesa (evita "flash" visual). A
-     primeira e real é: o HTML dos botões de editar/excluir de card
-     só é construído quando isDevSession() é true — ver JS abaixo. */
   .dev-only { display: none; }
   body.dev-mode-on .dev-only { display: inline-flex; }
 
@@ -248,16 +243,24 @@
   .note-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 16px;
-    cursor: pointer;
     transition: border-color 0.15s, background-color 0.15s;
     min-height: 110px;
   }
   .note-card:hover { border-color: var(--blue-dim); background: var(--surface-2); }
+  
+  .note-card-link {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 8px;
+    color: inherit;
+    text-decoration: none;
+  }
+
   .note-card-title { font-size: 14.5px; font-weight: 600; }
   .note-card-excerpt {
     font-size: 13px;
@@ -274,6 +277,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    margin-top: 8px;
   }
   .note-card-date { font-size: 11.5px; color: var(--ink-faint); }
   .note-card-actions {
@@ -320,12 +324,10 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 10px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 18px;
-    cursor: pointer;
     overflow: hidden;
     transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
   }
@@ -346,7 +348,17 @@
   }
   .task-card:hover::before { opacity: 0.08; }
   .task-card:active { transform: translateY(-1px); }
-  .task-card:focus-visible { outline: 2px solid var(--sc); outline-offset: 3px; }
+
+  .task-card-link {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    color: inherit;
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+  }
 
   .task-card-top {
     display: flex;
@@ -397,8 +409,6 @@
   }
   .task-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
 
-  /* Só existe no DOM quando dev (ver taskActionsHtml no JS).
-     A classe dev-only aqui é reforço visual redundante. */
   .task-card-actions {
     display: flex;
     gap: 6px;
@@ -460,7 +470,6 @@
 </head>
 <body>
 
-<!-- Camada central de dados e sessão, carregada como módulo ES. -->
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
 <script>
@@ -524,24 +533,20 @@
     <div class="sidebar-divider"></div>
   </nav>
 
-  <!-- ============ MAIN ============ -->
   <main>
   <h1 class="page-title" id="pageTitle">Matéria</h1>
   <p class="page-sub" id="pageSub">Selecione um bimestre para ver anotações e tarefas.</p>
 
-  <!-- Abas de bimestre -->
   <section>
     <div class="bimestre-tabs" id="bimestreTabs"></div>
   </section>
 
-  <!-- Banner de matéria não encontrada (caso a URL não tenha ?materia= válido) -->
   <div class="empty-banner" id="invalidSubjectBanner" style="display:none;">
     Matéria não encontrada. <a href="materias.html">Voltar para Matérias</a>
   </div>
 
   <div id="subjectContent">
 
-    <!-- ===== ANOTAÇÕES ===== -->
     <section>
       <div class="section-head">
         <h2>Anotações</h2>
@@ -551,7 +556,6 @@
       <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
     </section>
 
-    <!-- ===== TAREFAS ===== -->
     <section>
       <div class="section-head">
         <h2>Tarefas</h2>
@@ -568,7 +572,7 @@
 </div>
 
 <script>
-  // Mobile sidebar toggle — mesmo padrão das demais páginas
+  // Mobile sidebar toggle
   var menuBtn = document.getElementById('menuBtn');
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
@@ -597,17 +601,14 @@
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
-  // Atualiza a interface global do modo DEV
   AtlasData.updateDevMode();
 
   var SUBJECTS = AtlasData.SUBJECTS;
   var BIMESTRES = AtlasData.BIMESTRES;
 
   var params = new URLSearchParams(window.location.search);
-  // Aceita tanto ?materia= quanto ?id=
   var rawQuery = params.get('materia') || params.get('id') || '';
 
-  // Busca robusta da matéria (por Nome, Slug ou ID)
   function findSubject(query) {
     if (!query) return null;
     var cleanQuery = query.toLowerCase().trim();
@@ -758,14 +759,16 @@ document.addEventListener('atlas-data-ready', function () {
     notesGrid.innerHTML = notes.map(function (n) {
       var excerpt = htmlToExcerpt(n.conteudo, 140);
       return (
-        '<a class="note-card" href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + n.id + '">' +
-          '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
-          '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
+        '<div class="note-card" data-id="' + n.id + '">' +
+          '<a class="note-card-link" href="anotacao.html?id=' + encodeURIComponent(n.id) + '">' +
+            '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
+            '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>' +
+          '</a>' +
           '<div class="note-card-foot">' +
             '<span class="note-card-date">' + escapeHtml(formatDateBR(new Date(n.atualizadoEm || n.criadoEm).toISOString().slice(0,10))) + '</span>' +
             noteActionsHtml(n) +
           '</div>' +
-        '</a>'
+        '</div>'
       );
     }).join('');
   }
@@ -775,7 +778,10 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = e.target.closest('[data-action="delete-note"]');
 
     if (editLink) {
-      if (!AtlasData.isDev()) { e.preventDefault(); }
+      e.preventDefault();
+      e.stopPropagation();
+      if (!AtlasData.isDev()) return;
+      window.location.href = editLink.href;
       return;
     }
     if (delBtn) {
@@ -818,17 +824,21 @@ document.addEventListener('atlas-data-ready', function () {
         : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
 
       return (
-        '<a class="task-card" href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + t.id + '">' +
-          '<div class="task-card-top">' +
-            '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
-              escapeHtml(formatDateBR(t.dataEntrega)) +
-            '</span>' +
+        '<div class="task-card" data-id="' + t.id + '">' +
+          '<a class="task-card-link" href="tarefa.html?id=' + encodeURIComponent(t.id) + '">' +
+            '<div class="task-card-top">' +
+              '<span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+                escapeHtml(formatDateBR(t.dataEntrega)) +
+              '</span>' +
+            '</div>' +
+            '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
+            excerptHtml +
+          '</a>' +
+          '<div style="display:flex; justify-content:flex-end; margin-top:8px;">' +
             taskActionsHtml(t) +
           '</div>' +
-          '<div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' +
-          excerptHtml +
-        '</a>'
+        '</div>'
       );
     }).join('');
   }
@@ -838,7 +848,10 @@ document.addEventListener('atlas-data-ready', function () {
     var delBtn = e.target.closest('[data-action="delete-task"]');
 
     if (editLink) {
-      if (!AtlasData.isDev()) { e.preventDefault(); }
+      e.preventDefault();
+      e.stopPropagation();
+      if (!AtlasData.isDev()) return;
+      window.location.href = editLink.href;
       return;
     }
     if (delBtn) {
