@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e mídias (v7.3 — Storage Architecture)
+   ATLAS — Camada central de dados, sessão e mídias (v7.3.1 — Resilient Storage)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -19,7 +19,7 @@ import {
 import {
   getStorage,
   ref as storageRef,
-  uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
   deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
@@ -82,7 +82,6 @@ import {
     try { return !!global.sessionStorage; } catch (e) { return false; }
   }
 
-  /* --- Storage / Cache --- */
   function saveToSessionStorage() {
     if (!hasSessionStorage()) return;
     try {
@@ -136,14 +135,21 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Otimização e Processamento de Imagem (WebP / 1200px / Quality 75%) --- */
-  function compressAndProcessImage(file, maxWidth, quality) {
+  /* --- Validação de Imagem (10MB / 7000px) e Processamento Canvas --- */
+  function validateAndCompressImage(file, maxWidth, quality) {
     maxWidth = maxWidth || 1200;
     quality = quality || 0.75;
 
     return new Promise(function (resolve, reject) {
       if (!file || !file.type.match(/image.*/)) {
-        reject(new Error('O arquivo fornecido não é uma imagem válida.'));
+        reject(new Error('O arquivo selecionado não é uma imagem válida.'));
+        return;
+      }
+
+      // Validação de Tamanho (Máx 10 MB)
+      var MAX_SIZE_BYTES = 10 * 1024 * 1024;
+      if (file.size > MAX_SIZE_BYTES) {
+        reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
         return;
       }
 
@@ -151,6 +157,12 @@ import {
       reader.onload = function (e) {
         var img = new Image();
         img.onload = function () {
+          // Validação de Resolução (Máx 7000 px)
+          if (img.width > 7000 || img.height > 7000) {
+            reject(new Error('A resolução da imagem é muito grande (máximo 7000px).'));
+            return;
+          }
+
           var width = img.width;
           var height = img.height;
 
@@ -171,69 +183,103 @@ import {
               if (blob) {
                 resolve(blob);
               } else {
-                reject(new Error('Erro ao converter imagem no Canvas.'));
+                reject(new Error('Falha ao processar a imagem no navegador.'));
               }
             },
             'image/webp',
             quality
           );
         };
-        img.onerror = function (err) { reject(err); };
+        img.onerror = function () { reject(new Error('Erro ao carregar a imagem.')); };
         img.src = e.target.result;
       };
-      reader.onerror = function (err) { reject(err); };
+      reader.onerror = function () { reject(new Error('Erro ao ler o arquivo.')); };
       reader.readAsDataURL(file);
     });
   }
 
-  /* --- Upload de Imagem para o Firebase Storage --- */
-  function uploadImageToStorage(file, folderName, customId) {
+  /* --- Upload com Progresso e Retry Automático (3x) --- */
+  function uploadWithRetry(fileRef, blob, onProgress, attemptsLeft) {
+    attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
+
+    return new Promise(function (resolve, reject) {
+      var uploadTask = uploadBytesResumable(fileRef, blob, { contentType: 'image/webp' });
+
+      uploadTask.on(
+        'state_changed',
+        function (snapshot) {
+          if (typeof onProgress === 'function' && snapshot.totalBytes > 0) {
+            var percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            onProgress(percent);
+          }
+        },
+        function (error) {
+          if (attemptsLeft > 1) {
+            console.warn('Atlas: Falha no upload. Tentando novamente... Restam ' + (attemptsLeft - 1) + ' tentativas.');
+            setTimeout(function () {
+              uploadWithRetry(fileRef, blob, onProgress, attemptsLeft - 1)
+                .then(resolve)
+                .catch(reject);
+            }, 1500);
+          } else {
+            reject(error);
+          }
+        },
+        function () {
+          getDownloadURL(uploadTask.snapshot.ref)
+            .then(resolve)
+            .catch(reject);
+        }
+      );
+    });
+  }
+
+  /* --- Upload de Imagem no Firebase Storage Organizado --- */
+  function uploadImageToStorage(file, folderName, itemId, onProgress) {
+    if (!file) return Promise.resolve('');
+
     return new Promise(function (resolve, reject) {
       if (!firebaseStorageInstance) {
-        reject(new Error('Firebase Storage não inicializado.'));
+        reject(new Error('Firebase Storage não está pronto.'));
         return;
       }
 
-      compressAndProcessImage(file, 1200, 0.75)
-        .then(function (compressedBlob) {
-          var filename = (customId || uid()) + '_' + Date.now() + '.webp';
-          var fullPath = 'imagens/' + folderName + '/' + filename;
-          var fileRef = storageRef(firebaseStorageInstance, fullPath);
+      var entityId = itemId || uid();
+      // Estrutura organizada: imagens/tarefas/ID_DA_TAREFA/capa.webp
+      var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
+      var fileRef = storageRef(firebaseStorageInstance, fullPath);
 
-          return uploadBytes(fileRef, compressedBlob, { contentType: 'image/webp' })
-            .then(function () {
-              return getDownloadURL(fileRef);
-            });
+      validateAndCompressImage(file, 1200, 0.75)
+        .then(function (compressedBlob) {
+          return uploadWithRetry(fileRef, compressedBlob, onProgress, 3);
         })
         .then(function (downloadURL) {
           resolve(downloadURL);
         })
         .catch(function (err) {
-          console.error('Atlas: erro no processamento/upload da imagem.', err);
           reject(err);
         });
     });
   }
 
-  /* --- Exclusão de Imagem do Firebase Storage --- */
+  /* --- Exclusão Segura no Storage --- */
   function deleteImageFromStorageByUrl(url) {
     if (!firebaseStorageInstance || !url || !url.includes('firebasestorage.googleapis.com')) {
-      return Promise.resolve(false);
+      return Promise.resolve(true);
     }
-    try {
-      var fileRef = storageRef(firebaseStorageInstance, url);
-      return deleteObject(fileRef)
-        .then(function () { return true; })
-        .catch(function (e) {
-          console.warn('Atlas: erro ao remover arquivo do Storage (ou já inexistente).', e);
-          return false;
-        });
-    } catch (e) {
-      return Promise.resolve(false);
-    }
+    return new Promise(function (resolve) {
+      try {
+        var fileRef = storageRef(firebaseStorageInstance, url);
+        deleteObject(fileRef)
+          .then(function () { resolve(true); })
+          .catch(function () { resolve(true); });
+      } catch (e) {
+        resolve(true);
+      }
+    });
   }
 
-  /* --- Firebase Initialization --- */
+  /* --- Inicialização do Firebase --- */
   function onFirebaseReady(callback) {
     if (firebaseReady) callback();
     else firebaseReadyCallbacks.push(callback);
@@ -289,9 +335,7 @@ import {
   function initFirebase() {
     var hasCache = loadFromSessionStorage();
 
-    if (hasCache) {
-      markFirebaseReady();
-    }
+    if (hasCache) markFirebaseReady();
 
     try {
       var app = initializeApp(FIREBASE_CONFIG);
@@ -299,16 +343,14 @@ import {
       firebaseDbInstance      = getDatabase(app);
       firebaseStorageInstance = getStorage(app);
     } catch (e) {
-      console.error('Atlas: falha ao inicializar o Firebase.', e);
+      console.error('Atlas: erro na inicialização.', e);
       markFirebaseReady();
       return;
     }
 
     attachDataListeners();
 
-    if (!hasCache) {
-      markFirebaseReady();
-    }
+    if (!hasCache) markFirebaseReady();
 
     setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function () {});
   }
@@ -374,14 +416,14 @@ import {
   }
 
   /* --- CRUD Anotações --- */
-  function getNotes() { return cache.notes; }
+  function getNotes() { return cache.notes || []; }
   function getNotesBy(materia, bimestre) {
     return getNotes().filter(function (n) { return n.materia === materia && (!bimestre || n.bimestre === bimestre); });
   }
 
   function saveNote(note) {
     if (!isDev()) return null;
-    var list = cache.notes.slice();
+    var list = (cache.notes || []).slice();
     var clean = {
       titulo: String(note.titulo || '').trim(),
       materia: note.materia,
@@ -389,109 +431,158 @@ import {
       imagemUrl: note.imagemUrl || '',
       conteudo: sanitizeHtml(note.conteudo || '')
     };
+
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
-      if (idx !== -1) { 
-        clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() }); 
-        list[idx] = clean; 
+      if (idx !== -1) {
+        // Trata imagem antiga se trocada
+        if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
+          deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
       }
-    } else { 
-      clean.id = uid(); 
-      clean.criadoEm = Date.now(); 
-      clean.atualizadoEm = Date.now(); 
-      list.push(clean); 
+    } else {
+      clean.id = note.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
     }
-    persistCollection('notes', list); 
+    persistCollection('notes', list);
     return clean;
   }
 
   function deleteNote(id) {
-    if (!isDev()) return false;
-    var target = cache.notes.find(function (n) { return n.id === id; });
-    if (target && target.imagemUrl) {
-      deleteImageFromStorageByUrl(target.imagemUrl);
-    }
-    persistCollection('notes', cache.notes.filter(function (n) { return n.id !== id; })); 
-    return true;
+    if (!isDev()) return Promise.resolve(false);
+    var target = (cache.notes || []).find(function (n) { return n.id === id; });
+    var imageToDelete = target ? target.imagemUrl : null;
+
+    // Primeiro apaga a imagem do Storage, depois apaga o registro do Banco
+    return deleteImageFromStorageByUrl(imageToDelete).then(function () {
+      var newList = (cache.notes || []).filter(function (n) { return n.id !== id; });
+      persistCollection('notes', newList);
+      return true;
+    });
   }
 
   /* --- CRUD Tarefas --- */
-  function getTasks() { return cache.tasks; }
+  function getTasks() { return cache.tasks || []; }
   function getTasksBy(materia, bimestre) {
     return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
   }
 
   function saveTask(task) {
     if (!isDev()) return null;
-    var list = cache.tasks.slice();
+    var list = (cache.tasks || []).slice();
     var clean = {
       titulo: String(task.titulo || '').trim(),
-      materia: task.materia, 
-      bimestre: task.bimestre, 
-      dataEntrega: task.dataEntrega,
+      materia: task.materia,
+      bimestre: task.bimestre,
+      dataEntrega: task.dataEntrega || '',
       imagemUrl: task.imagemUrl || '',
-      enunciado: sanitizeHtml(task.enunciado || ''), 
+      enunciado: sanitizeHtml(task.enunciado || ''),
       resposta: sanitizeHtml(task.resposta || '')
     };
+
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
-      if (idx !== -1) { 
-        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() }); 
-        list[idx] = clean; 
+      if (idx !== -1) {
+        // Trata imagem antiga se trocada
+        if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
+          deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
       }
-    } else { 
-      clean.id = uid(); 
-      clean.criadoEm = Date.now(); 
-      clean.atualizadoEm = Date.now(); 
-      list.push(clean); 
+    } else {
+      clean.id = task.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
     }
-    persistCollection('tasks', list); 
+    persistCollection('tasks', list);
     return clean;
   }
 
   function deleteTask(id) {
-    if (!isDev()) return false;
-    var target = cache.tasks.find(function (t) { return t.id === id; });
-    if (target && target.imagemUrl) {
-      deleteImageFromStorageByUrl(target.imagemUrl);
-    }
-    persistCollection('tasks', cache.tasks.filter(function (t) { return t.id !== id; })); 
-    return true;
+    if (!isDev()) return Promise.resolve(false);
+    var target = (cache.tasks || []).find(function (t) { return t.id === id; });
+    var imageToDelete = target ? target.imagemUrl : null;
+
+    // Primeiro apaga a imagem do Storage, depois apaga o registro do Banco
+    return deleteImageFromStorageByUrl(imageToDelete).then(function () {
+      var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
+      persistCollection('tasks', newList);
+      return true;
+    });
   }
 
   /* --- CRUD Eventos --- */
-  function getEvents() { return cache.events; }
+  function getEvents() { return cache.events || []; }
   function saveEvent(evt) {
     if (!isDev()) return null;
-    var list = cache.events.slice();
-    var clean = { titulo: String(evt.titulo || '').trim(), descricao: String(evt.descricao || ''), data: evt.data };
+    var list = (cache.events || []).slice();
+    var clean = {
+      titulo: String(evt.titulo || '').trim(),
+      descricao: String(evt.descricao || ''),
+      data: evt.data || ''
+    };
     if (evt.id) {
       var idx = list.findIndex(function (e) { return e.id === evt.id; });
-      if (idx !== -1) { clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() }); list[idx] = clean; }
-    } else { clean.id = uid(); clean.criadoEm = Date.now(); clean.atualizadoEm = Date.now(); list.push(clean); }
-    persistCollection('events', list); return clean;
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = evt.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    persistCollection('events', list);
+    return clean;
   }
+
   function deleteEvent(id) {
     if (!isDev()) return false;
-    persistCollection('events', cache.events.filter(function (e) { return e.id !== id; })); return true;
+    var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
+    persistCollection('events', newList);
+    return true;
   }
 
   /* --- CRUD Avisos --- */
-  function getNotices() { return cache.notices; }
+  function getNotices() { return cache.notices || []; }
   function saveNotice(notice) {
     if (!isDev()) return null;
-    var list = cache.notices.slice();
+    var list = (cache.notices || []).slice();
     var prioridade = NOTICE_PRIORITIES.indexOf(notice.prioridade) !== -1 ? notice.prioridade : 'Normal';
-    var clean = { titulo: String(notice.titulo || '').trim(), descricao: String(notice.descricao || '').trim(), data: notice.data || '', prioridade: prioridade };
+    var clean = {
+      titulo: String(notice.titulo || '').trim(),
+      descricao: String(notice.descricao || '').trim(),
+      data: notice.data || '',
+      prioridade: prioridade
+    };
     if (notice.id) {
       var idx = list.findIndex(function (n) { return n.id === notice.id; });
-      if (idx !== -1) { clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() }); list[idx] = clean; }
-    } else { clean.id = uid(); clean.criadoEm = Date.now(); clean.atualizadoEm = Date.now(); list.push(clean); }
-    persistCollection('notices', list); return clean;
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = notice.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    persistCollection('notices', list);
+    return clean;
   }
+
   function deleteNotice(id) {
     if (!isDev()) return false;
-    persistCollection('notices', cache.notices.filter(function (n) { return n.id !== id; })); return true;
+    var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
+    persistCollection('notices', newList);
+    return true;
   }
 
   function onDataChange(callback) { changeCallbacks.push(callback); }
