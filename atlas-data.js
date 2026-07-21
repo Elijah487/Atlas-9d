@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e mídias (v7.3.1 — Resilient Storage)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.1 — Fix Definitivo)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -50,9 +50,8 @@ import {
   var BIMESTRES = ['3º Bimestre', '4º Bimestre'];
   var NOTICE_PRIORITIES = ['Normal', 'Importante', 'Urgente'];
 
-  /* --- Estado interno --- */
+  /* --- Estado Interno --- */
   var cache = emptyData();
-  var lastCacheHash = '';
   var changeCallbacks = [];
   var firebaseAuthInstance = null;
   var firebaseDbInstance = null;
@@ -85,11 +84,7 @@ import {
   function saveToSessionStorage() {
     if (!hasSessionStorage()) return;
     try {
-      var serialized = JSON.stringify(cache);
-      if (serialized !== lastCacheHash) {
-        lastCacheHash = serialized;
-        global.sessionStorage.setItem(CACHE_KEY, serialized);
-      }
+      global.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     } catch (e) {}
   }
 
@@ -98,7 +93,6 @@ import {
     try {
       var raw = global.sessionStorage.getItem(CACHE_KEY);
       if (!raw) return false;
-      if (raw === lastCacheHash) return true;
       var parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         cache = {
@@ -107,7 +101,6 @@ import {
           events:  Array.isArray(parsed.events)  ? parsed.events  : [],
           notices: Array.isArray(parsed.notices) ? parsed.notices : []
         };
-        lastCacheHash = raw;
         return true;
       }
     } catch (e) {}
@@ -135,20 +128,16 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Validação de Imagem (10MB / 7000px) e Processamento Canvas --- */
-  function validateAndCompressImage(file, maxWidth, quality) {
-    maxWidth = maxWidth || 1200;
-    quality = quality || 0.75;
-
+  /* --- 6. Validação Prévia (10MB / 7000px) e Canvas --- */
+  function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
-      if (!file || !file.type.match(/image.*/)) {
+      if (!file || !file.type || !file.type.match(/^image\//)) {
         reject(new Error('O arquivo selecionado não é uma imagem válida.'));
         return;
       }
 
-      // Validação de Tamanho (Máx 10 MB)
-      var MAX_SIZE_BYTES = 10 * 1024 * 1024;
-      if (file.size > MAX_SIZE_BYTES) {
+      // Validação de Tamanho (10 MB)
+      if (file.size > 10 * 1024 * 1024) {
         reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
         return;
       }
@@ -157,12 +146,13 @@ import {
       reader.onload = function (e) {
         var img = new Image();
         img.onload = function () {
-          // Validação de Resolução (Máx 7000 px)
+          // Validação de Resolução (7000 px)
           if (img.width > 7000 || img.height > 7000) {
-            reject(new Error('A resolução da imagem é muito grande (máximo 7000px).'));
+            reject(new Error('A imagem é muito grande! A resolução máxima permitida é de 7000 px.'));
             return;
           }
 
+          var maxWidth = 1200;
           var width = img.width;
           var height = img.height;
 
@@ -174,38 +164,34 @@ import {
           var canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
-
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
           canvas.toBlob(
             function (blob) {
-              if (blob) {
-                resolve(blob);
-              } else {
-                reject(new Error('Falha ao processar a imagem no navegador.'));
-              }
+              if (blob) resolve(blob);
+              else reject(new Error('Falha ao processar a imagem.'));
             },
             'image/webp',
-            quality
+            0.8
           );
         };
-        img.onerror = function () { reject(new Error('Erro ao carregar a imagem.')); };
+        img.onerror = function () { reject(new Error('Erro ao carregar a estrutura da imagem.')); };
         img.src = e.target.result;
       };
-      reader.onerror = function () { reject(new Error('Erro ao ler o arquivo.')); };
+      reader.onerror = function () { reject(new Error('Erro ao ler arquivo local.')); };
       reader.readAsDataURL(file);
     });
   }
 
-  /* --- Upload com Progresso e Retry Automático (3x) --- */
-  function uploadWithRetry(fileRef, blob, onProgress, attemptsLeft) {
+  /* --- 4 e 5. Retry Automático (3x) + uploadBytesResumable --- */
+  function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
     return new Promise(function (resolve, reject) {
-      var uploadTask = uploadBytesResumable(fileRef, blob, { contentType: 'image/webp' });
+      var task = uploadBytesResumable(fileRef, blob, { contentType: 'image/webp' });
 
-      uploadTask.on(
+      task.on(
         'state_changed',
         function (snapshot) {
           if (typeof onProgress === 'function' && snapshot.totalBytes > 0) {
@@ -215,64 +201,55 @@ import {
         },
         function (error) {
           if (attemptsLeft > 1) {
-            console.warn('Atlas: Falha no upload. Tentando novamente... Restam ' + (attemptsLeft - 1) + ' tentativas.');
             setTimeout(function () {
-              uploadWithRetry(fileRef, blob, onProgress, attemptsLeft - 1)
+              executeResumableUpload(fileRef, blob, onProgress, attemptsLeft - 1)
                 .then(resolve)
                 .catch(reject);
-            }, 1500);
+            }, 1200);
           } else {
             reject(error);
           }
         },
         function () {
-          getDownloadURL(uploadTask.snapshot.ref)
-            .then(resolve)
-            .catch(reject);
+          getDownloadURL(task.snapshot.ref).then(resolve).catch(reject);
         }
       );
     });
   }
 
-  /* --- Upload de Imagem no Firebase Storage Organizado --- */
+  /* --- 3. Organização do Storage --- */
   function uploadImageToStorage(file, folderName, itemId, onProgress) {
+    // SE NÃO EXISTIR IMAGEM: Resolve imediatamente sem quebrar o fluxo
     if (!file) return Promise.resolve('');
 
     return new Promise(function (resolve, reject) {
       if (!firebaseStorageInstance) {
-        reject(new Error('Firebase Storage não está pronto.'));
+        reject(new Error('Serviço de imagens indisponível no momento.'));
         return;
       }
 
       var entityId = itemId || uid();
-      // Estrutura organizada: imagens/tarefas/ID_DA_TAREFA/capa.webp
+      // Estrutura organizada exigida
       var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
-      var fileRef = storageRef(firebaseStorageInstance, fullPath);
+      var fRef = storageRef(firebaseStorageInstance, fullPath);
 
-      validateAndCompressImage(file, 1200, 0.75)
-        .then(function (compressedBlob) {
-          return uploadWithRetry(fileRef, compressedBlob, onProgress, 3);
+      validateAndCompressImage(file)
+        .then(function (blob) {
+          return executeResumableUpload(fRef, blob, onProgress, 3);
         })
-        .then(function (downloadURL) {
-          resolve(downloadURL);
-        })
-        .catch(function (err) {
-          reject(err);
-        });
+        .then(resolve)
+        .catch(reject);
     });
   }
 
-  /* --- Exclusão Segura no Storage --- */
   function deleteImageFromStorageByUrl(url) {
-    if (!firebaseStorageInstance || !url || !url.includes('firebasestorage.googleapis.com')) {
+    if (!firebaseStorageInstance || !url || typeof url !== 'string' || !url.includes('firebasestorage.googleapis.com')) {
       return Promise.resolve(true);
     }
     return new Promise(function (resolve) {
       try {
-        var fileRef = storageRef(firebaseStorageInstance, url);
-        deleteObject(fileRef)
-          .then(function () { resolve(true); })
-          .catch(function () { resolve(true); });
+        var fRef = storageRef(firebaseStorageInstance, url);
+        deleteObject(fRef).then(function () { resolve(true); }).catch(function () { resolve(true); });
       } catch (e) {
         resolve(true);
       }
@@ -310,15 +287,12 @@ import {
       ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
       function (snapshot) {
         var newData = objectToArray(snapshot.val());
-        var newStr = JSON.stringify(newData);
-        if (JSON.stringify(cache[collectionName]) !== newStr) {
-          cache[collectionName] = newData;
-          saveToSessionStorage();
-          scheduleNotify();
-        }
+        cache[collectionName] = newData;
+        saveToSessionStorage();
+        scheduleNotify();
       },
       function (error) {
-        console.error('Atlas: erro ao escutar "' + collectionName + '".', error);
+        console.error('Atlas: Erro ao sincronizar ' + collectionName, error);
       }
     );
   }
@@ -335,32 +309,27 @@ import {
   function initFirebase() {
     var hasCache = loadFromSessionStorage();
 
-    if (hasCache) markFirebaseReady();
-
     try {
       var app = initializeApp(FIREBASE_CONFIG);
       firebaseAuthInstance    = getAuth(app);
       firebaseDbInstance      = getDatabase(app);
       firebaseStorageInstance = getStorage(app);
     } catch (e) {
-      console.error('Atlas: erro na inicialização.', e);
+      console.error('Atlas: erro de inicialização Firebase', e);
       markFirebaseReady();
       return;
     }
 
     attachDataListeners();
-
-    if (!hasCache) markFirebaseReady();
+    markFirebaseReady();
 
     setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function () {});
   }
 
-  /* --- Sessão DEV --- */
+  /* --- Sessão --- */
   function getSession() {
     if (!hasSessionStorage()) return null;
-    try {
-      return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null;
-    } catch (e) { return null; }
+    try { return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
   }
 
   function setSessionDev() {
@@ -370,10 +339,7 @@ import {
 
   function clearSessionLocal() {
     if (!hasSessionStorage()) return;
-    try { 
-      global.sessionStorage.removeItem(ATLAS_SESSION_KEY);
-      if (global.localStorage) global.localStorage.removeItem(ATLAS_SESSION_KEY);
-    } catch (e) {}
+    try { global.sessionStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
   }
 
   function isDev() { return getSession() === 'dev'; }
@@ -387,9 +353,7 @@ import {
         setSessionDev();
         callback(true, null);
       })
-      .catch(function (err) {
-        callback(false, err.code || 'error');
-      });
+      .catch(function (err) { callback(false, err.code || 'error'); });
   }
 
   function loginWithRole(role, callback) {
@@ -408,10 +372,11 @@ import {
 
   /* --- Persistência Realtime Database --- */
   function persistCollection(collectionName, list) {
-    if (!firebaseDbInstance) return false;
     cache[collectionName] = list;
     saveToSessionStorage();
-    set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list);
+    if (firebaseDbInstance) {
+      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list);
+    }
     return true;
   }
 
@@ -422,12 +387,11 @@ import {
   }
 
   function saveNote(note) {
-    if (!isDev()) return null;
     var list = (cache.notes || []).slice();
     var clean = {
       titulo: String(note.titulo || '').trim(),
-      materia: note.materia,
-      bimestre: note.bimestre,
+      materia: note.materia || '',
+      bimestre: note.bimestre || '',
       imagemUrl: note.imagemUrl || '',
       conteudo: sanitizeHtml(note.conteudo || '')
     };
@@ -435,9 +399,13 @@ import {
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
       if (idx !== -1) {
-        // Trata imagem antiga se trocada
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        // Preserva a imagem atual se nenhuma nova for enviada
+        if (!note.imagemUrl && list[idx].imagemUrl) {
+          clean.imagemUrl = list[idx].imagemUrl;
         }
         clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
         list[idx] = clean;
@@ -452,13 +420,12 @@ import {
     return clean;
   }
 
+  /* 7. Exclusão segura (Inverte Ordem: Deleta Storage -> Deleta Banco) */
   function deleteNote(id) {
-    if (!isDev()) return Promise.resolve(false);
     var target = (cache.notes || []).find(function (n) { return n.id === id; });
-    var imageToDelete = target ? target.imagemUrl : null;
+    var imageUrl = target ? target.imagemUrl : null;
 
-    // Primeiro apaga a imagem do Storage, depois apaga o registro do Banco
-    return deleteImageFromStorageByUrl(imageToDelete).then(function () {
+    return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.notes || []).filter(function (n) { return n.id !== id; });
       persistCollection('notes', newList);
       return true;
@@ -472,12 +439,11 @@ import {
   }
 
   function saveTask(task) {
-    if (!isDev()) return null;
     var list = (cache.tasks || []).slice();
     var clean = {
       titulo: String(task.titulo || '').trim(),
-      materia: task.materia,
-      bimestre: task.bimestre,
+      materia: task.materia || '',
+      bimestre: task.bimestre || '',
       dataEntrega: task.dataEntrega || '',
       imagemUrl: task.imagemUrl || '',
       enunciado: sanitizeHtml(task.enunciado || ''),
@@ -487,9 +453,12 @@ import {
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
       if (idx !== -1) {
-        // Trata imagem antiga se trocada
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        if (!task.imagemUrl && list[idx].imagemUrl) {
+          clean.imagemUrl = list[idx].imagemUrl;
         }
         clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
         list[idx] = clean;
@@ -504,23 +473,21 @@ import {
     return clean;
   }
 
+  /* 7. Exclusão segura de Tarefas */
   function deleteTask(id) {
-    if (!isDev()) return Promise.resolve(false);
     var target = (cache.tasks || []).find(function (t) { return t.id === id; });
-    var imageToDelete = target ? target.imagemUrl : null;
+    var imageUrl = target ? target.imagemUrl : null;
 
-    // Primeiro apaga a imagem do Storage, depois apaga o registro do Banco
-    return deleteImageFromStorageByUrl(imageToDelete).then(function () {
+    return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
       persistCollection('tasks', newList);
       return true;
     });
   }
 
-  /* --- CRUD Eventos --- */
+  /* --- CRUD Eventos (Garantido Sem Dependência de Imagens) --- */
   function getEvents() { return cache.events || []; }
   function saveEvent(evt) {
-    if (!isDev()) return null;
     var list = (cache.events || []).slice();
     var clean = {
       titulo: String(evt.titulo || '').trim(),
@@ -544,7 +511,6 @@ import {
   }
 
   function deleteEvent(id) {
-    if (!isDev()) return false;
     var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
     persistCollection('events', newList);
     return true;
@@ -553,7 +519,6 @@ import {
   /* --- CRUD Avisos --- */
   function getNotices() { return cache.notices || []; }
   function saveNotice(notice) {
-    if (!isDev()) return null;
     var list = (cache.notices || []).slice();
     var prioridade = NOTICE_PRIORITIES.indexOf(notice.prioridade) !== -1 ? notice.prioridade : 'Normal';
     var clean = {
@@ -579,7 +544,6 @@ import {
   }
 
   function deleteNotice(id) {
-    if (!isDev()) return false;
     var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
     persistCollection('notices', newList);
     return true;
