@@ -1,7 +1,7 @@
 /* ============ ATLAS DATA LAYER (atlas-data.js) ============ */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, get, set, child, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, get, set, child, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 (function () {
   'use strict';
@@ -135,7 +135,6 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
       atualizadoEm: new Date().toISOString()
     };
 
-    // 1. Atualiza na memória e no LocalStorage
     if (existingIndex >= 0) {
       tasks[existingIndex] = taskData;
     } else {
@@ -144,7 +143,6 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
     _data.tasks = tasks;
     _saveLocal();
 
-    // 2. Tenta gravar no nó correto do Firebase: atlas_data/tasks
     try {
       var taskRef = ref(db, 'atlas_data/tasks/' + taskData.id);
       set(taskRef, taskData).catch(function (err) {
@@ -154,9 +152,7 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
       console.error('AtlasData: Falha na requisição ao Firebase:', err);
     }
 
-    // 3. Notifica a página para redirecionar ou re-renderizar
     notifyDataChange();
-
     return taskData;
   }
 
@@ -178,6 +174,188 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
       });
     } catch (err) {
       console.error('AtlasData: Falha ao remover do Firebase:', err);
+    }
+
+    notifyDataChange();
+    return true;
+  }
+
+  /* ============ MÉTODOS DE ANOTAÇÕES ============ */
+  function getNotes() {
+    return _data.notes || [];
+  }
+
+  function getNotesBy(filter) {
+    filter = filter || {};
+    return getNotes().filter(function (n) {
+      if (filter.materia && slugify(n.materia) !== slugify(filter.materia)) return false;
+      if (filter.bimestre && String(n.bimestre) !== String(filter.bimestre)) return false;
+      return true;
+    });
+  }
+
+  function saveNote(note) {
+    if (!note || !note.titulo || !note.materia) return null;
+
+    var notes = getNotes();
+    var existingIndex = note.id ? notes.findIndex(function (n) { return n.id === note.id; }) : -1;
+
+    var noteData = {
+      id: (existingIndex >= 0) ? notes[existingIndex].id : (note.id || 'note-' + uid()),
+      titulo: String(note.titulo).trim(),
+      materia: String(note.materia).trim(),
+      bimestre: String(note.bimestre || '1º Bimestre'),
+      conteudo: note.conteudo || '',
+      criadoEm: (existingIndex >= 0 && notes[existingIndex].criadoEm) ? notes[existingIndex].criadoEm : new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      notes[existingIndex] = noteData;
+    } else {
+      notes.push(noteData);
+    }
+    _data.notes = notes;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/notes/' + noteData.id), noteData);
+    } catch (err) {
+      console.error('AtlasData: Erro ao salvar nota:', err);
+    }
+
+    notifyDataChange();
+    return noteData;
+  }
+
+  function deleteNote(id) {
+    if (!id) return false;
+    var notes = getNotes();
+    var filtered = notes.filter(function (n) { return n.id !== id; });
+
+    if (filtered.length === notes.length) return false;
+
+    _data.notes = filtered;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/notes/' + id), null);
+    } catch (err) {
+      console.error('AtlasData: Erro ao deletar nota:', err);
+    }
+
+    notifyDataChange();
+    return true;
+  }
+
+  /* ============ MÉTODOS DE CALENDÁRIO / EVENTOS ============ */
+  function getEvents() {
+    return _data.events || [];
+  }
+
+  function saveEvent(evt) {
+    if (!evt || !evt.titulo || !evt.data) return null;
+
+    var events = getEvents();
+    var existingIndex = evt.id ? events.findIndex(function (e) { return e.id === evt.id; }) : -1;
+
+    var evtData = {
+      id: (existingIndex >= 0) ? events[existingIndex].id : (evt.id || 'evt-' + uid()),
+      titulo: String(evt.titulo).trim(),
+      data: evt.data,
+      tipo: evt.tipo || 'prova',
+      materia: evt.materia || '',
+      descricao: evt.descricao || ''
+    };
+
+    if (existingIndex >= 0) {
+      events[existingIndex] = evtData;
+    } else {
+      events.push(evtData);
+    }
+    _data.events = events;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/events/' + evtData.id), evtData);
+    } catch (err) {
+      console.error('AtlasData: Erro ao salvar evento:', err);
+    }
+
+    notifyDataChange();
+    return evtData;
+  }
+
+  function deleteEvent(id) {
+    if (!id) return false;
+    var events = getEvents();
+    var filtered = events.filter(function (e) { return e.id !== id; });
+
+    if (filtered.length === events.length) return false;
+
+    _data.events = filtered;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/events/' + id), null);
+    } catch (err) {
+      console.error('AtlasData: Erro ao excluir evento:', err);
+    }
+
+    notifyDataChange();
+    return true;
+  }
+
+  /* ============ MÉTODOS DE AVISOS / MURAL ============ */
+  function getNotices() {
+    return _data.notices || [];
+  }
+
+  function saveNotice(notice) {
+    if (!notice || !notice.titulo) return null;
+
+    var notices = getNotices();
+    var existingIndex = notice.id ? notices.findIndex(function (n) { return n.id === notice.id; }) : -1;
+
+    var noticeData = {
+      id: (existingIndex >= 0) ? notices[existingIndex].id : (notice.id || 'notice-' + uid()),
+      titulo: String(notice.titulo).trim(),
+      conteudo: notice.conteudo || '',
+      data: notice.data || new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      notices[existingIndex] = noticeData;
+    } else {
+      notices.push(noticeData);
+    }
+    _data.notices = notices;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/notices/' + noticeData.id), noticeData);
+    } catch (err) {
+      console.error('AtlasData: Erro ao salvar aviso:', err);
+    }
+
+    notifyDataChange();
+    return noticeData;
+  }
+
+  function deleteNotice(id) {
+    if (!id) return false;
+    var notices = getNotices();
+    var filtered = notices.filter(function (n) { return n.id !== id; });
+
+    if (filtered.length === notices.length) return false;
+
+    _data.notices = filtered;
+    _saveLocal();
+
+    try {
+      set(ref(db, 'atlas_data/notices/' + id), null);
+    } catch (err) {
+      console.error('AtlasData: Erro ao deletar aviso:', err);
     }
 
     notifyDataChange();
@@ -222,10 +400,25 @@ import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/fi
     SUBJECTS: SUBJECTS,
     BIMESTRES: BIMESTRES,
     slugify: slugify,
+    // Tarefas
     getTasks: getTasks,
     getTasksBy: getTasksBy,
     saveTask: saveTask,
     deleteTask: deleteTask,
+    // Anotações
+    getNotes: getNotes,
+    getNotesBy: getNotesBy,
+    saveNote: saveNote,
+    deleteNote: deleteNote,
+    // Eventos
+    getEvents: getEvents,
+    saveEvent: saveEvent,
+    deleteEvent: deleteEvent,
+    // Avisos
+    getNotices: getNotices,
+    saveNotice: saveNotice,
+    deleteNotice: deleteNotice,
+    // Sessão e Utils
     isDev: isDev,
     requireSession: requireSession,
     logout: logout,
