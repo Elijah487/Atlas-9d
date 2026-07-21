@@ -1,12 +1,12 @@
 /* =====================================================================
-   ATLAS — Camada central de dados e sessão (v7.1 — Correção de Reload/Sessão)
+   ATLAS — Camada central de dados e sessão (v7.2 — Correção de Sessão DEV)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
   setPersistence,
-  browserLocalPersistence,
+  inMemoryPersistence,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut
@@ -69,10 +69,6 @@ import {
 
   function emptyData() {
     return { notes: [], tasks: [], events: [], notices: [] };
-  }
-
-  function hasLocalStorage() {
-    try { return !!global.localStorage; } catch (e) { return false; }
   }
 
   function hasSessionStorage() {
@@ -228,54 +224,43 @@ import {
 
     attachDataListeners();
 
-    // Se já temos cache local, libera o atlas-data-ready imediatamente para não haver delay na tela
     if (hasCache) {
       markFirebaseReady();
     } else {
-      // Caso seja o primeiro acesso, aguarda 100ms para receber dados do Firebase antes de renderizar
       setTimeout(function () {
         markFirebaseReady();
       }, 100);
     }
 
-    setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function (e) {
-      console.warn('Atlas: não foi possível definir persistência LOCAL.', e);
-    });
-
-    // Correção de sessão no carregamento da página
-    var firstAuthCheckDone = false;
-    onAuthStateChanged(firebaseAuthInstance, function (user) {
-      if (firstAuthCheckDone) {
-        if (!user && getSession() === 'dev') {
-          clearSessionLocal();
-          scheduleNotify();
-        }
-      } else {
-        firstAuthCheckDone = true;
-        if (user) {
-          setSessionDev();
-        }
-      }
+    // Define persistência apenas em memória para a auth do Firebase
+    setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function (e) {
+      console.warn('Atlas: não foi possível definir persistência em memória.', e);
     });
   }
 
-  /* --- Sessão dev --- */
+  /* --- Gerenciamento de Sessão DEV (via sessionStorage) --- */
   function getSession() {
-    if (!hasLocalStorage()) return null;
+    if (!hasSessionStorage()) return null;
     try {
-      var v = global.localStorage.getItem(ATLAS_SESSION_KEY);
+      var v = global.sessionStorage.getItem(ATLAS_SESSION_KEY);
       return v === 'dev' ? 'dev' : null;
     } catch (e) { return null; }
   }
 
   function setSessionDev() {
-    if (!hasLocalStorage()) return;
-    try { global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { global.sessionStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
   }
 
   function clearSessionLocal() {
-    if (!hasLocalStorage()) return;
-    try { global.localStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { 
+      global.sessionStorage.removeItem(ATLAS_SESSION_KEY);
+      // Limpa também o localStorage por compatibilidade retroativa
+      if (global.localStorage) {
+        global.localStorage.removeItem(ATLAS_SESSION_KEY);
+      }
+    } catch (e) {}
   }
 
   function isDev() {
@@ -329,6 +314,12 @@ import {
   }
 
   function loginWithRole(role, callback) {
+    // Ao entrar como aluno, garante o encerramento imediato de qualquer sessão DEV ativa
+    clearSessionLocal();
+    if (firebaseAuthInstance) {
+      signOut(firebaseAuthInstance).catch(function () {});
+    }
+
     if (role === 'student') {
       if (callback) callback(true);
     } else {
