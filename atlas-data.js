@@ -1,353 +1,627 @@
-/* ============ ATLAS DATA LAYER (atlas-data.js) ============ */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, get, set, child, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+/* =====================================================================
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Definitivo)
+   ===================================================================== */
 
-(function () {
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  set
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import {
+  getStorage,
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+(function (global) {
   'use strict';
 
-  var firebaseConfig = {
-    databaseURL: "https://atlas-9d-default-rtdb.firebaseio.com"
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBnt7aI16nXLXTSEg9ncITDI1KWS1wv650",
+    authDomain: "atlas-9d.firebaseapp.com",
+    databaseURL: "https://atlas-9d-default-rtdb.firebaseio.com",
+    projectId: "atlas-9d",
+    storageBucket: "atlas-9d.firebasestorage.app",
+    messagingSenderId: "967138045816",
+    appId: "1:967138045816:web:c90ba328cc71bf6dcf628d"
   };
 
-  var app = initializeApp(firebaseConfig);
-  var db = getDatabase(app);
-  var auth = getAuth(app);
+  var ATLAS_SESSION_KEY = 'atlas_session';
+  var DATA_PATH = 'atlas_data';
+  var CACHE_KEY  = 'atlas_cache';
 
   var SUBJECTS = [
-    "Matemática",
-    "Língua Portuguesa",
-    "História",
-    "Geografia",
-    "Ciências",
-    "Inglês",
-    "Educação Física",
-    "Arte",
-    "Ensino Religioso"
+    'Matemática', 'Português', 'História', 'Geografia',
+    'Ciências', 'Inglês', 'Arte',
+    'O.E Matemática', 'O.E Português', 'Multidisciplinar'
   ];
 
-  var BIMESTRES = [
-    "1º Bimestre",
-    "2º Bimestre",
-    "3º Bimestre",
-    "4º Bimestre"
-  ];
+  var BIMESTRES = ['3º Bimestre', '4º Bimestre'];
+  var NOTICE_PRIORITIES = ['Normal', 'Importante', 'Urgente'];
 
-  var STORAGE_KEY = 'atlas_9d_local_data_v1';
-  var listeners = [];
-
-  var _data = {
-    tasks: [],
-    notes: [],
-    events: [],
-    notices: []
-  };
+  /* --- Estado Interno --- */
+  var cache = emptyData();
+  var changeCallbacks = [];
+  var firebaseAuthInstance = null;
+  var firebaseDbInstance = null;
+  var firebaseStorageInstance = null;
+  var firebaseReady = false;
+  var firebaseReadyCallbacks = [];
+  var dataListenerAttached = false;
+  var atlasDataReadyEventDispatched = false;
+  var notifyRafId = null;
 
   function uid() {
-    return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+    return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
   }
 
   function slugify(text) {
-    if (!text) return '';
-    return text.toString().toLowerCase().trim()
+    return String(text)
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .toLowerCase()
+      .replace(/\s+/g, '-');
   }
 
-  function _loadLocal() {
+  function emptyData() {
+    return { notes: [], tasks: [], events: [], notices: [] };
+  }
+
+  function hasLocalStorage() {
+    try { return !!global.localStorage; } catch (e) { return false; }
+  }
+
+  function saveToLocalStorage() {
+    if (!hasLocalStorage()) return;
     try {
-      var raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        _data.tasks = parsed.tasks || [];
-        _data.notes = parsed.notes || [];
-        _data.events = parsed.events || [];
-        _data.notices = parsed.notices || [];
+      global.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {}
+  }
+
+  function loadFromLocalStorage() {
+    if (!hasLocalStorage()) return false;
+    try {
+      var raw = global.localStorage.getItem(CACHE_KEY);
+      if (!raw) return false;
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        cache = {
+          notes:   Array.isArray(parsed.notes)   ? parsed.notes   : [],
+          tasks:   Array.isArray(parsed.tasks)   ? parsed.tasks   : [],
+          events:  Array.isArray(parsed.events)  ? parsed.events  : [],
+          notices: Array.isArray(parsed.notices) ? parsed.notices : []
+        };
+        return true;
       }
-    } catch (e) {
-      console.warn('AtlasData: Falha ao carregar do LocalStorage', e);
-    }
+    } catch (e) {}
+    return false;
   }
 
-  function _saveLocal() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(_data));
-    } catch (e) {
-      console.warn('AtlasData: Falha ao salvar no LocalStorage', e);
-    }
-  }
-
-  function notifyDataChange() {
-    listeners.forEach(function (cb) {
-      try { cb(_data); } catch (e) { console.error(e); }
+  function scheduleNotify() {
+    if (notifyRafId) cancelAnimationFrame(notifyRafId);
+    notifyRafId = requestAnimationFrame(function () {
+      notifyChange();
     });
   }
 
-  // --- Sincronização em Tempo Real com o Firebase ---
-  var rootRef = ref(db, 'atlas_data');
-  onValue(rootRef, function (snapshot) {
-    if (snapshot.exists()) {
-      var val = snapshot.val() || {};
-      _data.tasks = val.tasks ? Object.values(val.tasks) : [];
-      _data.notes = val.notes ? Object.values(val.notes) : [];
-      _data.events = val.events ? Object.values(val.events) : [];
-      _data.notices = val.notices ? Object.values(val.notices) : [];
-      _saveLocal();
-      notifyDataChange();
+  function notifyChange() {
+    for (var i = 0; i < changeCallbacks.length; i++) {
+      try { changeCallbacks[i](); } catch (e) { console.error('Atlas: erro em callback onDataChange.', e); }
     }
-  });
-
-  _loadLocal();
-
-  /* ============ MÉTODOS DE TAREFA ============ */
-  function getTasks() {
-    return _data.tasks || [];
   }
 
-  function getTasksBy(filter) {
-    filter = filter || {};
-    return getTasks().filter(function (t) {
-      if (filter.materia && slugify(t.materia) !== slugify(filter.materia)) return false;
-      if (filter.bimestre && String(t.bimestre) !== String(filter.bimestre)) return false;
-      return true;
+  function sanitizeHtml(html) {
+    if (!html) return '';
+    if (typeof document === 'undefined') return String(html);
+    var template = document.createElement('template');
+    template.innerHTML = html;
+    return template.innerHTML;
+  }
+
+  /* --- Validação Prévia (10MB / 7000px) e Canvas --- */
+  function validateAndCompressImage(file) {
+    return new Promise(function (resolve, reject) {
+      if (!file || !file.type || !file.type.match(/^image\//)) {
+        reject(new Error('O arquivo selecionado não é uma imagem válida.'));
+        return;
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          if (img.width > 7000 || img.height > 7000) {
+            reject(new Error('A imagem é muito grande! A resolução máxima permitida é de 7000 px.'));
+            return;
+          }
+
+          var maxWidth = 1200;
+          var width = img.width;
+          var height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            function (blob) {
+              if (blob) resolve(blob);
+              else reject(new Error('Falha ao processar a imagem.'));
+            },
+            'image/webp',
+            0.8
+          );
+        };
+        img.onerror = function () { reject(new Error('Erro ao carregar a estrutura da imagem.')); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error('Erro ao ler arquivo local.')); };
+      reader.readAsDataURL(file);
     });
   }
 
-  function saveTask(task) {
-    if (!task || !task.titulo || !task.materia) return null;
+  /* --- Retry Automático (3x) + uploadBytesResumable --- */
+  function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
+    attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
-    var tasks = getTasks();
-    var existingIndex = task.id ? tasks.findIndex(function (t) { return t.id === task.id; }) : -1;
+    return new Promise(function (resolve, reject) {
+      var task = uploadBytesResumable(fileRef, blob, { contentType: 'image/webp' });
 
-    var taskData = {
-      id: (existingIndex >= 0) ? tasks[existingIndex].id : (task.id || 'task-' + uid()),
-      titulo: String(task.titulo).trim(),
-      materia: String(task.materia).trim(),
-      bimestre: String(task.bimestre || '1º Bimestre'),
-      dataEntrega: task.dataEntrega || '',
-      resposta: task.resposta || '',
-      criadoEm: (existingIndex >= 0 && tasks[existingIndex].criadoEm) ? tasks[existingIndex].criadoEm : new Date().toISOString(),
-      atualizadoEm: new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      tasks[existingIndex] = taskData;
-    } else {
-      tasks.push(taskData);
-    }
-    _data.tasks = tasks;
-    _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/tasks/' + taskData.id), taskData);
-    } catch (err) {
-      console.error('AtlasData: Falha na requisição ao Firebase:', err);
-    }
-
-    notifyDataChange();
-    return taskData;
-  }
-
-  function deleteTask(id) {
-    if (!id) return false;
-
-    var tasks = getTasks();
-    var filtered = tasks.filter(function (t) { return t.id !== id; });
-
-    if (filtered.length === tasks.length) return false;
-
-    _data.tasks = filtered;
-    _saveLocal();
-
-    try {
-      set(ref(db, 'atlas_data/tasks/' + id), null);
-    } catch (err) {
-      console.error('AtlasData: Falha ao remover do Firebase:', err);
-    }
-
-    notifyDataChange();
-    return true;
-  }
-
-  /* ============ MÉTODOS DE ANOTAÇÕES ============ */
-  function getNotes() { return _data.notes || []; }
-  function getNotesBy(filter) {
-    filter = filter || {};
-    return getNotes().filter(function (n) {
-      if (filter.materia && slugify(n.materia) !== slugify(filter.materia)) return false;
-      if (filter.bimestre && String(n.bimestre) !== String(filter.bimestre)) return false;
-      return true;
-    });
-  }
-  function saveNote(note) {
-    if (!note || !note.titulo || !note.materia) return null;
-    var notes = getNotes();
-    var existingIndex = note.id ? notes.findIndex(function (n) { return n.id === note.id; }) : -1;
-    var noteData = {
-      id: (existingIndex >= 0) ? notes[existingIndex].id : (note.id || 'note-' + uid()),
-      titulo: String(note.titulo).trim(),
-      materia: String(note.materia).trim(),
-      bimestre: String(note.bimestre || '1º Bimestre'),
-      conteudo: note.conteudo || '',
-      criadoEm: (existingIndex >= 0 && notes[existingIndex].criadoEm) ? notes[existingIndex].criadoEm : new Date().toISOString(),
-      atualizadoEm: new Date().toISOString()
-    };
-    if (existingIndex >= 0) notes[existingIndex] = noteData;
-    else notes.push(noteData);
-    _data.notes = notes;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/notes/' + noteData.id), noteData); } catch (err) {}
-    notifyDataChange();
-    return noteData;
-  }
-  function deleteNote(id) {
-    if (!id) return false;
-    var notes = getNotes();
-    var filtered = notes.filter(function (n) { return n.id !== id; });
-    if (filtered.length === notes.length) return false;
-    _data.notes = filtered;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/notes/' + id), null); } catch (err) {}
-    notifyDataChange();
-    return true;
-  }
-
-  /* ============ MÉTODOS DE CALENDÁRIO / EVENTOS ============ */
-  function getEvents() { return _data.events || []; }
-  function saveEvent(evt) {
-    if (!evt || !evt.titulo || !evt.data) return null;
-    var events = getEvents();
-    var existingIndex = evt.id ? events.findIndex(function (e) { return e.id === evt.id; }) : -1;
-    var evtData = {
-      id: (existingIndex >= 0) ? events[existingIndex].id : (evt.id || 'evt-' + uid()),
-      titulo: String(evt.titulo).trim(),
-      data: evt.data,
-      tipo: evt.tipo || 'prova',
-      materia: evt.materia || '',
-      descricao: evt.descricao || ''
-    };
-    if (existingIndex >= 0) events[existingIndex] = evtData;
-    else events.push(evtData);
-    _data.events = events;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/events/' + evtData.id), evtData); } catch (err) {}
-    notifyDataChange();
-    return evtData;
-  }
-  function deleteEvent(id) {
-    if (!id) return false;
-    var events = getEvents();
-    var filtered = events.filter(function (e) { return e.id !== id; });
-    if (filtered.length === events.length) return false;
-    _data.events = filtered;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/events/' + id), null); } catch (err) {}
-    notifyDataChange();
-    return true;
-  }
-
-  /* ============ MÉTODOS DE AVISOS / MURAL ============ */
-  function getNotices() { return _data.notices || []; }
-  function saveNotice(notice) {
-    if (!notice || !notice.titulo) return null;
-    var notices = getNotices();
-    var existingIndex = notice.id ? notices.findIndex(function (n) { return n.id === notice.id; }) : -1;
-    var noticeData = {
-      id: (existingIndex >= 0) ? notices[existingIndex].id : (notice.id || 'notice-' + uid()),
-      titulo: String(notice.titulo).trim(),
-      conteudo: notice.conteudo || '',
-      data: notice.data || new Date().toISOString()
-    };
-    if (existingIndex >= 0) notices[existingIndex] = noticeData;
-    else notices.push(noticeData);
-    _data.notices = notices;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/notices/' + noticeData.id), noticeData); } catch (err) {}
-    notifyDataChange();
-    return noticeData;
-  }
-  function deleteNotice(id) {
-    if (!id) return false;
-    var notices = getNotices();
-    var filtered = notices.filter(function (n) { return n.id !== id; });
-    if (filtered.length === notices.length) return false;
-    _data.notices = filtered;
-    _saveLocal();
-    try { set(ref(db, 'atlas_data/notices/' + id), null); } catch (err) {}
-    notifyDataChange();
-    return true;
-  }
-
-  /* ============ AUTENTICAÇÃO E SESSÃO ============ */
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password)
-      .then(function (userCredential) {
-        var user = userCredential.user;
-        localStorage.setItem('atlas_user_session', 'true');
-        
-        // Verifica se é o Dev exato pelas regras do Firebase
-        if (user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') {
-          localStorage.setItem('atlas_dev_session', 'true');
+      task.on(
+        'state_changed',
+        function (snapshot) {
+          if (typeof onProgress === 'function' && snapshot.totalBytes > 0) {
+            var percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            onProgress(percent);
+          }
+        },
+        function (error) {
+          if (attemptsLeft > 1) {
+            setTimeout(function () {
+              executeResumableUpload(fileRef, blob, onProgress, attemptsLeft - 1)
+                .then(resolve)
+                .catch(reject);
+            }, 1200);
+          } else {
+            reject(error);
+          }
+        },
+        function () {
+          getDownloadURL(task.snapshot.ref).then(resolve).catch(reject);
         }
-        return user;
+      );
+    });
+  }
+
+  /* --- Organização do Storage --- */
+  function uploadImageToStorage(file, folderName, itemId, onProgress) {
+    if (!file) return Promise.resolve('');
+
+    return new Promise(function (resolve, reject) {
+      if (!firebaseStorageInstance) {
+        reject(new Error('Serviço de imagens indisponível no momento.'));
+        return;
+      }
+
+      var entityId = itemId || uid();
+      var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
+      var fRef = storageRef(firebaseStorageInstance, fullPath);
+
+      validateAndCompressImage(file)
+        .then(function (blob) {
+          return executeResumableUpload(fRef, blob, onProgress, 3);
+        })
+        .then(resolve)
+        .catch(reject);
+    });
+  }
+
+  function deleteImageFromStorageByUrl(url) {
+    if (!firebaseStorageInstance || !url || typeof url !== 'string' || !url.includes('firebasestorage.googleapis.com')) {
+      return Promise.resolve(true);
+    }
+    return new Promise(function (resolve) {
+      try {
+        var fRef = storageRef(firebaseStorageInstance, url);
+        deleteObject(fRef).then(function () { resolve(true); }).catch(function () { resolve(true); });
+      } catch (e) {
+        resolve(true);
+      }
+    });
+  }
+
+  /* --- Inicialização do Firebase --- */
+  function onFirebaseReady(callback) {
+    if (firebaseReady) callback();
+    else firebaseReadyCallbacks.push(callback);
+  }
+
+  function markFirebaseReady() {
+    if (firebaseReady) return;
+    firebaseReady = true;
+    var cbs = firebaseReadyCallbacks;
+    firebaseReadyCallbacks = [];
+    for (var i = 0; i < cbs.length; i++) {
+      try { cbs[i](); } catch (e) {}
+    }
+    if (!atlasDataReadyEventDispatched) {
+      atlasDataReadyEventDispatched = true;
+      try { document.dispatchEvent(new Event('atlas-data-ready')); } catch (e) {}
+    }
+  }
+
+  function objectToArray(value) {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== 'object') return [];
+    return Object.keys(value).map(function (k) { return value[k]; });
+  }
+
+  function makeCollectionListener(collectionName) {
+    onValue(
+      ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
+      function (snapshot) {
+        var newData = objectToArray(snapshot.val());
+        cache[collectionName] = newData;
+        saveToLocalStorage();
+        scheduleNotify();
+      },
+      function (error) {
+        console.error('Atlas: Erro ao sincronizar ' + collectionName, error);
+      }
+    );
+  }
+
+  function attachDataListeners() {
+    if (dataListenerAttached || !firebaseDbInstance) return;
+    dataListenerAttached = true;
+    makeCollectionListener('notes');
+    makeCollectionListener('tasks');
+    makeCollectionListener('events');
+    makeCollectionListener('notices');
+  }
+
+  function initFirebase() {
+    loadFromLocalStorage();
+
+    try {
+      var app = initializeApp(FIREBASE_CONFIG);
+      firebaseAuthInstance    = getAuth(app);
+      firebaseDbInstance      = getDatabase(app);
+      firebaseStorageInstance = getStorage(app);
+
+      // Persistência local ativada para manter login no navegador
+      setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function () {});
+
+      // Sincroniza estado de auth do Firebase com a sessão local
+      onAuthStateChanged(firebaseAuthInstance, function (user) {
+        if (user && user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') {
+          setSessionDev();
+        }
+      });
+    } catch (e) {
+      console.error('Atlas: erro de inicialização Firebase', e);
+      markFirebaseReady();
+      return;
+    }
+
+    attachDataListeners();
+    markFirebaseReady();
+  }
+
+  /* --- Sessão --- */
+  function getSession() {
+    if (!hasLocalStorage()) return null;
+    try { return global.localStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
+  }
+
+  function setSessionDev() {
+    if (!hasLocalStorage()) return;
+    try { global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
+  }
+
+  function clearSessionLocal() {
+    if (!hasLocalStorage()) return;
+    try { global.localStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
+  }
+
+  function isDev() { 
+    if (getSession() === 'dev') return true;
+    if (firebaseAuthInstance && firebaseAuthInstance.currentUser) {
+      return firebaseAuthInstance.currentUser.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2';
+    }
+    return false;
+  }
+  
+  function isLoggedIn() { return true; }
+  function requireSession() { return true; }
+
+  function loginAsDev(email, password, callback) {
+    if (!firebaseAuthInstance) { 
+      if (typeof callback === 'function') callback(false, 'auth_error'); 
+      return; 
+    }
+    signInWithEmailAndPassword(firebaseAuthInstance, email, password)
+      .then(function (userCredential) {
+        setSessionDev();
+        if (typeof callback === 'function') callback(true, null);
+      })
+      .catch(function (err) { 
+        if (typeof callback === 'function') callback(false, err.code || 'error'); 
       });
   }
 
-  function isDev() {
-    var user = auth.currentUser;
-    if (user && user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') return true;
-    return localStorage.getItem('atlas_dev_session') === 'true';
-  }
-
-  function requireSession(redirectUrl) {
-    onAuthStateChanged(auth, function (user) {
-      if (!user && !localStorage.getItem('atlas_user_session')) {
-        window.location.href = redirectUrl || 'index.html';
-      }
-    });
+  function loginWithRole(role, callback) {
+    clearSessionLocal();
+    if (firebaseAuthInstance) signOut(firebaseAuthInstance).catch(function () {});
+    if (callback) callback(role === 'student');
   }
 
   function logout() {
-    localStorage.removeItem('atlas_user_session');
-    localStorage.removeItem('atlas_dev_session');
-    signOut(auth).then(function () {
-      window.location.href = 'index.html';
+    clearSessionLocal();
+    if (firebaseAuthInstance) signOut(firebaseAuthInstance).catch(function () {});
+    global.location.href = 'index.html';
+  }
+
+  function clearSession() { logout(); }
+
+  /* --- Persistência Realtime Database --- */
+  function persistCollection(collectionName, list) {
+    cache[collectionName] = list;
+    saveToLocalStorage();
+    if (firebaseDbInstance) {
+      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (err) {
+        console.error('Atlas: Erro de escrita no Firebase', err);
+      });
+    }
+    return true;
+  }
+
+  /* --- CRUD Anotações --- */
+  function getNotes() { return cache.notes || []; }
+  function getNotesBy(materia, bimestre) {
+    return getNotes().filter(function (n) { return n.materia === materia && (!bimestre || n.bimestre === bimestre); });
+  }
+
+  function saveNote(note) {
+    var list = (cache.notes || []).slice();
+    var clean = {
+      titulo: String(note.titulo || '').trim(),
+      materia: note.materia || '',
+      bimestre: note.bimestre || '',
+      imagemUrl: note.imagemUrl || '',
+      conteudo: sanitizeHtml(note.conteudo || '')
+    };
+
+    if (note.id) {
+      var idx = list.findIndex(function (n) { return n.id === note.id; });
+      if (idx !== -1) {
+        if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
+          deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        if (!note.imagemUrl && list[idx].imagemUrl) {
+          clean.imagemUrl = list[idx].imagemUrl;
+        }
+        clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = note.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    persistCollection('notes', list);
+    return clean;
+  }
+
+  function deleteNote(id) {
+    var target = (cache.notes || []).find(function (n) { return n.id === id; });
+    var imageUrl = target ? target.imagemUrl : null;
+
+    return deleteImageFromStorageByUrl(imageUrl).then(function () {
+      var newList = (cache.notes || []).filter(function (n) { return n.id !== id; });
+      persistCollection('notes', newList);
+      return true;
     });
   }
 
-  function injectDevBanner() {
-    if (isDev() && !document.getElementById('atlasDevBanner')) {
-      var banner = document.createElement('div');
-      banner.id = 'atlasDevBanner';
-      banner.style.cssText = 'background:#5c2222; color:#ffb4b4; font-size:12px; font-weight:600; text-align:center; padding:4px; position:fixed; top:0; left:0; right:0; z-index:9999; border-bottom:1px solid #732a2a;';
-      banner.textContent = 'Modo Desenvolvedor Ativo';
-      document.body.prepend(banner);
-    }
+  /* --- CRUD Tarefas --- */
+  function getTasks() { return cache.tasks || []; }
+  function getTasksBy(materia, bimestre) {
+    return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
   }
 
-  /* ============ EXPOSIÇÃO GLOBAL ============ */
-  window.AtlasData = {
-    SUBJECTS: SUBJECTS,
-    BIMESTRES: BIMESTRES,
-    slugify: slugify,
-    
-    getTasks: getTasks, getTasksBy: getTasksBy, saveTask: saveTask, deleteTask: deleteTask,
-    getNotes: getNotes, getNotesBy: getNotesBy, saveNote: saveNote, deleteNote: deleteNote,
-    getEvents: getEvents, saveEvent: saveEvent, deleteEvent: deleteEvent,
-    getNotices: getNotices, saveNotice: saveNotice, deleteNotice: deleteNotice,
-    
-    // Auth (Adicionado!)
-    login: login,
-    isDev: isDev,
-    requireSession: requireSession,
-    logout: logout,
-    injectDevBanner: injectDevBanner,
-    onDataChange: function (cb) {
-      if (typeof cb === 'function') listeners.push(cb);
+  function saveTask(task) {
+    var list = (cache.tasks || []).slice();
+    var clean = {
+      titulo: String(task.titulo || '').trim(),
+      materia: task.materia || '',
+      bimestre: task.bimestre || '',
+      dataEntrega: task.dataEntrega || '',
+      imagemUrl: task.imagemUrl || '',
+      enunciado: sanitizeHtml(task.enunciado || task.resposta || ''),
+      resposta: sanitizeHtml(task.resposta || task.enunciado || '')
+    };
+
+    if (task.id) {
+      var idx = list.findIndex(function (t) { return t.id === task.id; });
+      if (idx !== -1) {
+        if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
+          deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        if (!task.imagemUrl && list[idx].imagemUrl) {
+          clean.imagemUrl = list[idx].imagemUrl;
+        }
+        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = task.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
     }
+    persistCollection('tasks', list);
+    return clean;
+  }
+
+  function deleteTask(id) {
+    var target = (cache.tasks || []).find(function (t) { return t.id === id; });
+    var imageUrl = target ? target.imagemUrl : null;
+
+    return deleteImageFromStorageByUrl(imageUrl).then(function () {
+      var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
+      persistCollection('tasks', newList);
+      return true;
+    });
+  }
+
+  /* --- CRUD Eventos --- */
+  function getEvents() { return cache.events || []; }
+  function saveEvent(evt) {
+    var list = (cache.events || []).slice();
+    var clean = {
+      titulo: String(evt.titulo || '').trim(),
+      descricao: String(evt.descricao || ''),
+      data: evt.data || ''
+    };
+    if (evt.id) {
+      var idx = list.findIndex(function (e) { return e.id === evt.id; });
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = evt.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    persistCollection('events', list);
+    return clean;
+  }
+
+  function deleteEvent(id) {
+    var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
+    persistCollection('events', newList);
+    return true;
+  }
+
+  /* --- CRUD Avisos --- */
+  function getNotices() { return cache.notices || []; }
+  function saveNotice(notice) {
+    var list = (cache.notices || []).slice();
+    var prioridade = NOTICE_PRIORITIES.indexOf(notice.prioridade) !== -1 ? notice.prioridade : 'Normal';
+    var clean = {
+      titulo: String(notice.titulo || '').trim(),
+      descricao: String(notice.descricao || '').trim(),
+      data: notice.data || '',
+      prioridade: prioridade
+    };
+    if (notice.id) {
+      var idx = list.findIndex(function (n) { return n.id === notice.id; });
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      }
+    } else {
+      clean.id = notice.id || uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    persistCollection('notices', list);
+    return clean;
+  }
+
+  function deleteNotice(id) {
+    var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
+    persistCollection('notices', newList);
+    return true;
+  }
+
+  function onDataChange(callback) { changeCallbacks.push(callback); }
+
+  function injectDevBanner() {
+    if (!isDev() || document.getElementById('atlasDevBanner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'atlasDevBanner';
+    banner.innerHTML =
+      '<span class="dot"></span>' +
+      '<span>MODO DESENVOLVEDOR ATIVO — alterações feitas aqui aparecem para todos os alunos</span>' +
+      '<button id="atlasDevExitBtn" type="button">Sair do modo</button>';
+    document.body.prepend(banner);
+    document.body.classList.add('atlas-dev-active');
+    var exitBtn = document.getElementById('atlasDevExitBtn');
+    if (exitBtn) exitBtn.addEventListener('click', function () { logout(); });
+  }
+
+  /* --- API Exposta --- */
+  global.AtlasData = {
+    SUBJECTS:          SUBJECTS,
+    BIMESTRES:         BIMESTRES,
+    NOTICE_PRIORITIES: NOTICE_PRIORITIES,
+    slugify:           slugify,
+    uid:               uid,
+    sanitizeHtml:      sanitizeHtml,
+    getSession:        getSession,
+    clearSession:      clearSession,
+    isDev:             isDev,
+    isLoggedIn:        isLoggedIn,
+    loginWithRole:     loginWithRole,
+    loginAsDev:        loginAsDev,
+    requireSession:    requireSession,
+    logout:            logout,
+    onFirebaseReady:   onFirebaseReady,
+
+    uploadImageToStorage:        uploadImageToStorage,
+    deleteImageFromStorageByUrl: deleteImageFromStorageByUrl,
+
+    getNotes:    getNotes,
+    getNotesBy:  getNotesBy,
+    saveNote:    saveNote,
+    deleteNote:  deleteNote,
+
+    getTasks:    getTasks,
+    getTasksBy:  getTasksBy,
+    saveTask:    saveTask,
+    deleteTask:  deleteTask,
+
+    getEvents:   getEvents,
+    saveEvent:   saveEvent,
+    deleteEvent: deleteEvent,
+
+    getNotices:   getNotices,
+    saveNotice:   saveNotice,
+    deleteNotice: deleteNotice,
+
+    onDataChange:    onDataChange,
+    injectDevBanner: injectDevBanner
   };
 
-  document.dispatchEvent(new CustomEvent('atlas-data-ready'));
-})();
+  initFirebase();
+
+})(window);
