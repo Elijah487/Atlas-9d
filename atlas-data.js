@@ -1,15 +1,14 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Definitivo)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.1 — Fix Definitivo)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
   setPersistence,
-  browserLocalPersistence,
+  inMemoryPersistence,
   signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase,
@@ -78,21 +77,21 @@ import {
     return { notes: [], tasks: [], events: [], notices: [] };
   }
 
-  function hasLocalStorage() {
-    try { return !!global.localStorage; } catch (e) { return false; }
+  function hasSessionStorage() {
+    try { return !!global.sessionStorage; } catch (e) { return false; }
   }
 
-  function saveToLocalStorage() {
-    if (!hasLocalStorage()) return;
+  function saveToSessionStorage() {
+    if (!hasSessionStorage()) return;
     try {
-      global.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      global.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     } catch (e) {}
   }
 
-  function loadFromLocalStorage() {
-    if (!hasLocalStorage()) return false;
+  function loadFromSessionStorage() {
+    if (!hasSessionStorage()) return false;
     try {
-      var raw = global.localStorage.getItem(CACHE_KEY);
+      var raw = global.sessionStorage.getItem(CACHE_KEY);
       if (!raw) return false;
       var parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
@@ -129,7 +128,7 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Validação Prévia (10MB / 7000px) e Canvas --- */
+  /* --- 6. Validação Prévia (10MB / 7000px) e Canvas --- */
   function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
       if (!file || !file.type || !file.type.match(/^image\//)) {
@@ -137,6 +136,7 @@ import {
         return;
       }
 
+      // Validação de Tamanho (10 MB)
       if (file.size > 10 * 1024 * 1024) {
         reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
         return;
@@ -146,6 +146,7 @@ import {
       reader.onload = function (e) {
         var img = new Image();
         img.onload = function () {
+          // Validação de Resolução (7000 px)
           if (img.width > 7000 || img.height > 7000) {
             reject(new Error('A imagem é muito grande! A resolução máxima permitida é de 7000 px.'));
             return;
@@ -183,7 +184,7 @@ import {
     });
   }
 
-  /* --- Retry Automático (3x) + uploadBytesResumable --- */
+  /* --- 4 e 5. Retry Automático (3x) + uploadBytesResumable --- */
   function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
@@ -216,8 +217,9 @@ import {
     });
   }
 
-  /* --- Organização do Storage --- */
+  /* --- 3. Organização do Storage --- */
   function uploadImageToStorage(file, folderName, itemId, onProgress) {
+    // SE NÃO EXISTIR IMAGEM: Resolve imediatamente sem quebrar o fluxo
     if (!file) return Promise.resolve('');
 
     return new Promise(function (resolve, reject) {
@@ -227,6 +229,7 @@ import {
       }
 
       var entityId = itemId || uid();
+      // Estrutura organizada exigida
       var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
       var fRef = storageRef(firebaseStorageInstance, fullPath);
 
@@ -285,7 +288,7 @@ import {
       function (snapshot) {
         var newData = objectToArray(snapshot.val());
         cache[collectionName] = newData;
-        saveToLocalStorage();
+        saveToSessionStorage();
         scheduleNotify();
       },
       function (error) {
@@ -304,23 +307,13 @@ import {
   }
 
   function initFirebase() {
-    loadFromLocalStorage();
+    var hasCache = loadFromSessionStorage();
 
     try {
       var app = initializeApp(FIREBASE_CONFIG);
       firebaseAuthInstance    = getAuth(app);
       firebaseDbInstance      = getDatabase(app);
       firebaseStorageInstance = getStorage(app);
-
-      // Persistência local ativada para manter login no navegador
-      setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function () {});
-
-      // Sincroniza estado de auth do Firebase com a sessão local
-      onAuthStateChanged(firebaseAuthInstance, function (user) {
-        if (user && user.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2') {
-          setSessionDev();
-        }
-      });
     } catch (e) {
       console.error('Atlas: erro de inicialização Firebase', e);
       markFirebaseReady();
@@ -329,48 +322,38 @@ import {
 
     attachDataListeners();
     markFirebaseReady();
+
+    setPersistence(firebaseAuthInstance, inMemoryPersistence).catch(function () {});
   }
 
   /* --- Sessão --- */
   function getSession() {
-    if (!hasLocalStorage()) return null;
-    try { return global.localStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
+    if (!hasSessionStorage()) return null;
+    try { return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
   }
 
   function setSessionDev() {
-    if (!hasLocalStorage()) return;
-    try { global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { global.sessionStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
   }
 
   function clearSessionLocal() {
-    if (!hasLocalStorage()) return;
-    try { global.localStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { global.sessionStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
   }
 
-  function isDev() { 
-    if (getSession() === 'dev') return true;
-    if (firebaseAuthInstance && firebaseAuthInstance.currentUser) {
-      return firebaseAuthInstance.currentUser.uid === 'dEwAC2T3aOYsk7JGxuOoiS7wBsW2';
-    }
-    return false;
-  }
-  
+  function isDev() { return getSession() === 'dev'; }
   function isLoggedIn() { return true; }
   function requireSession() { return true; }
 
   function loginAsDev(email, password, callback) {
-    if (!firebaseAuthInstance) { 
-      if (typeof callback === 'function') callback(false, 'auth_error'); 
-      return; 
-    }
+    if (!firebaseAuthInstance) { callback(false, 'auth_error'); return; }
     signInWithEmailAndPassword(firebaseAuthInstance, email, password)
-      .then(function (userCredential) {
+      .then(function () {
         setSessionDev();
-        if (typeof callback === 'function') callback(true, null);
+        callback(true, null);
       })
-      .catch(function (err) { 
-        if (typeof callback === 'function') callback(false, err.code || 'error'); 
-      });
+      .catch(function (err) { callback(false, err.code || 'error'); });
   }
 
   function loginWithRole(role, callback) {
@@ -390,11 +373,9 @@ import {
   /* --- Persistência Realtime Database --- */
   function persistCollection(collectionName, list) {
     cache[collectionName] = list;
-    saveToLocalStorage();
+    saveToSessionStorage();
     if (firebaseDbInstance) {
-      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (err) {
-        console.error('Atlas: Erro de escrita no Firebase', err);
-      });
+      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list);
     }
     return true;
   }
@@ -418,9 +399,11 @@ import {
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
       if (idx !== -1) {
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
         }
+        // Preserva a imagem atual se nenhuma nova for enviada
         if (!note.imagemUrl && list[idx].imagemUrl) {
           clean.imagemUrl = list[idx].imagemUrl;
         }
@@ -437,6 +420,7 @@ import {
     return clean;
   }
 
+  /* 7. Exclusão segura (Inverte Ordem: Deleta Storage -> Deleta Banco) */
   function deleteNote(id) {
     var target = (cache.notes || []).find(function (n) { return n.id === id; });
     var imageUrl = target ? target.imagemUrl : null;
@@ -462,13 +446,14 @@ import {
       bimestre: task.bimestre || '',
       dataEntrega: task.dataEntrega || '',
       imagemUrl: task.imagemUrl || '',
-      enunciado: sanitizeHtml(task.enunciado || task.resposta || ''),
-      resposta: sanitizeHtml(task.resposta || task.enunciado || '')
+      enunciado: sanitizeHtml(task.enunciado || ''),
+      resposta: sanitizeHtml(task.resposta || '')
     };
 
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
       if (idx !== -1) {
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
         }
@@ -488,6 +473,7 @@ import {
     return clean;
   }
 
+  /* 7. Exclusão segura de Tarefas */
   function deleteTask(id) {
     var target = (cache.tasks || []).find(function (t) { return t.id === id; });
     var imageUrl = target ? target.imagemUrl : null;
@@ -499,7 +485,7 @@ import {
     });
   }
 
-  /* --- CRUD Eventos --- */
+  /* --- CRUD Eventos (Garantido Sem Dependência de Imagens) --- */
   function getEvents() { return cache.events || []; }
   function saveEvent(evt) {
     var list = (cache.events || []).slice();
@@ -584,18 +570,18 @@ import {
     SUBJECTS:          SUBJECTS,
     BIMESTRES:         BIMESTRES,
     NOTICE_PRIORITIES: NOTICE_PRIORITIES,
-    slugify:           slugify,
-    uid:               uid,
-    sanitizeHtml:      sanitizeHtml,
-    getSession:        getSession,
-    clearSession:      clearSession,
-    isDev:             isDev,
-    isLoggedIn:        isLoggedIn,
-    loginWithRole:     loginWithRole,
-    loginAsDev:        loginAsDev,
-    requireSession:    requireSession,
-    logout:            logout,
-    onFirebaseReady:   onFirebaseReady,
+    slugify:        slugify,
+    uid:            uid,
+    sanitizeHtml:   sanitizeHtml,
+    getSession:     getSession,
+    clearSession:   clearSession,
+    isDev:          isDev,
+    isLoggedIn:     isLoggedIn,
+    loginWithRole:  loginWithRole,
+    loginAsDev:     loginAsDev,
+    requireSession: requireSession,
+    logout:         logout,
+    onFirebaseReady:onFirebaseReady,
 
     uploadImageToStorage:        uploadImageToStorage,
     deleteImageFromStorageByUrl: deleteImageFromStorageByUrl,
@@ -614,9 +600,9 @@ import {
     saveEvent:   saveEvent,
     deleteEvent: deleteEvent,
 
-    getNotices:   getNotices,
-    saveNotice:   saveNotice,
-    deleteNotice: deleteNotice,
+    getNotices:  getNotices,
+    saveNotice:  saveNotice,
+    deleteNotice:deleteNotice,
 
     onDataChange:    onDataChange,
     injectDevBanner: injectDevBanner
