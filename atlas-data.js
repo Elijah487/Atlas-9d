@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Dev Mode)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Completo)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -8,7 +8,8 @@ import {
   setPersistence,
   browserSessionPersistence,
   signInWithEmailAndPassword,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase,
@@ -68,7 +69,7 @@ import {
   }
 
   function slugify(text) {
-    return String(text)
+    return String(text || '')
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .replace(/\s+/g, '-');
@@ -108,6 +109,14 @@ import {
     return false;
   }
 
+  /* Limpa valores undefined para evitar erros fatais no Firebase Database */
+  function cleanUndefined(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    return JSON.parse(JSON.stringify(obj, function (key, value) {
+      return value === undefined ? null : value;
+    }));
+  }
+
   function scheduleNotify() {
     if (notifyRafId) cancelAnimationFrame(notifyRafId);
     notifyRafId = requestAnimationFrame(function () {
@@ -129,7 +138,7 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Validação e Compressão de Imagens --- */
+  /* --- Validação e Compressão com Fallback (PNG/JPEG/WebP) --- */
   function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
       if (!file || !file.type || !file.type.match(/^image\//)) {
@@ -166,10 +175,21 @@ import {
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
+          // Tenta exportar para WebP com fallback para JPEG
           canvas.toBlob(
             function (blob) {
-              if (blob) resolve(blob);
-              else reject(new Error('Falha ao processar a imagem.'));
+              if (blob) {
+                resolve(blob);
+              } else {
+                canvas.toBlob(
+                  function (jpegBlob) {
+                    if (jpegBlob) resolve(jpegBlob);
+                    else reject(new Error('Falha ao processar a imagem.'));
+                  },
+                  'image/jpeg',
+                  0.85
+                );
+              }
             },
             'image/webp',
             0.8
@@ -183,11 +203,13 @@ import {
     });
   }
 
+  /* --- Upload com Retry Automático --- */
   function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
     return new Promise(function (resolve, reject) {
-      var task = uploadBytesResumable(fileRef, blob, { contentType: 'image/webp' });
+      var contentType = blob.type || 'image/webp';
+      var task = uploadBytesResumable(fileRef, blob, { contentType: contentType });
 
       task.on(
         'state_changed',
@@ -244,14 +266,19 @@ import {
     return new Promise(function (resolve) {
       try {
         var fRef = storageRef(firebaseStorageInstance, url);
-        deleteObject(fRef).then(function () { resolve(true); }).catch(function () { resolve(true); });
+        deleteObject(fRef)
+          .then(function () { resolve(true); })
+          .catch(function (err) {
+            console.warn('Atlas: aviso ao remover imagem antiga do Storage.', err);
+            resolve(true);
+          });
       } catch (e) {
         resolve(true);
       }
     });
   }
 
-  /* --- Inicialização do Firebase --- */
+  /* --- Inicialização do Firebase com Sincronização Auth --- */
   function onFirebaseReady(callback) {
     if (firebaseReady) callback();
     else firebaseReadyCallbacks.push(callback);
@@ -316,14 +343,18 @@ import {
     }
 
     attachDataListeners();
-    markFirebaseReady();
 
     setPersistence(firebaseAuthInstance, browserSessionPersistence).catch(function (e) {
       console.error('Atlas: falha ao definir persistência de sessão.', e);
     });
+
+    // Garante que o Firebase Auth restaure o token antes de marcar como pronto
+    onAuthStateChanged(firebaseAuthInstance, function () {
+      markFirebaseReady();
+    });
   }
 
-  /* --- Gestão de Sessão / Modo Dev --- */
+  /* --- Sessão --- */
   function getSession() {
     if (!hasSessionStorage()) return null;
     try { return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
@@ -343,34 +374,14 @@ import {
   function isLoggedIn() { return true; }
   function requireSession() { return true; }
 
-  // Permite ativar o Modo Dev localmente (útil para testes rápidos)
-  function enableDev() {
-    setSessionDev();
-    injectDevBanner();
-    if (typeof document !== 'undefined' && document.body) {
-      document.body.classList.add('dev-mode-on');
-    }
-  }
-
-  // Login Dev com suporte a espera pela inicialização do Firebase
   function loginAsDev(email, password, callback) {
-    onFirebaseReady(function () {
-      if (!firebaseAuthInstance) {
+    if (!firebaseAuthInstance) { callback(false, 'auth_error'); return; }
+    signInWithEmailAndPassword(firebaseAuthInstance, email, password)
+      .then(function () {
         setSessionDev();
-        injectDevBanner();
-        if (callback) callback(true, null);
-        return;
-      }
-      signInWithEmailAndPassword(firebaseAuthInstance, email, password)
-        .then(function () {
-          setSessionDev();
-          injectDevBanner();
-          if (callback) callback(true, null);
-        })
-        .catch(function (err) {
-          if (callback) callback(false, err.code || 'error');
-        });
-    });
+        callback(true, null);
+      })
+      .catch(function (err) { callback(false, err.code || 'error'); });
   }
 
   function loginWithRole(role, callback) {
@@ -387,10 +398,11 @@ import {
 
   function clearSession() { logout(); }
 
-  /* --- Persistência Realtime Database --- */
+  /* --- Persistência Segura --- */
   function writeItem(collectionName, item) {
     if (!firebaseDbInstance || !item || !item.id) return;
-    set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
+    var safeItem = cleanUndefined(item);
+    set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + safeItem.id), safeItem)
       .catch(function (err) {
         console.error('Atlas: falha ao salvar item em "' + collectionName + '".', err);
       });
@@ -629,7 +641,6 @@ import {
     getSession:     getSession,
     clearSession:   clearSession,
     isDev:          isDev,
-    enableDev:      enableDev,
     isLoggedIn:     isLoggedIn,
     loginWithRole:  loginWithRole,
     loginAsDev:     loginAsDev,
