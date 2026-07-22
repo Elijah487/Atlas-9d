@@ -272,7 +272,7 @@
 </script>
 
 <script>
-document.addEventListener('atlas-data-ready', function () {
+function runTarefaPage() {
   if (!window.AtlasData) return;
 
   var SUBJECTS = AtlasData.SUBJECTS;
@@ -388,8 +388,9 @@ document.addEventListener('atlas-data-ready', function () {
         window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
       });
       armConfirm(delBtnClone, 'Excluir', 'Confirmar exclusão?', function () {
-        AtlasData.deleteTask(task.id);
-        window.location.href = backLink.href;
+        AtlasData.deleteTask(task.id).then(function () {
+          window.location.href = backLink.href;
+        });
       });
     }
 
@@ -447,23 +448,31 @@ document.addEventListener('atlas-data-ready', function () {
     if (existing) {
       deleteBtn.style.display = 'inline-flex';
       armConfirm(deleteBtn, 'Excluir tarefa', 'Confirmar exclusão?', function () {
-        AtlasData.deleteTask(existing.id);
-        window.location.href = backLink.href;
+        AtlasData.deleteTask(existing.id).then(function () {
+          window.location.href = backLink.href;
+        });
       });
     }
 
     document.getElementById('taskForm').addEventListener('submit', function (e) {
       e.preventDefault();
+      var submitBtn = e.target.querySelector('button[type="submit"]');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A guardar...'; }
+
       var materiaVal = document.getElementById('taskMateria').value;
-      var saved = AtlasData.saveTask({
+      AtlasData.saveTask({
         id: existing ? existing.id : '',
         titulo: document.getElementById('taskTitulo').value,
         materia: materiaVal,
         bimestre: document.getElementById('taskBimestre').value,
         dataEntrega: document.getElementById('taskDataEntrega').value,
         resposta: respostaEditor.getHTML()
+      }).then(function (saved) {
+        if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
+      }).catch(function (err) {
+        alert('Erro ao guardar a tarefa.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar tarefa'; }
       });
-      if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
     });
 
     showOnly(formMode);
@@ -483,39 +492,26 @@ document.addEventListener('atlas-data-ready', function () {
     renderView(task);
   }
 
-  /* ---------------------------------------------------------
-     Roteamento e Carregamento Seguro
-  --------------------------------------------------------- */
-  var firebaseLoaded = false;
+  init();
 
-  function checkAndRenderTask() {
+  AtlasData.onDataChange(function () {
+    if (isEditFlag || isNewFlag) return;
+    if (!taskId) return;
     var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
     if (task) {
       renderView(task);
-    } else if (firebaseLoaded) {
-      // Só exibe "não encontrado" se o Firebase JÁ terminou de carregar
-      showOnly(notFoundBanner);
     }
-  }
-
-  function init() {
-    if (isNewFlag) { initForm(); return; }
-    if (!taskId) { showOnly(notFoundBanner); return; }
-    if (isEditFlag) { initForm(); return; }
-
-    // Tenta renderizar se os dados já estiverem em cache
-    checkAndRenderTask();
-  }
-
-  init();
-
-  // Atualiza assim que os dados do Firebase chegarem da rede
-  AtlasData.onDataChange(function () {
-    firebaseLoaded = true;
-    if (isEditFlag || isNewFlag) return;
-    if (!taskId) return;
-    checkAndRenderTask();
   });
+
+  AtlasData.injectDevBanner();
+}
+
+// Executa imediatamente se o AtlasData já estiver pronto, ou aguarda o evento
+if (window.AtlasData) {
+  runTarefaPage();
+} else {
+  document.addEventListener('atlas-data-ready', runTarefaPage);
+}
 </script>
 
 </body>
