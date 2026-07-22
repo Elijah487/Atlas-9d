@@ -483,18 +483,39 @@ document.addEventListener('atlas-data-ready', function () {
     renderView(task);
   }
 
+  /* ---------------------------------------------------------
+     Roteamento e Carregamento Seguro
+  --------------------------------------------------------- */
+  var firebaseLoaded = false;
+
+  function checkAndRenderTask() {
+    var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
+    if (task) {
+      renderView(task);
+    } else if (firebaseLoaded) {
+      // Só exibe "não encontrado" se o Firebase JÁ terminou de carregar
+      showOnly(notFoundBanner);
+    }
+  }
+
+  function init() {
+    if (isNewFlag) { initForm(); return; }
+    if (!taskId) { showOnly(notFoundBanner); return; }
+    if (isEditFlag) { initForm(); return; }
+
+    // Tenta renderizar se os dados já estiverem em cache
+    checkAndRenderTask();
+  }
+
   init();
 
+  // Atualiza assim que os dados do Firebase chegarem da rede
   AtlasData.onDataChange(function () {
+    firebaseLoaded = true;
     if (isEditFlag || isNewFlag) return;
     if (!taskId) return;
-    var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
-    if (!task) { showOnly(notFoundBanner); return; }
-    renderView(task);
+    checkAndRenderTask();
   });
-
-  AtlasData.injectDevBanner();
-});
 </script>
 
 </body>
