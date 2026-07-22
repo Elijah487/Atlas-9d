@@ -4,19 +4,6 @@
    Cria uma barra de ferramentas + área contenteditable dentro de um
    container já existente no HTML. Usado tanto no editor de anotações
    quanto no editor de respostas de tarefas.
-
-   Uso:
-     var editor = AtlasEditor.create(containerEl, { placeholder: '...' });
-     editor.setHTML('<p>conteúdo inicial</p>');
-     editor.getHTML(); // -> string HTML atual, já pronta para salvar
-     editor.focus();
-     editor.clear();
-     editor.destroy();
-
-   O HTML produzido é sempre passado por AtlasData.sanitizeHtml antes
-   de ser persistido (a chamada de saveNote/saveTask já faz isso),
-   então o editor pode ser “generoso” ao formatar — a limpeza final
-   acontece de forma centralizada.
    ===================================================================== */
 
 (function (global) {
@@ -37,12 +24,31 @@
     { type: 'sep' },
     { cmd: 'insertHorizontalRule', label: '—', title: 'Separador' },
     { cmd: 'createLink', label: '🔗', title: 'Inserir link', needsPrompt: 'url' },
-    { cmd: 'uploadImage', label: '🖼', title: 'Inserir imagem do dispositivo ou URL' },
+    { cmd: 'uploadImage', label: '📷 Imagem', title: 'Inserir imagem do dispositivo ou URL' },
     { type: 'sep' },
     { cmd: 'removeFormat', label: '⌫', title: 'Limpar formatação' }
   ];
 
-  function buildToolbar(editorApi, fileInput) {
+  /* Função auxiliar para inserir imagem via URL direta */
+  function insertImageUrl(area, url) {
+    if (!url) return;
+    area.focus();
+    var img = document.createElement('img');
+    img.src = url;
+    img.alt = 'Imagem anexada';
+
+    var sel = global.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(img);
+      range.collapse(false);
+    } else {
+      area.appendChild(img);
+    }
+  }
+
+  function buildToolbar(editorApi, fileInput, area) {
     var bar = document.createElement('div');
     bar.className = 'atlas-editor-toolbar';
 
@@ -71,14 +77,16 @@
           return;
         }
 
-        /* Botão de Imagem: Pergunta se deseja carregar do arquivo ou via URL */
+        /* Botão de Imagem */
         if (btn.cmd === 'uploadImage') {
-          var opcao = global.confirm('Clique em "OK" para escolher uma imagem do seu dispositivo ou "Cancelar" para colar uma URL.');
+          var opcao = global.confirm('Clique em "OK" para carregar do seu dispositivo ou "Cancelar" para colar um link (URL).');
           if (opcao) {
-            if (fileInput) fileInput.click();
+            setTimeout(function () {
+              fileInput.click();
+            }, 100);
           } else {
             var imgUrl = global.prompt('Cole a URL da imagem:', 'https://');
-            if (imgUrl) document.execCommand('insertImage', false, imgUrl);
+            if (imgUrl) insertImageUrl(area, imgUrl);
           }
           return;
         }
@@ -107,7 +115,7 @@
     area.setAttribute('data-placeholder', options.placeholder || 'Escreva aqui...');
     if (options.minHeight) area.style.minHeight = options.minHeight;
 
-    /* Input de arquivo oculto para envio ao Firebase Storage */
+    /* Input oculto de ficheiros */
     var fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
@@ -117,23 +125,27 @@
       var file = e.target.files && e.target.files[0];
       if (!file) return;
 
-      if (!global.AtlasData || typeof global.AtlasData.uploadImageToStorage !== 'function') {
-        alert('Erro: O serviço de dados/storage (AtlasData) não foi carregado corretamente.');
+      var atlasData = global.AtlasData;
+      if (!atlasData || typeof atlasData.uploadImageToStorage !== 'function') {
+        alert('Aguarde o carregamento do sistema e tente novamente.');
         fileInput.value = '';
         return;
       }
 
-      /* Envia para o Storage comprimindo automaticamente */
-      global.AtlasData.uploadImageToStorage(file, 'editor', global.AtlasData.uid())
+      fileInput.disabled = true;
+
+      /* Faz o envio ao Firebase Storage */
+      atlasData.uploadImageToStorage(file, 'editor', atlasData.uid())
         .then(function (downloadUrl) {
-          area.focus();
-          document.execCommand('insertImage', false, downloadUrl);
+          insertImageUrl(area, downloadUrl);
           fileInput.value = '';
+          fileInput.disabled = false;
         })
         .catch(function (err) {
-          console.error('AtlasEditor: erro no upload da imagem', err);
-          alert((err && err.message) || 'Erro ao enviar a imagem para o servidor.');
+          console.error('AtlasEditor: erro no envio', err);
+          alert((err && err.message) || 'Erro ao enviar a imagem. Tente novamente.');
           fileInput.value = '';
+          fileInput.disabled = false;
         });
     });
 
@@ -145,13 +157,12 @@
       destroy: function () { container.innerHTML = ''; }
     };
 
-    var toolbar = buildToolbar(api, fileInput);
+    var toolbar = buildToolbar(api, fileInput, area);
 
     container.appendChild(toolbar);
     container.appendChild(area);
     container.appendChild(fileInput);
 
-    // Atalhos de teclado básicos (além dos nativos do navegador)
     area.addEventListener('keydown', function (e) {
       var isMod = e.ctrlKey || e.metaKey;
       if (isMod && e.key.toLowerCase() === 'k') {
@@ -164,11 +175,6 @@
     return api;
   }
 
-  /**
-   * Converte HTML (já sanitizado) em uma versão de leitura, idêntica
-   * visualmente ao editor, mas sem contenteditable — usada nas telas
-   * de leitura (modo aluno) e no excerto/preview dos cards.
-   */
   function renderReadOnly(container, html) {
     container.classList.add('atlas-editor-readonly');
     container.innerHTML = html || '<p class="atlas-editor-empty">Sem conteúdo.</p>';
