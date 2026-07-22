@@ -37,12 +37,12 @@
     { type: 'sep' },
     { cmd: 'insertHorizontalRule', label: '—', title: 'Separador' },
     { cmd: 'createLink', label: '🔗', title: 'Inserir link', needsPrompt: 'url' },
-    { cmd: 'insertImage', label: '🖼', title: 'Inserir imagem (link/URL)', needsPrompt: 'img' },
+    { cmd: 'uploadImage', label: '🖼', title: 'Inserir imagem do dispositivo ou URL' },
     { type: 'sep' },
     { cmd: 'removeFormat', label: '⌫', title: 'Limpar formatação' }
   ];
 
-  function buildToolbar(editorApi) {
+  function buildToolbar(editorApi, fileInput) {
     var bar = document.createElement('div');
     bar.className = 'atlas-editor-toolbar';
 
@@ -64,16 +64,25 @@
       el.addEventListener('click', function (e) {
         e.preventDefault();
         editorApi.focus();
+
         if (btn.needsPrompt === 'url') {
           var url = global.prompt('Cole o link (URL):', 'https://');
           if (url) document.execCommand('createLink', false, url);
           return;
         }
-        if (btn.needsPrompt === 'img') {
-          var imgUrl = global.prompt('Cole o link da imagem (URL):', 'https://');
-          if (imgUrl) document.execCommand('insertImage', false, imgUrl);
+
+        /* Botão de Imagem: Pergunta se deseja carregar do arquivo ou via URL */
+        if (btn.cmd === 'uploadImage') {
+          var opcao = global.confirm('Clique em "OK" para escolher uma imagem do seu dispositivo ou "Cancelar" para colar uma URL.');
+          if (opcao) {
+            if (fileInput) fileInput.click();
+          } else {
+            var imgUrl = global.prompt('Cole a URL da imagem:', 'https://');
+            if (imgUrl) document.execCommand('insertImage', false, imgUrl);
+          }
           return;
         }
+
         if (btn.cmd === 'formatBlock') {
           document.execCommand('formatBlock', false, btn.value);
           return;
@@ -98,6 +107,36 @@
     area.setAttribute('data-placeholder', options.placeholder || 'Escreva aqui...');
     if (options.minHeight) area.style.minHeight = options.minHeight;
 
+    /* Input de arquivo oculto para envio ao Firebase Storage */
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+
+    fileInput.addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      if (!global.AtlasData || typeof global.AtlasData.uploadImageToStorage !== 'function') {
+        alert('Erro: O serviço de dados/storage (AtlasData) não foi carregado corretamente.');
+        fileInput.value = '';
+        return;
+      }
+
+      /* Envia para o Storage comprimindo automaticamente */
+      global.AtlasData.uploadImageToStorage(file, 'editor', global.AtlasData.uid())
+        .then(function (downloadUrl) {
+          area.focus();
+          document.execCommand('insertImage', false, downloadUrl);
+          fileInput.value = '';
+        })
+        .catch(function (err) {
+          console.error('AtlasEditor: erro no upload da imagem', err);
+          alert((err && err.message) || 'Erro ao enviar a imagem para o servidor.');
+          fileInput.value = '';
+        });
+    });
+
     var api = {
       focus: function () { area.focus(); },
       getHTML: function () { return area.innerHTML; },
@@ -106,12 +145,13 @@
       destroy: function () { container.innerHTML = ''; }
     };
 
-    var toolbar = buildToolbar(api);
+    var toolbar = buildToolbar(api, fileInput);
 
     container.appendChild(toolbar);
     container.appendChild(area);
+    container.appendChild(fileInput);
 
-    // Atalhos de teclado básicos (além dos nativos do navegador para bold/italic/underline)
+    // Atalhos de teclado básicos (além dos nativos do navegador)
     area.addEventListener('keydown', function (e) {
       var isMod = e.ctrlKey || e.metaKey;
       if (isMod && e.key.toLowerCase() === 'k') {
