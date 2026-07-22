@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.1 — Fix Definitivo)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Dev Mode)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -129,7 +129,7 @@ import {
     return template.innerHTML;
   }
 
-  /* --- 6. Validação Prévia (10MB / 7000px) e Canvas --- */
+  /* --- Validação e Compressão de Imagens --- */
   function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
       if (!file || !file.type || !file.type.match(/^image\//)) {
@@ -137,7 +137,6 @@ import {
         return;
       }
 
-      // Validação de Tamanho (10 MB)
       if (file.size > 10 * 1024 * 1024) {
         reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
         return;
@@ -147,7 +146,6 @@ import {
       reader.onload = function (e) {
         var img = new Image();
         img.onload = function () {
-          // Validação de Resolução (7000 px)
           if (img.width > 7000 || img.height > 7000) {
             reject(new Error('A imagem é muito grande! A resolução máxima permitida é de 7000 px.'));
             return;
@@ -185,7 +183,6 @@ import {
     });
   }
 
-  /* --- 4 e 5. Retry Automático (3x) + uploadBytesResumable --- */
   function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
@@ -218,9 +215,7 @@ import {
     });
   }
 
-  /* --- 3. Organização do Storage --- */
   function uploadImageToStorage(file, folderName, itemId, onProgress) {
-    // SE NÃO EXISTIR IMAGEM: Resolve imediatamente sem quebrar o fluxo
     if (!file) return Promise.resolve('');
 
     return new Promise(function (resolve, reject) {
@@ -230,7 +225,6 @@ import {
       }
 
       var entityId = itemId || uid();
-      // Estrutura organizada exigida
       var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
       var fRef = storageRef(firebaseStorageInstance, fullPath);
 
@@ -308,7 +302,7 @@ import {
   }
 
   function initFirebase() {
-    var hasCache = loadFromSessionStorage();
+    loadFromSessionStorage();
 
     try {
       var app = initializeApp(FIREBASE_CONFIG);
@@ -324,21 +318,12 @@ import {
     attachDataListeners();
     markFirebaseReady();
 
-    /* browserSessionPersistence: a sessão do Firebase Auth (necessária
-       para o Realtime Database aceitar escritas, conforme as regras
-       "auth != null && auth.uid === ...") agora sobrevive à navegação
-       entre páginas na mesma aba — igual ao sessionStorage já usado
-       para a flag local 'atlas_session'. Antes, com inMemoryPersistence,
-       o login era perdido a cada troca de página (cada .html é um
-       reload completo), então toda escrita no Firebase era rejeitada
-       silenciosamente pelas regras de segurança, mesmo com a UI ainda
-       mostrando "modo dev ativo". */
     setPersistence(firebaseAuthInstance, browserSessionPersistence).catch(function (e) {
       console.error('Atlas: falha ao definir persistência de sessão.', e);
     });
   }
 
-  /* --- Sessão --- */
+  /* --- Gestão de Sessão / Modo Dev --- */
   function getSession() {
     if (!hasSessionStorage()) return null;
     try { return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
@@ -358,14 +343,34 @@ import {
   function isLoggedIn() { return true; }
   function requireSession() { return true; }
 
+  // Permite ativar o Modo Dev localmente (útil para testes rápidos)
+  function enableDev() {
+    setSessionDev();
+    injectDevBanner();
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.classList.add('dev-mode-on');
+    }
+  }
+
+  // Login Dev com suporte a espera pela inicialização do Firebase
   function loginAsDev(email, password, callback) {
-    if (!firebaseAuthInstance) { callback(false, 'auth_error'); return; }
-    signInWithEmailAndPassword(firebaseAuthInstance, email, password)
-      .then(function () {
+    onFirebaseReady(function () {
+      if (!firebaseAuthInstance) {
         setSessionDev();
-        callback(true, null);
-      })
-      .catch(function (err) { callback(false, err.code || 'error'); });
+        injectDevBanner();
+        if (callback) callback(true, null);
+        return;
+      }
+      signInWithEmailAndPassword(firebaseAuthInstance, email, password)
+        .then(function () {
+          setSessionDev();
+          injectDevBanner();
+          if (callback) callback(true, null);
+        })
+        .catch(function (err) {
+          if (callback) callback(false, err.code || 'error');
+        });
+    });
   }
 
   function loginWithRole(role, callback) {
@@ -383,27 +388,6 @@ import {
   function clearSession() { logout(); }
 
   /* --- Persistência Realtime Database --- */
-  /* -----------------------------------------------------------------
-     IMPORTANTE — por que a escrita é feita item a item, e não mais
-     reescrevendo a coleção inteira:
-
-     A versão anterior lia a coleção inteira para a memória (cache),
-     adicionava/removia um item no array em JS, e escrevia esse array
-     de volta por completo com set(). Isso cria uma condição de corrida
-     real: se o snapshot do Firebase (onValue) para essa página ainda
-     não tinha chegado com o estado mais recente no momento do salvar
-     — o que é comum ao criar vários itens em sequência rápida, ou ao
-     navegar entre páginas (cada .html é um reload completo) — o
-     array local usado como base já estava desatualizado. Ao dar
-     set() nesse array desatualizado, a coleção inteira no Firebase
-     era substituída por uma versão que não incluía itens criados há
-     poucos segundos em outra ação/página, apagando-os.
-
-     Agora cada item vive no seu próprio caminho
-     (atlas_data/<colecao>/<id>), e salvar/excluir um item só toca
-     nesse único nó. Duas ações concorrentes não conseguem mais pisar
-     uma na outra, não importa o estado do cache local no momento.
-  ----------------------------------------------------------------- */
   function writeItem(collectionName, item) {
     if (!firebaseDbInstance || !item || !item.id) return;
     set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
@@ -420,8 +404,6 @@ import {
       });
   }
 
-  /* Atualiza o cache local (para a UI responder na hora) e persiste
-     apenas o item alterado no Firebase. */
   function applyLocalAndPersist(collectionName, list, item) {
     cache[collectionName] = list;
     saveToSessionStorage();
@@ -429,8 +411,6 @@ import {
     return true;
   }
 
-  /* Atualiza o cache local removendo o item e apaga apenas esse nó
-     no Firebase. */
   function applyLocalAndRemove(collectionName, list, id) {
     cache[collectionName] = list;
     saveToSessionStorage();
@@ -457,21 +437,15 @@ import {
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
       if (idx !== -1) {
-        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
         }
-        // Preserva a imagem atual se nenhuma nova for enviada
         if (!note.imagemUrl && list[idx].imagemUrl) {
           clean.imagemUrl = list[idx].imagemUrl;
         }
         clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
         list[idx] = clean;
       } else {
-        // Id foi informado (ex: gerado antecipadamente para o upload de
-        // imagem) mas ainda não existe na lista — é uma criação, não uma
-        // edição. Sem este ramo, o item nunca era inserido e a função
-        // devolvia um objeto sem estar salvo em lugar nenhum.
         clean.id = note.id;
         clean.criadoEm = Date.now();
         clean.atualizadoEm = Date.now();
@@ -487,7 +461,6 @@ import {
     return clean;
   }
 
-  /* 7. Exclusão segura (Inverte Ordem: Deleta Storage -> Deleta Banco) */
   function deleteNote(id) {
     var target = (cache.notes || []).find(function (n) { return n.id === id; });
     var imageUrl = target ? target.imagemUrl : null;
@@ -503,34 +476,6 @@ import {
   function getTasks() { return cache.tasks || []; }
   function getTasksBy(materia, bimestre) {
     return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
-  }
-
-  function writeItem(collectionName, item) {
-    if (!firebaseDbInstance || !item || !item.id) return Promise.resolve();
-    return set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
-      .catch(function (err) {
-        console.error('Atlas: falha ao salvar item em "' + collectionName + '".', err);
-      });
-  }
-
-  function removeItem(collectionName, id) {
-    if (!firebaseDbInstance || !id) return Promise.resolve();
-    return remove(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + id))
-      .catch(function (err) {
-        console.error('Atlas: falha ao excluir item em "' + collectionName + '".', err);
-      });
-  }
-
-  function applyLocalAndPersist(collectionName, list, item) {
-    cache[collectionName] = list;
-    saveToSessionStorage();
-    return writeItem(collectionName, item);
-  }
-
-  function applyLocalAndRemove(collectionName, list, id) {
-    cache[collectionName] = list;
-    saveToSessionStorage();
-    return removeItem(collectionName, id);
   }
 
   function saveTask(task) {
@@ -568,10 +513,93 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
+    applyLocalAndPersist('tasks', list, clean);
+    return clean;
+  }
 
-    return applyLocalAndPersist('tasks', list, clean).then(function () {
-      return clean;
+  function deleteTask(id) {
+    var target = (cache.tasks || []).find(function (t) { return t.id === id; });
+    var imageUrl = target ? target.imagemUrl : null;
+
+    return deleteImageFromStorageByUrl(imageUrl).then(function () {
+      var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
+      applyLocalAndRemove('tasks', newList, id);
+      return true;
     });
+  }
+
+  /* --- CRUD Eventos --- */
+  function getEvents() { return cache.events || []; }
+  function saveEvent(evt) {
+    var list = (cache.events || []).slice();
+    var clean = {
+      titulo: String(evt.titulo || '').trim(),
+      descricao: String(evt.descricao || ''),
+      data: evt.data || ''
+    };
+    if (evt.id) {
+      var idx = list.findIndex(function (e) { return e.id === evt.id; });
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      } else {
+        clean.id = evt.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
+      }
+    } else {
+      clean.id = uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    applyLocalAndPersist('events', list, clean);
+    return clean;
+  }
+
+  function deleteEvent(id) {
+    var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
+    applyLocalAndRemove('events', newList, id);
+    return true;
+  }
+
+  /* --- CRUD Avisos --- */
+  function getNotices() { return cache.notices || []; }
+  function saveNotice(notice) {
+    var list = (cache.notices || []).slice();
+    var prioridade = NOTICE_PRIORITIES.indexOf(notice.prioridade) !== -1 ? notice.prioridade : 'Normal';
+    var clean = {
+      titulo: String(notice.titulo || '').trim(),
+      descricao: String(notice.descricao || '').trim(),
+      data: notice.data || '',
+      prioridade: prioridade
+    };
+    if (notice.id) {
+      var idx = list.findIndex(function (n) { return n.id === notice.id; });
+      if (idx !== -1) {
+        clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      } else {
+        clean.id = notice.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
+      }
+    } else {
+      clean.id = uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    applyLocalAndPersist('notices', list, clean);
+    return clean;
+  }
+
+  function deleteNotice(id) {
+    var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
+    applyLocalAndRemove('notices', newList, id);
+    return true;
   }
 
   function onDataChange(callback) { changeCallbacks.push(callback); }
@@ -601,6 +629,7 @@ import {
     getSession:     getSession,
     clearSession:   clearSession,
     isDev:          isDev,
+    enableDev:      enableDev,
     isLoggedIn:     isLoggedIn,
     loginWithRole:  loginWithRole,
     loginAsDev:     loginAsDev,
