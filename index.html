@@ -968,150 +968,63 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
 </footer>
 
 <script>
-/* Header scroll */
 (function(){
-  var h = document.getElementById('siteHeader');
-  window.addEventListener('scroll', function(){ h.classList.toggle('scrolled', window.scrollY > 28); }, {passive:true});
-})();
-
-/* Nav overlay */
-(function(){
-  var btn = document.getElementById('hamburgerBtn');
-  var overlay = document.getElementById('navOverlay');
-  var closeBtn = document.getElementById('navCloseBtn');
-  function open(){ overlay.classList.add('open'); btn.classList.add('open'); btn.setAttribute('aria-expanded','true'); document.body.style.overflow='hidden'; }
-  function close(){ overlay.classList.remove('open'); btn.classList.remove('open'); btn.setAttribute('aria-expanded','false'); document.body.style.overflow=''; }
-  btn.addEventListener('click', open);
-  closeBtn.addEventListener('click', close);
-  overlay.querySelectorAll('a').forEach(function(a){ a.addEventListener('click', close); });
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) close(); });
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
-})();
-
-/* Direct entry — aluno vai direto para o dashboard */
-(function(){
-  document.querySelectorAll('.js-enter').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      /* Garante sessão student se ainda não houver sessão */
-      if(window.AtlasData && AtlasData.loginWithRole && !AtlasData.isLoggedIn()){
-        AtlasData.loginWithRole('student', function(){ window.location.href = 'dashboard.html'; });
-      } else {
-        window.location.href = 'dashboard.html';
-      }
-    });
-  });
-})();
-
-/* DEV Modal */
-(function(){
-  var devBtn     = document.getElementById('devBtn');
-  var overlay    = document.getElementById('devModalOverlay');
-  var closeBtn   = document.getElementById('devModalClose');
-  var input      = document.getElementById('devPasswordInput');
-  var eyeBtn     = document.getElementById('devEyeBtn');
-  var eyeIcon    = document.getElementById('eyeIcon');
-  var feedback   = document.getElementById('devFeedback');
-  var fbText     = document.getElementById('devFeedbackText');
-  var submitBtn  = document.getElementById('devSubmitBtn');
-
-  var EYE_OPEN = '<path d="M1 12C1 12 5 5 12 5s11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/>';
-  var EYE_SHUT = '<path d="M17.94 17.94A10 10 0 0 1 12 19C5 19 1 12 1 12a18 18 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9 9 0 0 1 12 4c7 0 11 8 11 8a18 18 0 0 1-2.16 3.19"/><path d="M1 1l22 22"/>';
-
-  function openModal(){
-    overlay.classList.add('open');
-    setTimeout(function(){ input.focus(); }, 340);
-    document.body.style.overflow = 'hidden';
-  }
-  function closeModal(){
-    overlay.classList.remove('open');
-    document.body.style.overflow = '';
-    setTimeout(function(){
-      input.value = '';
-      input.type = 'password';
-      eyeIcon.innerHTML = EYE_OPEN;
-      hideFeedback();
-      submitBtn.disabled = false;
-      submitBtn.classList.remove('success');
-      submitBtn.textContent = 'Entrar como desenvolvedor';
-    }, 320);
-  }
+  'use strict';
+  var devToggle = document.getElementById('devToggle');
+  var devFields = document.getElementById('devFields');
+  var devPassInput = document.getElementById('devPass');
+  var submitBtn = document.getElementById('submitBtn');
+  var errorAlert = document.getElementById('errorAlert');
 
   function showError(msg){
-    feedback.className = 'dev-modal-feedback error show';
-    fbText.textContent = msg || 'Senha incorreta.';
+    if(!errorAlert) return;
+    errorAlert.textContent = msg;
+    errorAlert.classList.add('show');
   }
-  function showLoading(){
-    feedback.className = 'dev-modal-feedback loading show';
-    fbText.textContent = 'Verificando...';
-    // swap svg for spinner
-    var svg = feedback.querySelector('svg');
-    if(svg) svg.outerHTML = '<span class="dev-modal-spinner"></span>';
-  }
-  function hideFeedback(){
-    feedback.className = 'dev-modal-feedback';
-    // restore error icon
-    var sp = feedback.querySelector('.dev-modal-spinner');
-    if(sp) sp.outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>';
+  function hideError(){
+    if(!errorAlert) return;
+    errorAlert.classList.remove('show');
+    errorAlert.textContent = '';
   }
 
-  function shakeInput(){
-    input.classList.remove('shake');
-    void input.offsetWidth; // reflow
-    input.classList.add('shake');
-    input.addEventListener('animationend', function(){
-      input.classList.remove('shake');
-    }, {once: true});
+  if(devToggle && devFields){
+    devToggle.addEventListener('change', function(){
+      devFields.classList.toggle('show', devToggle.checked);
+      hideError();
+    });
   }
 
-  devBtn.addEventListener('click', openModal);
-  closeBtn.addEventListener('click', closeModal);
-  overlay.addEventListener('click', function(e){ if(e.target === overlay) closeModal(); });
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
-    if(e.key === 'Enter' && overlay.classList.contains('open')) doLogin();
-  });
+  function doLogin(e){
+    if(e) e.preventDefault();
+    hideError();
 
-  /* Toggle password visibility */
-  eyeBtn.addEventListener('click', function(){
-    if(input.type === 'password'){
-      input.type = 'text';
-      eyeIcon.innerHTML = EYE_SHUT;
-    } else {
-      input.type = 'password';
-      eyeIcon.innerHTML = EYE_OPEN;
+    var isDev = devToggle && devToggle.checked;
+    var password = devPassInput ? devPassInput.value.trim() : '';
+
+    if(isDev && !password){
+      showError('Digite a senha de desenvolvedor.');
+      return;
     }
-    input.focus();
-  });
 
-  /* [v7] doLogin — email/senha reais do Firebase Authentication.
-     O email do dev fica fixo aqui; só a senha é digitada no modal.
-     Antes de usar: crie o usuário no painel do Firebase →
-     Authentication → Usuários → Adicionar usuário
-     e troque SEU_EMAIL_AQUI pelo email que você cadastrou. */
-  var DEV_EMAIL = 'eagbedejobi@gmail.com';
-
-  function doLogin(){
-    var val = input.value;
-    if(!val){ shakeInput(); return; }
-    hideFeedback();
     submitBtn.disabled = true;
-    showLoading();
 
     function runLogin(){
-      AtlasData.loginAsDev(DEV_EMAIL, val, function(ok, reason){
-        if(ok){
-          submitBtn.classList.add('success');
-          submitBtn.textContent = 'Modo ativo ✓';
-          setTimeout(function(){ window.location.href = 'dashboard.html'; }, 700);
-        } else if(reason === 'wrong_password'){
-          shakeInput();
-          showError('Senha incorreta.');
-          submitBtn.disabled = false;
-        } else {
-          showError('Erro de conexão. Verifique sua internet.');
-          submitBtn.disabled = false;
-        }
-      });
+      if (isDev) {
+        // Tenta logar no Firebase como Dev
+        AtlasData.loginAsDev('atlas.aluno.9d@gmail.com', password, function (success, errCode) {
+          if (success) {
+            window.location.href = 'dashboard.html';
+          } else {
+            showError('Senha de desenvolvedor incorreta ou erro de autenticação.');
+            submitBtn.disabled = false;
+          }
+        });
+      } else {
+        // Aluno comum entra em modo leitura
+        AtlasData.loginWithRole('student', function () {
+          window.location.href = 'dashboard.html';
+        });
+      }
     }
 
     if(window.AtlasData && AtlasData.loginAsDev){
@@ -1124,37 +1037,7 @@ footer { border-top: 1px solid var(--line); padding: 40px 24px 26px; }
     }
   }
 
-  submitBtn.addEventListener('click', doLogin);
-})();
-
-/* Scroll reveal */
-(function(){
-  var els = document.querySelectorAll('.reveal');
-  if(!els.length) return;
-  var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in-view'); io.unobserve(e.target); } });
-  }, {threshold: 0.08});
-  els.forEach(function(el){ io.observe(el); });
-})();
-
-/* Orbit parallax */
-(function(){
-  var rm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(rm) return;
-  var orbits = document.querySelector('.hero-orbits');
-  if(!orbits) return;
-  var ticking = false;
-  window.addEventListener('scroll', function(){
-    if(!ticking){
-      requestAnimationFrame(function(){
-        var y = window.scrollY;
-        orbits.style.transform = 'translateY(' + (y * 0.14) + 'px) scale(' + (1 + y * 0.0001) + ')';
-        orbits.style.opacity = Math.max(0, 1 - y / 500);
-        ticking = false;
-      });
-      ticking = true;
-    }
-  }, {passive:true});
+  if(submitBtn) submitBtn.addEventListener('click', doLogin);
 })();
 </script>
 </body>
