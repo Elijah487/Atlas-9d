@@ -990,35 +990,41 @@ select.field-input { color-scheme: dark; }
   border-color: rgba(212, 43, 58, 0.4) !important;
   color: var(--red-bright) !important;
 }
-
 /* =====================================================================
    30. MODO DESENVOLVEDOR — banner e indicadores
    ===================================================================== */
 #atlasDevBanner {
-  background: linear-gradient(90deg, #b01a27, var(--red), #b01a27) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  /* Gradiente mais suave e moderno */
+  background: linear-gradient(90deg, #8a151f, var(--red-bright), #8a151f) !important;
+  color: #ffffff !important;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(212, 43, 58, 0.2);
 }
-#atlasDevBanner .dot { background: rgba(255,255,255,0.9) !important; }
+
+#atlasDevBanner .dot { 
+  background: #ffffff !important; 
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
 #atlasDevBanner button {
-  background: rgba(255,255,255,0.15) !important;
-  border: 1px solid rgba(255,255,255,0.3) !important;
-  transition: background 0.18s !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  font-weight: 600;
+  transition: background 0.18s, border-color 0.18s !important;
 }
-#atlasDevBanner button:hover { background: rgba(255,255,255,0.28) !important; }
 
-/* Botões dev-only já cobertos por .btn-add / .btn-add-small acima */
-
-/* =====================================================================
-   31. LOADING OVERLAY (injetado pelo atlas-data.js)
-   ===================================================================== */
-#atlasLoadingOverlay {
-  background: var(--bg) !important;
+#atlasDevBanner button:hover { 
+  background: rgba(0, 0, 0, 0.3) !important; 
+  border-color: rgba(255, 255, 255, 0.4) !important;
 }
-#atlasLoadingOverlay .atlas-spinner {
-  border-color: rgba(212, 43, 58, 0.2) !important;
-  border-top-color: var(--red-bright) !important;
-}
-#atlasLoadingOverlay span { color: var(--ink-faint) !important; }
 
 /* =====================================================================
    32. HERO BANNER DO DASHBOARD (área de boas-vindas)
