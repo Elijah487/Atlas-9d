@@ -1117,5 +1117,20 @@ a,
   touch-action: manipulation;
 }
 /* =====================================================================
+   FIX DEFINITIVO: Imagens do Editor (Pequenas, arredondadas e contidas)
+   ===================================================================== */
+.atlas-editor-area img,
+.atlas-editor-readonly img,
+.doc-page img {
+  max-width: 100% !important;
+  max-height: 350px !important; /* Limita a altura para nunca explodir na tela */
+  width: auto !important;
+  border-radius: 12px !important; /* Deixa as bordas bem redondinhas */
+  object-fit: contain !important; /* Garante que a imagem não fique esticada nem amassada */
+  display: block !important;
+  margin: 16px auto !important; /* Centraliza a imagem perfeitamente */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important; /* Adiciona uma sombra elegante */
+}
+/* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
