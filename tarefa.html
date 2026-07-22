@@ -243,7 +243,7 @@
       </div>
 
       <div class="empty-banner" id="forbiddenBanner" style="display:none;">
-        Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
+        Esta ação é exclusiva do Modo Desenvolvedor.
       </div>
 
     </div>
@@ -272,7 +272,7 @@
 </script>
 
 <script>
-function runTarefaPage() {
+document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
   var SUBJECTS = AtlasData.SUBJECTS;
@@ -334,7 +334,7 @@ function runTarefaPage() {
     var armed = false;
     var timer = null;
     btn.textContent = defaultLabel;
-    btn.addEventListener('click', function () {
+    btn.onclick = function () {
       if (!armed) {
         armed = true;
         btn.textContent = confirmLabel;
@@ -348,7 +348,7 @@ function runTarefaPage() {
       }
       clearTimeout(timer);
       onConfirm();
-    });
+    };
   }
 
   /* ---------------------------------------------------------
@@ -385,12 +385,13 @@ function runTarefaPage() {
 
     if (isDevSession()) {
       editBtnClone.addEventListener('click', function () {
-        window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
+        var editUrl = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
+        if (fromParam) editUrl += '&from=' + encodeURIComponent(fromParam);
+        window.location.href = editUrl;
       });
       armConfirm(delBtnClone, 'Excluir', 'Confirmar exclusão?', function () {
-        AtlasData.deleteTask(task.id).then(function () {
-          window.location.href = backLink.href;
-        });
+        AtlasData.deleteTask(task.id);
+        window.location.href = backLink.href;
       });
     }
 
@@ -407,73 +408,20 @@ function runTarefaPage() {
     }).join('');
   }
 
+  var formInitialized = false;
+  var respostaEditor = null;
+
   function initForm() {
-  // Verifica o estado de dev
-  var devAtivo = AtlasData && AtlasData.isDev && AtlasData.isDev();
-
-  if (!devAtivo) {
-    // Em vez de expulsar imediatamente, exibe o banner de acesso restrito
-    // mas permite que o script continue se for apenas visualização
-    showOnly(forbiddenBanner);
-    return;
-  }
-
-  var existing = taskId ? AtlasData.getTasks().find(function (t) { return t.id === taskId; }) : null;
-  if (taskId && !existing) { showOnly(notFoundBanner); return; }
-
-  var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
-    var slug = params.get('materia');
-    var found = SUBJECTS.find(function (s) { return AtlasData.slugify(s) === slug; });
-    return found || SUBJECTS[0];
-  })() : SUBJECTS[0]);
-  var contextBimestre = existing ? existing.bimestre : (params.get('bimestre') || BIMESTRES[0]);
-
-  setBackTarget(contextMateria);
-  document.getElementById('formTitle').textContent = existing ? 'Editar tarefa' : 'Nova tarefa';
-  document.title = (existing ? 'Editar tarefa' : 'Nova tarefa') + ' — Atlas';
-
-  document.getElementById('taskId').value = existing ? existing.id : '';
-  document.getElementById('taskTitulo').value = existing ? existing.titulo : '';
-  document.getElementById('taskDataEntrega').value = existing ? (existing.dataEntrega || '') : '';
-  fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
-  fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
-
-  var respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
-    placeholder: 'Resposta ou gabarito (opcional)...',
-    minHeight: '200px'
-  });
-  respostaEditor.setHTML(existing ? existing.resposta : '');
-
-  document.getElementById('taskCancelBtn').href = backLink.href;
-
-  var deleteBtn = document.getElementById('taskDeleteBtn');
-  if (existing) {
-    deleteBtn.style.display = 'inline-flex';
-    armConfirm(deleteBtn, 'Excluir tarefa', 'Confirmar exclusão?', function () {
-      AtlasData.deleteTask(existing.id);
-      window.location.href = backLink.href;
-    });
-  }
-
-  document.getElementById('taskForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var materiaVal = document.getElementById('taskMateria').value;
-    var saved = AtlasData.saveTask({
-      id: existing ? existing.id : '',
-      titulo: document.getElementById('taskTitulo').value,
-      materia: materiaVal,
-      bimestre: document.getElementById('taskBimestre').value,
-      dataEntrega: document.getElementById('taskDataEntrega').value,
-      resposta: respostaEditor.getHTML()
-    });
-    if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id || taskId); }
-  });
-
-  showOnly(formMode);
-}
+    if (!isDevSession()) {
+      showOnly(forbiddenBanner);
+      return;
+    }
 
     var existing = taskId ? AtlasData.getTasks().find(function (t) { return t.id === taskId; }) : null;
-    if (taskId && !existing) { showOnly(notFoundBanner); return; }
+    if (taskId && !existing) {
+      showOnly(notFoundBanner);
+      return;
+    }
 
     var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
       var slug = params.get('materia');
@@ -492,11 +440,37 @@ function runTarefaPage() {
     fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
     fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
 
-    var respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
-      placeholder: 'Resposta ou gabarito (opcional)...',
-      minHeight: '200px'
-    });
-    respostaEditor.setHTML(existing ? existing.resposta : '');
+    if (!formInitialized) {
+      formInitialized = true;
+      respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
+        placeholder: 'Resposta ou gabarito (opcional)...',
+        minHeight: '200px'
+      });
+
+      var taskForm = document.getElementById('taskForm');
+      taskForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var materiaVal = document.getElementById('taskMateria').value;
+        var currentTaskId = document.getElementById('taskId').value;
+        var saved = AtlasData.saveTask({
+          id: currentTaskId || '',
+          titulo: document.getElementById('taskTitulo').value,
+          materia: materiaVal,
+          bimestre: document.getElementById('taskBimestre').value,
+          dataEntrega: document.getElementById('taskDataEntrega').value,
+          resposta: respostaEditor ? respostaEditor.getHTML() : ''
+        });
+        if (saved) {
+          var targetUrl = 'tarefa.html?id=' + encodeURIComponent(saved.id || taskId);
+          if (fromParam) targetUrl += '&from=' + encodeURIComponent(fromParam);
+          window.location.href = targetUrl;
+        }
+      });
+    }
+
+    if (respostaEditor) {
+      respostaEditor.setHTML(existing ? existing.resposta : '');
+    }
 
     document.getElementById('taskCancelBtn').href = backLink.href;
 
@@ -504,70 +478,52 @@ function runTarefaPage() {
     if (existing) {
       deleteBtn.style.display = 'inline-flex';
       armConfirm(deleteBtn, 'Excluir tarefa', 'Confirmar exclusão?', function () {
-        AtlasData.deleteTask(existing.id).then(function () {
-          window.location.href = backLink.href;
-        });
+        AtlasData.deleteTask(existing.id);
+        window.location.href = backLink.href;
       });
+    } else {
+      deleteBtn.style.display = 'none';
     }
-
-    document.getElementById('taskForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var submitBtn = e.target.querySelector('button[type="submit"]');
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A guardar...'; }
-
-      var materiaVal = document.getElementById('taskMateria').value;
-      AtlasData.saveTask({
-        id: existing ? existing.id : '',
-        titulo: document.getElementById('taskTitulo').value,
-        materia: materiaVal,
-        bimestre: document.getElementById('taskBimestre').value,
-        dataEntrega: document.getElementById('taskDataEntrega').value,
-        resposta: respostaEditor.getHTML()
-      }).then(function (saved) {
-        if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
-      }).catch(function (err) {
-        alert('Erro ao guardar a tarefa.');
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar tarefa'; }
-      });
-    });
 
     showOnly(formMode);
   }
 
   /* ---------------------------------------------------------
-     Roteamento
+     Roteamento e Reatividade
   --------------------------------------------------------- */
-  function init() {
-    if (isNewFlag) { initForm(); return; }
-    if (!taskId) { showOnly(notFoundBanner); return; }
+  function syncPage() {
+    if (isNewFlag) {
+      initForm();
+      return;
+    }
 
-    if (isEditFlag) { initForm(); return; }
+    if (!taskId) {
+      showOnly(notFoundBanner);
+      return;
+    }
 
     var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
-    if (!task) { showOnly(notFoundBanner); return; }
-    renderView(task);
-  }
 
-  init();
+    if (!task) {
+      showOnly(notFoundBanner);
+      return;
+    }
 
-  AtlasData.onDataChange(function () {
-    if (isEditFlag || isNewFlag) return;
-    if (!taskId) return;
-    var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
-    if (task) {
+    if (isEditFlag) {
+      initForm();
+    } else {
       renderView(task);
     }
+  }
+
+  syncPage();
+
+  AtlasData.onDataChange(function () {
+    syncPage();
   });
 
   AtlasData.injectDevBanner();
-}
-
-// Executa imediatamente se o AtlasData já estiver pronto, ou aguarda o evento
-if (window.AtlasData) {
-  runTarefaPage();
-} else {
-  document.addEventListener('atlas-data-ready', runTarefaPage);
-}
+});
 </script>
 
 </body>
