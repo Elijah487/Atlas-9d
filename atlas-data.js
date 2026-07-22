@@ -14,7 +14,8 @@ import {
   getDatabase,
   ref,
   onValue,
-  set
+  set,
+  remove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getStorage,
@@ -382,14 +383,58 @@ import {
   function clearSession() { logout(); }
 
   /* --- Persistência Realtime Database --- */
-  function persistCollection(collectionName, list) {
+  /* -----------------------------------------------------------------
+     IMPORTANTE — por que a escrita é feita item a item, e não mais
+     reescrevendo a coleção inteira:
+
+     A versão anterior lia a coleção inteira para a memória (cache),
+     adicionava/removia um item no array em JS, e escrevia esse array
+     de volta por completo com set(). Isso cria uma condição de corrida
+     real: se o snapshot do Firebase (onValue) para essa página ainda
+     não tinha chegado com o estado mais recente no momento do salvar
+     — o que é comum ao criar vários itens em sequência rápida, ou ao
+     navegar entre páginas (cada .html é um reload completo) — o
+     array local usado como base já estava desatualizado. Ao dar
+     set() nesse array desatualizado, a coleção inteira no Firebase
+     era substituída por uma versão que não incluía itens criados há
+     poucos segundos em outra ação/página, apagando-os.
+
+     Agora cada item vive no seu próprio caminho
+     (atlas_data/<colecao>/<id>), e salvar/excluir um item só toca
+     nesse único nó. Duas ações concorrentes não conseguem mais pisar
+     uma na outra, não importa o estado do cache local no momento.
+  ----------------------------------------------------------------- */
+  function writeItem(collectionName, item) {
+    if (!firebaseDbInstance || !item || !item.id) return;
+    set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
+      .catch(function (err) {
+        console.error('Atlas: falha ao salvar item em "' + collectionName + '".', err);
+      });
+  }
+
+  function removeItem(collectionName, id) {
+    if (!firebaseDbInstance || !id) return;
+    remove(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + id))
+      .catch(function (err) {
+        console.error('Atlas: falha ao excluir item em "' + collectionName + '".', err);
+      });
+  }
+
+  /* Atualiza o cache local (para a UI responder na hora) e persiste
+     apenas o item alterado no Firebase. */
+  function applyLocalAndPersist(collectionName, list, item) {
     cache[collectionName] = list;
     saveToSessionStorage();
-    if (firebaseDbInstance) {
-      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (err) {
-        console.error('Atlas: falha ao salvar "' + collectionName + '" no Firebase.', err);
-      });
-    }
+    writeItem(collectionName, item);
+    return true;
+  }
+
+  /* Atualiza o cache local removendo o item e apaga apenas esse nó
+     no Firebase. */
+  function applyLocalAndRemove(collectionName, list, id) {
+    cache[collectionName] = list;
+    saveToSessionStorage();
+    removeItem(collectionName, id);
     return true;
   }
 
@@ -438,7 +483,7 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('notes', list);
+    applyLocalAndPersist('notes', list, clean);
     return clean;
   }
 
@@ -449,7 +494,7 @@ import {
 
     return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.notes || []).filter(function (n) { return n.id !== id; });
-      persistCollection('notes', newList);
+      applyLocalAndRemove('notes', newList, id);
       return true;
     });
   }
@@ -498,7 +543,7 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('tasks', list);
+    applyLocalAndPersist('tasks', list, clean);
     return clean;
   }
 
@@ -509,7 +554,7 @@ import {
 
     return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
-      persistCollection('tasks', newList);
+      applyLocalAndRemove('tasks', newList, id);
       return true;
     });
   }
@@ -540,13 +585,13 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('events', list);
+    applyLocalAndPersist('events', list, clean);
     return clean;
   }
 
   function deleteEvent(id) {
     var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
-    persistCollection('events', newList);
+    applyLocalAndRemove('events', newList, id);
     return true;
   }
 
@@ -578,13 +623,13 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('notices', list);
+    applyLocalAndPersist('notices', list, clean);
     return clean;
   }
 
   function deleteNotice(id) {
     var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
-    persistCollection('notices', newList);
+    applyLocalAndRemove('notices', newList, id);
     return true;
   }
 
