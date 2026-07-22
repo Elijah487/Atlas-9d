@@ -109,11 +109,6 @@
 
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
-<script>
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
-  });
-</script>
 
 <div class="app">
 
@@ -243,7 +238,7 @@
       </div>
 
       <div class="empty-banner" id="forbiddenBanner" style="display:none;">
-        Esta ação é exclusiva do Modo Desenvolvedor.
+        Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
       </div>
 
     </div>
@@ -252,7 +247,7 @@
 </div>
 
 <script>
-  // Mobile sidebar toggle
+  // Mobile sidebar toggle e logout
   var menuBtn = document.getElementById('menuBtn');
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
@@ -274,6 +269,8 @@
 <script>
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
+
+  AtlasData.requireSession('index.html');
 
   var SUBJECTS = AtlasData.SUBJECTS;
   var BIMESTRES = AtlasData.BIMESTRES;
@@ -334,7 +331,7 @@ document.addEventListener('atlas-data-ready', function () {
     var armed = false;
     var timer = null;
     btn.textContent = defaultLabel;
-    btn.onclick = function () {
+    btn.addEventListener('click', function () {
       if (!armed) {
         armed = true;
         btn.textContent = confirmLabel;
@@ -348,7 +345,7 @@ document.addEventListener('atlas-data-ready', function () {
       }
       clearTimeout(timer);
       onConfirm();
-    };
+    });
   }
 
   /* ---------------------------------------------------------
@@ -385,9 +382,7 @@ document.addEventListener('atlas-data-ready', function () {
 
     if (isDevSession()) {
       editBtnClone.addEventListener('click', function () {
-        var editUrl = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
-        if (fromParam) editUrl += '&from=' + encodeURIComponent(fromParam);
-        window.location.href = editUrl;
+        window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
       });
       armConfirm(delBtnClone, 'Excluir', 'Confirmar exclusão?', function () {
         AtlasData.deleteTask(task.id);
@@ -408,20 +403,17 @@ document.addEventListener('atlas-data-ready', function () {
     }).join('');
   }
 
-  var formInitialized = false;
-  var respostaEditor = null;
-
   function initForm() {
     if (!isDevSession()) {
       showOnly(forbiddenBanner);
+      setTimeout(function () {
+        window.location.href = taskId ? ('tarefa.html?id=' + encodeURIComponent(taskId)) : 'tarefas.html';
+      }, 1200);
       return;
     }
 
     var existing = taskId ? AtlasData.getTasks().find(function (t) { return t.id === taskId; }) : null;
-    if (taskId && !existing) {
-      showOnly(notFoundBanner);
-      return;
-    }
+    if (taskId && !existing) { showOnly(notFoundBanner); return; }
 
     var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
       var slug = params.get('materia');
@@ -432,7 +424,7 @@ document.addEventListener('atlas-data-ready', function () {
 
     setBackTarget(contextMateria);
     document.getElementById('formTitle').textContent = existing ? 'Editar tarefa' : 'Nova tarefa';
-    document.title = (existing ? 'Editar tarefa' : 'Nova tarefa') + ' — Atlas';
+    document.title = (existing ? 'Editar tarefa' : 'Nova tarefa') — 'Atlas';
 
     document.getElementById('taskId').value = existing ? existing.id : '';
     document.getElementById('taskTitulo').value = existing ? existing.titulo : '';
@@ -440,37 +432,12 @@ document.addEventListener('atlas-data-ready', function () {
     fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
     fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
 
-    if (!formInitialized) {
-      formInitialized = true;
-      respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
-        placeholder: 'Resposta ou gabarito (opcional)...',
-        minHeight: '200px'
-      });
+    var respostaEditor = window.AtlasEditor ? AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
+      placeholder: 'Resposta ou gabarito (opcional)...',
+      minHeight: '200px'
+    }) : { getHTML: function () { return ''; }, setHTML: function () {} };
 
-      var taskForm = document.getElementById('taskForm');
-      taskForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var materiaVal = document.getElementById('taskMateria').value;
-        var currentTaskId = document.getElementById('taskId').value;
-        var saved = AtlasData.saveTask({
-          id: currentTaskId || '',
-          titulo: document.getElementById('taskTitulo').value,
-          materia: materiaVal,
-          bimestre: document.getElementById('taskBimestre').value,
-          dataEntrega: document.getElementById('taskDataEntrega').value,
-          resposta: respostaEditor ? respostaEditor.getHTML() : ''
-        });
-        if (saved) {
-          var targetUrl = 'tarefa.html?id=' + encodeURIComponent(saved.id || taskId);
-          if (fromParam) targetUrl += '&from=' + encodeURIComponent(fromParam);
-          window.location.href = targetUrl;
-        }
-      });
-    }
-
-    if (respostaEditor) {
-      respostaEditor.setHTML(existing ? existing.resposta : '');
-    }
+    respostaEditor.setHTML(existing ? existing.resposta : '');
 
     document.getElementById('taskCancelBtn').href = backLink.href;
 
@@ -481,45 +448,49 @@ document.addEventListener('atlas-data-ready', function () {
         AtlasData.deleteTask(existing.id);
         window.location.href = backLink.href;
       });
-    } else {
-      deleteBtn.style.display = 'none';
     }
+
+    document.getElementById('taskForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var materiaVal = document.getElementById('taskMateria').value;
+      var saved = AtlasData.saveTask({
+        id: existing ? existing.id : '',
+        titulo: document.getElementById('taskTitulo').value,
+        materia: materiaVal,
+        bimestre: document.getElementById('taskBimestre').value,
+        dataEntrega: document.getElementById('taskDataEntrega').value,
+        imagemUrl: existing ? (existing.imagemUrl || '') : '',
+        enunciado: existing ? (existing.enunciado || '') : '',
+        resposta: respostaEditor.getHTML()
+      });
+      if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
+    });
 
     showOnly(formMode);
   }
 
   /* ---------------------------------------------------------
-     Roteamento e Reatividade
+     Roteamento
   --------------------------------------------------------- */
-  function syncPage() {
-    if (isNewFlag) {
-      initForm();
-      return;
-    }
+  function init() {
+    if (isNewFlag) { initForm(); return; }
+    if (!taskId) { showOnly(notFoundBanner); return; }
 
-    if (!taskId) {
-      showOnly(notFoundBanner);
-      return;
-    }
+    if (isEditFlag) { initForm(); return; }
 
     var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
-
-    if (!task) {
-      showOnly(notFoundBanner);
-      return;
-    }
-
-    if (isEditFlag) {
-      initForm();
-    } else {
-      renderView(task);
-    }
+    if (!task) { showOnly(notFoundBanner); return; }
+    renderView(task);
   }
 
-  syncPage();
+  init();
 
   AtlasData.onDataChange(function () {
-    syncPage();
+    if (isEditFlag || isNewFlag) return;
+    if (!taskId) return;
+    var task = AtlasData.getTasks().find(function (t) { return t.id === taskId; });
+    if (!task) { showOnly(notFoundBanner); return; }
+    renderView(task);
   });
 
   AtlasData.injectDevBanner();
