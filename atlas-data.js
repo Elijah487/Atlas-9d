@@ -422,9 +422,18 @@ import {
         }
         clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        // Id foi informado (ex: gerado antecipadamente para o upload de
+        // imagem) mas ainda não existe na lista — é uma criação, não uma
+        // edição. Sem este ramo, o item nunca era inserido e a função
+        // devolvia um objeto sem estar salvo em lugar nenhum.
+        clean.id = note.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = note.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
@@ -475,9 +484,16 @@ import {
         }
         clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        // Id informado antecipadamente (ex: upload de imagem) mas ainda
+        // sem registro na lista — trata como criação com esse id.
+        clean.id = task.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = task.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
@@ -512,9 +528,14 @@ import {
       if (idx !== -1) {
         clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        clean.id = evt.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = evt.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
@@ -545,9 +566,14 @@ import {
       if (idx !== -1) {
         clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        clean.id = notice.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = notice.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
