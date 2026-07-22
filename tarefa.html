@@ -15,7 +15,7 @@
 
 <style>
   /* =========================================================
-     AJUSTES PONTUAIS DE TAREFA (SEM QUEBRAR O LAYOUT NATIVO)
+     AJUSTES PONTUAIS DE TAREFA (SEM DESALINHAR A SIDEBAR)
      ========================================================= */
   .doc-page { max-width: 740px; margin: 0 auto; }
 
@@ -101,7 +101,7 @@
   .atlas-editor-readonly { font-size: 15.5px; line-height: 1.75; color: var(--ink); }
   .atlas-editor-empty { color: var(--ink-faint); font-style: italic; }
 
-  /* Fix de Imagens no Conteúdo/Editor para Não Estourarem */
+  /* Prevenção de Imagens Gigantes */
   .doc-page img,
   .atlas-editor-readonly img,
   .atlas-editor-area img {
@@ -122,6 +122,11 @@
 
 <script type="module" src="atlas-data.js"></script>
 <script src="atlas-editor.js"></script>
+<script>
+  document.addEventListener('atlas-data-ready', function () {
+    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+  });
+</script>
 
 <div class="app">
 
@@ -268,7 +273,7 @@
     });
   }
   var sidebar = document.getElementById('sidebar');
-  if (menuBtn) {
+  if (menuBtn && sidebar) {
     menuBtn.addEventListener('click', function () { sidebar.classList.toggle('open'); });
   }
   document.addEventListener('click', function (e) {
@@ -285,7 +290,9 @@ document.addEventListener('atlas-data-ready', function () {
   var SUBJECTS = AtlasData.SUBJECTS || ['Matemática', 'Português', 'História', 'Geografia', 'Ciências', 'Inglês'];
   var BIMESTRES = AtlasData.BIMESTRES || ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
 
-  function isDevSession() { return AtlasData.isDev ? AtlasData.isDev() : true; }
+  function isDevSession() { 
+    return AtlasData.isDev ? AtlasData.isDev() : true; 
+  }
   if (isDevSession()) { document.body.classList.add('dev-mode-on'); }
 
   function escapeHtml(str) {
@@ -413,7 +420,7 @@ document.addEventListener('atlas-data-ready', function () {
         }
       }
     } catch (err) {
-      console.warn("AtlasEditor não foi carregado:", err);
+      console.warn("AtlasEditor não inicializado:", err);
     }
 
     document.getElementById('taskCancelBtn').href = backLink.href;
@@ -433,7 +440,7 @@ document.addEventListener('atlas-data-ready', function () {
         e.preventDefault();
         var materiaVal = document.getElementById('taskMateria').value;
         var respostaConteudo = (respostaEditor && respostaEditor.getHTML) ? respostaEditor.getHTML() : '';
-        
+
         var payload = {
           id: existing ? existing.id : '',
           titulo: document.getElementById('taskTitulo').value,
