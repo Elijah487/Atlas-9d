@@ -1,22 +1,21 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.3 — Fix Definitivo)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.1 — Fix Definitivo)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
   setPersistence,
-  browserLocalPersistence,
-  inMemoryPersistence,
+  browserSessionPersistence,
   signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase,
   ref,
   onValue,
-  set
+  set,
+  remove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 import {
   getStorage,
@@ -79,21 +78,21 @@ import {
     return { notes: [], tasks: [], events: [], notices: [] };
   }
 
-  function hasStorage() {
-    try { return !!global.localStorage; } catch (e) { return false; }
+  function hasSessionStorage() {
+    try { return !!global.sessionStorage; } catch (e) { return false; }
   }
 
-  function saveToCache() {
-    if (!hasStorage()) return;
+  function saveToSessionStorage() {
+    if (!hasSessionStorage()) return;
     try {
-      global.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+      global.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
     } catch (e) {}
   }
 
-  function loadFromCache() {
-    if (!hasStorage()) return false;
+  function loadFromSessionStorage() {
+    if (!hasSessionStorage()) return false;
     try {
-      var raw = global.localStorage.getItem(CACHE_KEY);
+      var raw = global.sessionStorage.getItem(CACHE_KEY);
       if (!raw) return false;
       var parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
@@ -130,7 +129,7 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Validação e Processamento de Imagens --- */
+  /* --- 6. Validação Prévia (10MB / 7000px) e Canvas --- */
   function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
       if (!file || !file.type || !file.type.match(/^image\//)) {
@@ -138,6 +137,7 @@ import {
         return;
       }
 
+      // Validação de Tamanho (10 MB)
       if (file.size > 10 * 1024 * 1024) {
         reject(new Error('A imagem excede o tamanho máximo permitido de 10 MB.'));
         return;
@@ -147,6 +147,7 @@ import {
       reader.onload = function (e) {
         var img = new Image();
         img.onload = function () {
+          // Validação de Resolução (7000 px)
           if (img.width > 7000 || img.height > 7000) {
             reject(new Error('A imagem é muito grande! A resolução máxima permitida é de 7000 px.'));
             return;
@@ -184,6 +185,7 @@ import {
     });
   }
 
+  /* --- 4 e 5. Retry Automático (3x) + uploadBytesResumable --- */
   function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
@@ -216,7 +218,9 @@ import {
     });
   }
 
+  /* --- 3. Organização do Storage --- */
   function uploadImageToStorage(file, folderName, itemId, onProgress) {
+    // SE NÃO EXISTIR IMAGEM: Resolve imediatamente sem quebrar o fluxo
     if (!file) return Promise.resolve('');
 
     return new Promise(function (resolve, reject) {
@@ -226,6 +230,7 @@ import {
       }
 
       var entityId = itemId || uid();
+      // Estrutura organizada exigida
       var fullPath = 'imagens/' + folderName + '/' + entityId + '/capa.webp';
       var fRef = storageRef(firebaseStorageInstance, fullPath);
 
@@ -254,11 +259,8 @@ import {
 
   /* --- Inicialização do Firebase --- */
   function onFirebaseReady(callback) {
-    if (firebaseReady) {
-      if (typeof callback === 'function') callback();
-    } else {
-      firebaseReadyCallbacks.push(callback);
-    }
+    if (firebaseReady) callback();
+    else firebaseReadyCallbacks.push(callback);
   }
 
   function markFirebaseReady() {
@@ -282,17 +284,16 @@ import {
   }
 
   function makeCollectionListener(collectionName) {
-    if (!firebaseDbInstance) return;
     onValue(
       ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
       function (snapshot) {
         var newData = objectToArray(snapshot.val());
         cache[collectionName] = newData;
-        saveToCache();
+        saveToSessionStorage();
         scheduleNotify();
       },
       function (error) {
-        console.warn('Atlas: Aviso ao sincronizar ' + collectionName, error);
+        console.error('Atlas: Erro ao sincronizar ' + collectionName, error);
       }
     );
   }
@@ -307,98 +308,70 @@ import {
   }
 
   function initFirebase() {
-    loadFromCache();
+    var hasCache = loadFromSessionStorage();
 
     try {
       var app = initializeApp(FIREBASE_CONFIG);
       firebaseAuthInstance    = getAuth(app);
       firebaseDbInstance      = getDatabase(app);
       firebaseStorageInstance = getStorage(app);
-
-      setPersistence(firebaseAuthInstance, browserLocalPersistence).catch(function () {});
-
-      onAuthStateChanged(firebaseAuthInstance, function (user) {
-        if (user) {
-          setSessionDev();
-        }
-      });
     } catch (e) {
-      console.error('Atlas: Erro de inicialização do Firebase', e);
+      console.error('Atlas: erro de inicialização Firebase', e);
+      markFirebaseReady();
+      return;
     }
 
     attachDataListeners();
     markFirebaseReady();
+
+    /* browserSessionPersistence: a sessão do Firebase Auth (necessária
+       para o Realtime Database aceitar escritas, conforme as regras
+       "auth != null && auth.uid === ...") agora sobrevive à navegação
+       entre páginas na mesma aba — igual ao sessionStorage já usado
+       para a flag local 'atlas_session'. Antes, com inMemoryPersistence,
+       o login era perdido a cada troca de página (cada .html é um
+       reload completo), então toda escrita no Firebase era rejeitada
+       silenciosamente pelas regras de segurança, mesmo com a UI ainda
+       mostrando "modo dev ativo". */
+    setPersistence(firebaseAuthInstance, browserSessionPersistence).catch(function (e) {
+      console.error('Atlas: falha ao definir persistência de sessão.', e);
+    });
   }
 
   /* --- Sessão --- */
   function getSession() {
-    if (!hasStorage()) return null;
-    try { 
-      return global.localStorage.getItem(ATLAS_SESSION_KEY) || global.sessionStorage.getItem(ATLAS_SESSION_KEY); 
-    } catch (e) { 
-      return null; 
-    }
+    if (!hasSessionStorage()) return null;
+    try { return global.sessionStorage.getItem(ATLAS_SESSION_KEY) === 'dev' ? 'dev' : null; } catch (e) { return null; }
   }
 
   function setSessionDev() {
-    if (!hasStorage()) return;
-    try {
-      global.localStorage.setItem(ATLAS_SESSION_KEY, 'dev');
-      global.sessionStorage.setItem(ATLAS_SESSION_KEY, 'dev');
-    } catch (e) {}
-  }
-
-  function setSessionStudent() {
-    if (!hasStorage()) return;
-    try {
-      global.localStorage.setItem(ATLAS_SESSION_KEY, 'student');
-      global.sessionStorage.setItem(ATLAS_SESSION_KEY, 'student');
-    } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { global.sessionStorage.setItem(ATLAS_SESSION_KEY, 'dev'); } catch (e) {}
   }
 
   function clearSessionLocal() {
-    if (!hasStorage()) return;
-    try {
-      global.localStorage.removeItem(ATLAS_SESSION_KEY);
-      global.sessionStorage.removeItem(ATLAS_SESSION_KEY);
-    } catch (e) {}
+    if (!hasSessionStorage()) return;
+    try { global.sessionStorage.removeItem(ATLAS_SESSION_KEY); } catch (e) {}
   }
 
-  function isDev() { 
-    if (getSession() === 'dev') return true;
-    if (firebaseAuthInstance && firebaseAuthInstance.currentUser) {
-      return true;
-    }
-    return false;
-  }
-  
+  function isDev() { return getSession() === 'dev'; }
   function isLoggedIn() { return true; }
   function requireSession() { return true; }
 
   function loginAsDev(email, password, callback) {
-    var cb = typeof callback === 'function' ? callback : function () {};
-    if (!firebaseAuthInstance) { 
-      cb(false, 'auth_error'); 
-      return; 
-    }
+    if (!firebaseAuthInstance) { callback(false, 'auth_error'); return; }
     signInWithEmailAndPassword(firebaseAuthInstance, email, password)
       .then(function () {
         setSessionDev();
-        cb(true, null);
+        callback(true, null);
       })
-      .catch(function (err) { 
-        cb(false, err.code || 'error'); 
-      });
+      .catch(function (err) { callback(false, err.code || 'error'); });
   }
 
   function loginWithRole(role, callback) {
-    var cb = typeof callback === 'function' ? callback : function () {};
     clearSessionLocal();
-    if (role === 'student') {
-      setSessionStudent();
-    }
     if (firebaseAuthInstance) signOut(firebaseAuthInstance).catch(function () {});
-    cb(true);
+    if (callback) callback(role === 'student');
   }
 
   function logout() {
@@ -410,14 +383,58 @@ import {
   function clearSession() { logout(); }
 
   /* --- Persistência Realtime Database --- */
-  function persistCollection(collectionName, list) {
-    cache[collectionName] = list;
-    saveToCache();
-    if (firebaseDbInstance) {
-      set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName), list).catch(function (err) {
-        console.warn('Atlas: Não foi possível gravar no Firebase (Modo leitura ou permissão):', err);
+  /* -----------------------------------------------------------------
+     IMPORTANTE — por que a escrita é feita item a item, e não mais
+     reescrevendo a coleção inteira:
+
+     A versão anterior lia a coleção inteira para a memória (cache),
+     adicionava/removia um item no array em JS, e escrevia esse array
+     de volta por completo com set(). Isso cria uma condição de corrida
+     real: se o snapshot do Firebase (onValue) para essa página ainda
+     não tinha chegado com o estado mais recente no momento do salvar
+     — o que é comum ao criar vários itens em sequência rápida, ou ao
+     navegar entre páginas (cada .html é um reload completo) — o
+     array local usado como base já estava desatualizado. Ao dar
+     set() nesse array desatualizado, a coleção inteira no Firebase
+     era substituída por uma versão que não incluía itens criados há
+     poucos segundos em outra ação/página, apagando-os.
+
+     Agora cada item vive no seu próprio caminho
+     (atlas_data/<colecao>/<id>), e salvar/excluir um item só toca
+     nesse único nó. Duas ações concorrentes não conseguem mais pisar
+     uma na outra, não importa o estado do cache local no momento.
+  ----------------------------------------------------------------- */
+  function writeItem(collectionName, item) {
+    if (!firebaseDbInstance || !item || !item.id) return;
+    set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
+      .catch(function (err) {
+        console.error('Atlas: falha ao salvar item em "' + collectionName + '".', err);
       });
-    }
+  }
+
+  function removeItem(collectionName, id) {
+    if (!firebaseDbInstance || !id) return;
+    remove(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + id))
+      .catch(function (err) {
+        console.error('Atlas: falha ao excluir item em "' + collectionName + '".', err);
+      });
+  }
+
+  /* Atualiza o cache local (para a UI responder na hora) e persiste
+     apenas o item alterado no Firebase. */
+  function applyLocalAndPersist(collectionName, list, item) {
+    cache[collectionName] = list;
+    saveToSessionStorage();
+    writeItem(collectionName, item);
+    return true;
+  }
+
+  /* Atualiza o cache local removendo o item e apaga apenas esse nó
+     no Firebase. */
+  function applyLocalAndRemove(collectionName, list, id) {
+    cache[collectionName] = list;
+    saveToSessionStorage();
+    removeItem(collectionName, id);
     return true;
   }
 
@@ -440,32 +457,44 @@ import {
     if (note.id) {
       var idx = list.findIndex(function (n) { return n.id === note.id; });
       if (idx !== -1) {
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && note.imagemUrl && list[idx].imagemUrl !== note.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
         }
+        // Preserva a imagem atual se nenhuma nova for enviada
         if (!note.imagemUrl && list[idx].imagemUrl) {
           clean.imagemUrl = list[idx].imagemUrl;
         }
         clean = Object.assign({}, list[idx], clean, { id: note.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        // Id foi informado (ex: gerado antecipadamente para o upload de
+        // imagem) mas ainda não existe na lista — é uma criação, não uma
+        // edição. Sem este ramo, o item nunca era inserido e a função
+        // devolvia um objeto sem estar salvo em lugar nenhum.
+        clean.id = note.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = note.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('notes', list);
+    applyLocalAndPersist('notes', list, clean);
     return clean;
   }
 
+  /* 7. Exclusão segura (Inverte Ordem: Deleta Storage -> Deleta Banco) */
   function deleteNote(id) {
     var target = (cache.notes || []).find(function (n) { return n.id === id; });
     var imageUrl = target ? target.imagemUrl : null;
 
     return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.notes || []).filter(function (n) { return n.id !== id; });
-      persistCollection('notes', newList);
+      applyLocalAndRemove('notes', newList, id);
       return true;
     });
   }
@@ -484,13 +513,14 @@ import {
       bimestre: task.bimestre || '',
       dataEntrega: task.dataEntrega || '',
       imagemUrl: task.imagemUrl || '',
-      enunciado: sanitizeHtml(task.enunciado || task.resposta || ''),
-      resposta: sanitizeHtml(task.resposta || task.enunciado || '')
+      enunciado: sanitizeHtml(task.enunciado || ''),
+      resposta: sanitizeHtml(task.resposta || '')
     };
 
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
       if (idx !== -1) {
+        // 2. Exclusão automática de imagem antiga se trocada
         if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
           deleteImageFromStorageByUrl(list[idx].imagemUrl);
         }
@@ -499,29 +529,37 @@ import {
         }
         clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        // Id informado antecipadamente (ex: upload de imagem) mas ainda
+        // sem registro na lista — trata como criação com esse id.
+        clean.id = task.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = task.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('tasks', list);
+    applyLocalAndPersist('tasks', list, clean);
     return clean;
   }
 
+  /* 7. Exclusão segura de Tarefas */
   function deleteTask(id) {
     var target = (cache.tasks || []).find(function (t) { return t.id === id; });
     var imageUrl = target ? target.imagemUrl : null;
 
     return deleteImageFromStorageByUrl(imageUrl).then(function () {
       var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
-      persistCollection('tasks', newList);
+      applyLocalAndRemove('tasks', newList, id);
       return true;
     });
   }
 
-  /* --- CRUD Eventos --- */
+  /* --- CRUD Eventos (Garantido Sem Dependência de Imagens) --- */
   function getEvents() { return cache.events || []; }
   function saveEvent(evt) {
     var list = (cache.events || []).slice();
@@ -535,20 +573,25 @@ import {
       if (idx !== -1) {
         clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        clean.id = evt.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = evt.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('events', list);
+    applyLocalAndPersist('events', list, clean);
     return clean;
   }
 
   function deleteEvent(id) {
     var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
-    persistCollection('events', newList);
+    applyLocalAndRemove('events', newList, id);
     return true;
   }
 
@@ -568,26 +611,29 @@ import {
       if (idx !== -1) {
         clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
         list[idx] = clean;
+      } else {
+        clean.id = notice.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
       }
     } else {
-      clean.id = notice.id || uid();
+      clean.id = uid();
       clean.criadoEm = Date.now();
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    persistCollection('notices', list);
+    applyLocalAndPersist('notices', list, clean);
     return clean;
   }
 
   function deleteNotice(id) {
     var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
-    persistCollection('notices', newList);
+    applyLocalAndRemove('notices', newList, id);
     return true;
   }
 
-  function onDataChange(callback) { 
-    if (typeof callback === 'function') changeCallbacks.push(callback); 
-  }
+  function onDataChange(callback) { changeCallbacks.push(callback); }
 
   function injectDevBanner() {
     if (!isDev() || document.getElementById('atlasDevBanner')) return;
@@ -608,18 +654,18 @@ import {
     SUBJECTS:          SUBJECTS,
     BIMESTRES:         BIMESTRES,
     NOTICE_PRIORITIES: NOTICE_PRIORITIES,
-    slugify:           slugify,
-    uid:               uid,
-    sanitizeHtml:      sanitizeHtml,
-    getSession:        getSession,
-    clearSession:      clearSession,
-    isDev:             isDev,
-    isLoggedIn:        isLoggedIn,
-    loginWithRole:     loginWithRole,
-    loginAsDev:        loginAsDev,
-    requireSession:    requireSession,
-    logout:            logout,
-    onFirebaseReady:   onFirebaseReady,
+    slugify:        slugify,
+    uid:            uid,
+    sanitizeHtml:   sanitizeHtml,
+    getSession:     getSession,
+    clearSession:   clearSession,
+    isDev:          isDev,
+    isLoggedIn:     isLoggedIn,
+    loginWithRole:  loginWithRole,
+    loginAsDev:     loginAsDev,
+    requireSession: requireSession,
+    logout:         logout,
+    onFirebaseReady:onFirebaseReady,
 
     uploadImageToStorage:        uploadImageToStorage,
     deleteImageFromStorageByUrl: deleteImageFromStorageByUrl,
@@ -638,9 +684,9 @@ import {
     saveEvent:   saveEvent,
     deleteEvent: deleteEvent,
 
-    getNotices:   getNotices,
-    saveNotice:   saveNotice,
-    deleteNotice: deleteNotice,
+    getNotices:  getNotices,
+    saveNotice:  saveNotice,
+    deleteNotice:deleteNotice,
 
     onDataChange:    onDataChange,
     injectDevBanner: injectDevBanner
