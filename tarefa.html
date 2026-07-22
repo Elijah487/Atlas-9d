@@ -408,13 +408,69 @@ function runTarefaPage() {
   }
 
   function initForm() {
-    if (!isDevSession()) {
-      showOnly(forbiddenBanner);
-      setTimeout(function () {
-        window.location.href = taskId ? ('tarefa.html?id=' + encodeURIComponent(taskId)) : 'tarefas.html';
-      }, 1200);
-      return;
-    }
+  // Verifica o estado de dev
+  var devAtivo = AtlasData && AtlasData.isDev && AtlasData.isDev();
+
+  if (!devAtivo) {
+    // Em vez de expulsar imediatamente, exibe o banner de acesso restrito
+    // mas permite que o script continue se for apenas visualização
+    showOnly(forbiddenBanner);
+    return;
+  }
+
+  var existing = taskId ? AtlasData.getTasks().find(function (t) { return t.id === taskId; }) : null;
+  if (taskId && !existing) { showOnly(notFoundBanner); return; }
+
+  var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
+    var slug = params.get('materia');
+    var found = SUBJECTS.find(function (s) { return AtlasData.slugify(s) === slug; });
+    return found || SUBJECTS[0];
+  })() : SUBJECTS[0]);
+  var contextBimestre = existing ? existing.bimestre : (params.get('bimestre') || BIMESTRES[0]);
+
+  setBackTarget(contextMateria);
+  document.getElementById('formTitle').textContent = existing ? 'Editar tarefa' : 'Nova tarefa';
+  document.title = (existing ? 'Editar tarefa' : 'Nova tarefa') + ' — Atlas';
+
+  document.getElementById('taskId').value = existing ? existing.id : '';
+  document.getElementById('taskTitulo').value = existing ? existing.titulo : '';
+  document.getElementById('taskDataEntrega').value = existing ? (existing.dataEntrega || '') : '';
+  fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
+  fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
+
+  var respostaEditor = AtlasEditor.create(document.getElementById('taskRespostaEditor'), {
+    placeholder: 'Resposta ou gabarito (opcional)...',
+    minHeight: '200px'
+  });
+  respostaEditor.setHTML(existing ? existing.resposta : '');
+
+  document.getElementById('taskCancelBtn').href = backLink.href;
+
+  var deleteBtn = document.getElementById('taskDeleteBtn');
+  if (existing) {
+    deleteBtn.style.display = 'inline-flex';
+    armConfirm(deleteBtn, 'Excluir tarefa', 'Confirmar exclusão?', function () {
+      AtlasData.deleteTask(existing.id);
+      window.location.href = backLink.href;
+    });
+  }
+
+  document.getElementById('taskForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var materiaVal = document.getElementById('taskMateria').value;
+    var saved = AtlasData.saveTask({
+      id: existing ? existing.id : '',
+      titulo: document.getElementById('taskTitulo').value,
+      materia: materiaVal,
+      bimestre: document.getElementById('taskBimestre').value,
+      dataEntrega: document.getElementById('taskDataEntrega').value,
+      resposta: respostaEditor.getHTML()
+    });
+    if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id || taskId); }
+  });
+
+  showOnly(formMode);
+}
 
     var existing = taskId ? AtlasData.getTasks().find(function (t) { return t.id === taskId; }) : null;
     if (taskId && !existing) { showOnly(notFoundBanner); return; }
