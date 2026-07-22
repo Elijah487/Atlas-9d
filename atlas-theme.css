@@ -1137,6 +1137,15 @@ a,
   margin: 16px auto !important; /* Centraliza a imagem perfeitamente */
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important; /* Adiciona uma sombra elegante */
 }
+/* Garante que imagens inseridas no editor fiquem visíveis */
+.atlas-editor-area img,
+.atlas-editor-readonly img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 10px 0 !important;
+  border-radius: 6px !important;
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
