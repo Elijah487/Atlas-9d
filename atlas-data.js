@@ -505,7 +505,7 @@ import {
     return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
   }
 
-  function saveTask(task) {
+ function saveTask(task) {
     var list = (cache.tasks || []).slice();
     var clean = {
       titulo: String(task.titulo || '').trim(),
@@ -516,6 +516,33 @@ import {
       enunciado: sanitizeHtml(task.enunciado || ''),
       resposta: sanitizeHtml(task.resposta || '')
     };
+
+    if (task.id) {
+      var idx = list.findIndex(function (t) { return t.id === task.id; });
+      if (idx !== -1) {
+        if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
+          deleteImageFromStorageByUrl(list[idx].imagemUrl);
+        }
+        if (!task.imagemUrl && list[idx].imagemUrl) {
+          clean.imagemUrl = list[idx].imagemUrl;
+        }
+        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
+        list[idx] = clean;
+      } else {
+        clean.id = task.id;
+        clean.criadoEm = Date.now();
+        clean.atualizadoEm = Date.now();
+        list.push(clean);
+      }
+    } else {
+      clean.id = uid();
+      clean.criadoEm = Date.now();
+      clean.atualizadoEm = Date.now();
+      list.push(clean);
+    }
+    applyLocalAndPersist('tasks', list, clean);
+    return clean;
+  }
 
     if (task.id) {
       var idx = list.findIndex(function (t) { return t.id === task.id; });
