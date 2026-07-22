@@ -505,7 +505,35 @@ import {
     return getTasks().filter(function (t) { return t.materia === materia && (!bimestre || t.bimestre === bimestre); });
   }
 
- function saveTask(task) {
+  function writeItem(collectionName, item) {
+    if (!firebaseDbInstance || !item || !item.id) return Promise.resolve();
+    return set(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + item.id), item)
+      .catch(function (err) {
+        console.error('Atlas: falha ao salvar item em "' + collectionName + '".', err);
+      });
+  }
+
+  function removeItem(collectionName, id) {
+    if (!firebaseDbInstance || !id) return Promise.resolve();
+    return remove(ref(firebaseDbInstance, DATA_PATH + '/' + collectionName + '/' + id))
+      .catch(function (err) {
+        console.error('Atlas: falha ao excluir item em "' + collectionName + '".', err);
+      });
+  }
+
+  function applyLocalAndPersist(collectionName, list, item) {
+    cache[collectionName] = list;
+    saveToSessionStorage();
+    return writeItem(collectionName, item);
+  }
+
+  function applyLocalAndRemove(collectionName, list, id) {
+    cache[collectionName] = list;
+    saveToSessionStorage();
+    return removeItem(collectionName, id);
+  }
+
+  function saveTask(task) {
     var list = (cache.tasks || []).slice();
     var clean = {
       titulo: String(task.titulo || '').trim(),
@@ -540,124 +568,10 @@ import {
       clean.atualizadoEm = Date.now();
       list.push(clean);
     }
-    applyLocalAndPersist('tasks', list, clean);
-    return clean;
-  }
 
-    if (task.id) {
-      var idx = list.findIndex(function (t) { return t.id === task.id; });
-      if (idx !== -1) {
-        // 2. Exclusão automática de imagem antiga se trocada
-        if (list[idx].imagemUrl && task.imagemUrl && list[idx].imagemUrl !== task.imagemUrl) {
-          deleteImageFromStorageByUrl(list[idx].imagemUrl);
-        }
-        if (!task.imagemUrl && list[idx].imagemUrl) {
-          clean.imagemUrl = list[idx].imagemUrl;
-        }
-        clean = Object.assign({}, list[idx], clean, { id: task.id, atualizadoEm: Date.now() });
-        list[idx] = clean;
-      } else {
-        // Id informado antecipadamente (ex: upload de imagem) mas ainda
-        // sem registro na lista — trata como criação com esse id.
-        clean.id = task.id;
-        clean.criadoEm = Date.now();
-        clean.atualizadoEm = Date.now();
-        list.push(clean);
-      }
-    } else {
-      clean.id = uid();
-      clean.criadoEm = Date.now();
-      clean.atualizadoEm = Date.now();
-      list.push(clean);
-    }
-    applyLocalAndPersist('tasks', list, clean);
-    return clean;
-  }
-
-  /* 7. Exclusão segura de Tarefas */
-  function deleteTask(id) {
-    var target = (cache.tasks || []).find(function (t) { return t.id === id; });
-    var imageUrl = target ? target.imagemUrl : null;
-
-    return deleteImageFromStorageByUrl(imageUrl).then(function () {
-      var newList = (cache.tasks || []).filter(function (t) { return t.id !== id; });
-      applyLocalAndRemove('tasks', newList, id);
-      return true;
+    return applyLocalAndPersist('tasks', list, clean).then(function () {
+      return clean;
     });
-  }
-
-  /* --- CRUD Eventos (Garantido Sem Dependência de Imagens) --- */
-  function getEvents() { return cache.events || []; }
-  function saveEvent(evt) {
-    var list = (cache.events || []).slice();
-    var clean = {
-      titulo: String(evt.titulo || '').trim(),
-      descricao: String(evt.descricao || ''),
-      data: evt.data || ''
-    };
-    if (evt.id) {
-      var idx = list.findIndex(function (e) { return e.id === evt.id; });
-      if (idx !== -1) {
-        clean = Object.assign({}, list[idx], clean, { id: evt.id, atualizadoEm: Date.now() });
-        list[idx] = clean;
-      } else {
-        clean.id = evt.id;
-        clean.criadoEm = Date.now();
-        clean.atualizadoEm = Date.now();
-        list.push(clean);
-      }
-    } else {
-      clean.id = uid();
-      clean.criadoEm = Date.now();
-      clean.atualizadoEm = Date.now();
-      list.push(clean);
-    }
-    applyLocalAndPersist('events', list, clean);
-    return clean;
-  }
-
-  function deleteEvent(id) {
-    var newList = (cache.events || []).filter(function (e) { return e.id !== id; });
-    applyLocalAndRemove('events', newList, id);
-    return true;
-  }
-
-  /* --- CRUD Avisos --- */
-  function getNotices() { return cache.notices || []; }
-  function saveNotice(notice) {
-    var list = (cache.notices || []).slice();
-    var prioridade = NOTICE_PRIORITIES.indexOf(notice.prioridade) !== -1 ? notice.prioridade : 'Normal';
-    var clean = {
-      titulo: String(notice.titulo || '').trim(),
-      descricao: String(notice.descricao || '').trim(),
-      data: notice.data || '',
-      prioridade: prioridade
-    };
-    if (notice.id) {
-      var idx = list.findIndex(function (n) { return n.id === notice.id; });
-      if (idx !== -1) {
-        clean = Object.assign({}, list[idx], clean, { id: notice.id, atualizadoEm: Date.now() });
-        list[idx] = clean;
-      } else {
-        clean.id = notice.id;
-        clean.criadoEm = Date.now();
-        clean.atualizadoEm = Date.now();
-        list.push(clean);
-      }
-    } else {
-      clean.id = uid();
-      clean.criadoEm = Date.now();
-      clean.atualizadoEm = Date.now();
-      list.push(clean);
-    }
-    applyLocalAndPersist('notices', list, clean);
-    return clean;
-  }
-
-  function deleteNotice(id) {
-    var newList = (cache.notices || []).filter(function (n) { return n.id !== id; });
-    applyLocalAndRemove('notices', newList, id);
-    return true;
   }
 
   function onDataChange(callback) { changeCallbacks.push(callback); }
