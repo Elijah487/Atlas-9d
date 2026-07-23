@@ -419,19 +419,51 @@
     if (window.AtlasData) {
       AtlasData.requireSession('index.html');
       
-      // Ativa classe no body para exibir recursos dev
-      if (AtlasData.isDevMode && AtlasData.isDevMode()) {
+      if (typeof AtlasData.isDev === 'function' && AtlasData.isDev()) {
         document.body.classList.add('dev-mode-on');
       }
 
-      // Escutar tarefas em tempo real para o Dashboard
-      if (typeof AtlasData.listenTarefas === 'function') {
-        AtlasData.listenTarefas(renderDashboardTasks);
+      function atualizarDashboard() {
+        if (typeof AtlasData.getTasks === 'function') {
+          renderDashboardTasks(AtlasData.getTasks());
+        }
       }
+
+      if (typeof AtlasData.onDataChange === 'function') {
+        AtlasData.onDataChange(atualizarDashboard);
+      }
+      
+      atualizarDashboard();
     }
   });
 
-  // Função para renderizar dinamicamente as tarefas mais recentes do Firebase
+  // Converte o nome da matéria para o padrão da URL (slug)
+  function getMateriaSlug(materia) {
+    if (!materia) return 'geral';
+    var slug = materia.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .trim();
+    if (slug.indexOf('o.e') === 0) {
+      return slug.replace(/\s+/g, '-');
+    }
+    return slug.replace(/\s+/g, '-');
+  }
+
+  // Gera o link exato da tarefa
+  function getTaskUrl(task) {
+    if (!task) return 'tarefas.html';
+    var taskId = task.id || '';
+    var materiaSlug = getMateriaSlug(task.materia);
+
+    // Redireciona para a matéria com o ID da tarefa na URL
+    return 'materia.html?materia=' + encodeURIComponent(materiaSlug) + '&id=' + encodeURIComponent(taskId);
+
+    // NOTA: Se no seu projeto a página de tarefa for "tarefa.html?id=...", 
+    // basta trocar a linha acima por:
+    // return 'tarefa.html?id=' + encodeURIComponent(taskId);
+  }
+
+  // Função para renderizar dinamicamente as tarefas no dashboard
   function renderDashboardTasks(tarefas) {
     var taskListContainer = document.getElementById('dashboardTaskList');
     var statTarefasPendentes = document.getElementById('statTarefasPendentes');
@@ -446,12 +478,11 @@
       return;
     }
 
-    // Ordenar pelas mais recentes (por data/timestamp de criação)
+    // Ordenar pelas mais recentes
     tarefas.sort(function(a, b) {
       return (b.criadoEm || 0) - (a.criadoEm || 0);
     });
 
-    // Pegar apenas as 5 mais recentes
     var recentTasks = tarefas.slice(0, 5);
     var html = '';
 
@@ -459,6 +490,7 @@
       var materia = t.materia || 'Geral';
       var titulo = t.titulo || 'Sem título';
       var dataEntrega = '—';
+      var targetUrl = getTaskUrl(t);
 
       if (t.dataEntrega) {
         var parts = t.dataEntrega.split('-');
@@ -469,7 +501,7 @@
         }
       }
 
-      html += '<div class="list-row" onclick="window.location.href=\'tarefas.html\'">' +
+      html += '<div class="list-row" onclick="window.location.href=\'' + targetUrl + '\'">' +
                 '<span class="task-dot"></span>' +
                 '<span class="task-subject">' + escapeHtml(materia) + '</span>' +
                 '<span class="task-name">' + escapeHtml(titulo) + '</span>' +
