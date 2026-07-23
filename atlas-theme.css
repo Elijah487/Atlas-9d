@@ -1163,6 +1163,25 @@ button i,
 button span {
   pointer-events: none;
 }
+/* FIX DEFINITIVO DE LAYOUT E RESPONSIVIDADE */
+main {
+  margin-left: 0 !important;
+  padding: 84px 28px 48px !important;
+  overflow-x: hidden !important;
+}
+
+.folders-grid {
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; 
+  gap: 16px !important; 
+  margin-top: 32px !important;
+}
+
+.notes-grid, .tasks-grid { 
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; 
+  gap: 14px !important; 
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
