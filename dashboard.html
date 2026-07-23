@@ -878,13 +878,75 @@
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function renderDashboard() {
-      var tasks = AtlasData.getTasks().slice().sort(function (a, b) {
-        return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
+    /* =====================================================================
+   ATLAS — Módulo do Dashboard (Navegação & Cliques Corrigidos)
+   ===================================================================== */
+
+function renderDashboard() {
+  // 1. Atualiza os contadores dos Cards
+  var totalMaterias = AtlasData.SUBJECTS ? AtlasData.SUBJECTS.length : 0;
+  var tarefas = AtlasData.getTasks() || [];
+  var pendentes = tarefas.length;
+
+  var elMatCount = document.getElementById('dashMateriasCount');
+  var elTaskCount = document.getElementById('dashTarefasCount');
+
+  if (elMatCount) elMatCount.textContent = totalMaterias;
+  if (elTaskCount) elTaskCount.textContent = pendentes;
+
+  // 2. Torna os Cards Clicáveis (Circulado em Roxo)
+  var cardMaterias = document.querySelector('.card-dash-materias') || document.getElementById('cardDashMaterias');
+  if (cardMaterias) {
+    cardMaterias.style.cursor = 'pointer';
+    cardMaterias.onclick = function () {
+      navegarPara('materias'); // Troca para a tela de matérias
+    };
+  }
+
+  var cardTarefas = document.querySelector('.card-dash-tarefas') || document.getElementById('cardDashTarefas');
+  if (cardTarefas) {
+    cardTarefas.style.cursor = 'pointer';
+    cardTarefas.onclick = function () {
+      navegarPara('tarefas'); // Troca para a tela de tarefas
+    };
+  }
+
+  // 3. Renderiza a Lista de Tarefas Recentes (Circulado em Vermelho)
+  var listaTarefasContainer = document.getElementById('dashTarefasLista');
+  if (listaTarefasContainer) {
+    if (tarefas.length === 0) {
+      listaTarefasContainer.innerHTML = '<p class="empty-msg">Nenhuma tarefa pendente.</p>';
+    } else {
+      // Pega as últimas 5 tarefas
+      var ultimasTarefas = tarefas.slice(-5).reverse();
+
+      listaTarefasContainer.innerHTML = ultimasTarefas.map(function (t) {
+        var dataFormatada = t.dataEntrega ? t.dataEntrega.split('-').reverse().join('/') : '--/--';
+        return `
+          <div class="dash-task-item" data-id="${t.id}" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="color: #e50914; font-weight: bold; font-size: 0.85rem;">• ${t.materia}</span>
+              <span style="color: #fff; font-size: 0.95rem;">${t.titulo}</span>
+            </div>
+            <span style="color: #888; font-size: 0.85rem;">${dataFormatada}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Adiciona o evento de clique em CADA tarefa da lista
+      var itens = listaTarefasContainer.querySelectorAll('.dash-task-item');
+      itens.forEach(function (item) {
+        item.addEventListener('click', function () {
+          var idTarefa = item.getAttribute('data-id');
+          navegarPara('tarefas'); // Vai para a tela de tarefas
+          if (typeof abrirModalTarefa === 'function') {
+            abrirModalTarefa(idTarefa); // Abre a tarefa específica se você tiver essa função
+          }
+        });
       });
-      var events = AtlasData.getEvents().slice().sort(function (a, b) {
-        return (a.data || '').localeCompare(b.data || '');
-      });
+    }
+  }
+}
 
       // Contador de tarefas pendentes
       var statTarefas = document.getElementById('statTarefasPendentes');
