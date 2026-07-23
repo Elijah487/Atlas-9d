@@ -46,7 +46,6 @@
   ::selection { background: var(--blue); color: #fff; }
   :focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 2px; }
 
-  /* Simple, cheap transitions only — no heavy easing curves, no blur, no transforms on scroll */
   .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
 
   /* ============ APP SHELL ============ */
@@ -87,33 +86,12 @@
   }
   .brand-word { font-size: 16px; font-weight: 600; }
 
-  .search-wrap {
-    flex: 1;
-    max-width: 420px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 8px 12px;
-  }
-  .search-wrap svg { width: 16px; height: 16px; color: var(--ink-faint); flex-shrink: 0; }
-  .search-wrap input {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--ink);
-    font-size: 14px;
-    outline: none;
-  }
-  .search-wrap input::placeholder { color: var(--ink-faint); }
-
   .header-right {
     display: flex;
     align-items: center;
     gap: 14px;
     flex-shrink: 0;
+    margin-left: auto;
   }
   .class-badge {
     display: flex;
@@ -210,6 +188,13 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 16px 18px;
+    display: block;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+  .stat:hover {
+    border-color: var(--blue-bright);
+    background: var(--surface-2);
   }
   .stat-label { font-size: 12.5px; color: var(--ink-faint); }
   .stat-value { font-size: 26px; font-weight: 700; margin-top: 6px; }
@@ -223,6 +208,8 @@
     gap: 12px;
     padding: 13px 16px;
     border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    transition: background-color 0.15s;
   }
   .list-row:last-child { border-bottom: none; }
   .list-row:hover { background: var(--surface-2); }
@@ -260,7 +247,7 @@
   .subject-icon svg { width: 16px; height: 16px; }
   .subject-name { font-size: 14px; font-weight: 600; }
 
-  /* ===== Apostilas — atalho para o Drive (sem listas fictícias) ===== */
+  /* ===== Apostilas — atalho para o Drive ===== */
   .stat-link { color: var(--blue-bright); font-weight: 600; }
   .stat-link:hover { text-decoration: underline; }
 
@@ -378,20 +365,6 @@
     padding: 10px 0;
   }
 
-  .icon-btn-mini {
-    width: 22px; height: 22px;
-    border-radius: 5px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink-faint);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .icon-btn-mini:hover { color: var(--blue-bright); border-color: var(--blue-dim); }
-  .icon-btn-mini.danger:hover { color: #ff7a7a; border-color: #5c2222; }
-  .icon-btn-mini svg { width: 11px; height: 11px; }
-
   .activity-item {
     display: flex;
     gap: 10px;
@@ -405,7 +378,7 @@
   .activity-item span strong { color: var(--ink); font-weight: 600; }
   .activity-time { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
 
-  /* ============ MODAIS (aviso) ============ */
+  /* ============ MODAIS ============ */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -489,7 +462,7 @@
   .btn-danger:hover { background: #732a2a; }
   .confirm-text { font-size: 14px; color: var(--ink-dim); line-height: 1.5; }
 
-  /* ============ MOBILE TOPBAR TOGGLE ============ */
+  /* ============ MOBILE ============ */
   .menu-btn {
     display: none;
     width: 36px; height: 36px;
@@ -502,7 +475,6 @@
   }
   .menu-btn svg { width: 17px; height: 17px; }
 
-  /* ============ RESPONSIVE ============ */
   @media (max-width: 1180px) {
     .app { grid-template-columns: 220px 1fr; grid-template-areas: "header header" "sidebar main"; }
     aside { display: none; }
@@ -525,7 +497,6 @@
     }
     .sidebar.open { transform: translateX(0); }
     .menu-btn { display: flex; }
-    .search-wrap { display: none; }
     main { padding: 18px; }
     .stats-grid { grid-template-columns: 1fr 1fr; }
     .subjects-grid { grid-template-columns: 1fr 1fr; }
@@ -540,29 +511,20 @@
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
-<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="atlas-theme.css">
 </head>
 <body>
 
-<!-- Camada central de dados e sessão, carregada como módulo ES (mais leve
-     que o SDK Firebase "compat" usado antes). Como módulos são assíncronos,
-     o script abaixo espera o evento 'atlas-data-ready' antes de usar
-     window.AtlasData. -->
 <script type="module" src="atlas-data.js"></script>
 <script>
   document.addEventListener('atlas-data-ready', function () {
-    // Exige sessão ativa (aluno ou desenvolvedor); sem ela, volta para a página inicial.
     if (window.AtlasData) { AtlasData.requireSession('index.html'); }
   });
 </script>
 
 <div class="app">
 
-  <!-- ============ HEADER ============ -->
   <header>
     <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -571,11 +533,6 @@
     <div class="brand">
       <div class="brand-mark">A</div>
       <span class="brand-word">Atlas</span>
-    </div>
-
-    <div class="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" placeholder="Pesquisar matérias, tarefas, apostilas...">
     </div>
 
     <div class="header-right">
@@ -591,7 +548,6 @@
     </div>
   </header>
 
-  <!-- ============ SIDEBAR ============ -->
   <nav class="sidebar" id="sidebar">
     <a class="nav-item active fast" href="dashboard.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
@@ -617,53 +573,50 @@
     <div class="sidebar-divider"></div>
   </nav>
 
-  <!-- ============ MAIN ============ -->
   <main>
     <h1 class="page-title">ATLAS — Centro de Estudos do 9º D</h1>
     <p class="page-sub">Resumo geral da turma e dos conteúdos disponíveis.</p>
 
-    <!-- Indicadores -->
     <section>
       <div class="stats-grid">
-        <div class="stat">
+        <a class="stat" href="materias.html">
           <div class="stat-label">Matérias</div>
-          <div class="stat-value">8</div>
-        </div>
-        <div class="stat">
+          <div class="stat-value">10</div>
+        </a>
+        <a class="stat" href="tarefas.html">
           <div class="stat-label">Tarefas pendentes</div>
-          <div class="stat-value accent" id="statTarefasPendentes">0</div>
-        </div>
-        <div class="stat">
+          <div class="stat-value accent" id="statTarefasPendentes">3</div>
+        </a>
+        <a class="stat" href="apostilas.html">
           <div class="stat-label">Apostilas</div>
-          <div class="stat-value" style="font-size:16px;"><a class="stat-link" href="apostilas.html">Abrir no Drive →</a></div>
-        </div>
-        <div class="stat">
+          <div class="stat-value" style="font-size:16px;"><span class="stat-link">Abrir no Drive →</span></div>
+        </a>
+        <a class="stat" href="calendario.html">
           <div class="stat-label">Próximo evento</div>
           <div class="stat-value" id="statProximoEvento" style="font-size:19px;">—</div>
-        </div>
+        </a>
       </div>
     </section>
 
-    <!-- Tarefas -->
     <section id="tarefas">
       <div class="section-head">
         <h2>Tarefas</h2>
         <a class="link" href="tarefas.html">Ver todas</a>
       </div>
       <div class="list" id="dashboardTaskList">
-        <div class="list-row">
+        <div class="list-row" onclick="window.location.href='tarefas.html'">
           <span class="task-dot"></span>
           <span class="task-subject">Matemática</span>
           <span class="task-name">Lista 5</span>
           <span class="task-date">22/06</span>
         </div>
-        <div class="list-row">
+        <div class="list-row" onclick="window.location.href='tarefas.html'">
           <span class="task-dot"></span>
           <span class="task-subject">Português</span>
           <span class="task-name">Redação</span>
           <span class="task-date">25/06</span>
         </div>
-        <div class="list-row">
+        <div class="list-row" onclick="window.location.href='tarefas.html'">
           <span class="task-dot"></span>
           <span class="task-subject">Geografia</span>
           <span class="task-name">Trabalho</span>
@@ -672,7 +625,6 @@
       </div>
     </section>
 
-    <!-- Matérias -->
     <section id="materias">
       <div class="section-head">
         <h2>Matérias</h2>
@@ -722,7 +674,6 @@
       </div>
     </section>
 
-    <!-- Apostilas -->
     <section id="apostilas">
       <div class="section-head">
         <h2>Apostilas (PDF)</h2>
@@ -740,7 +691,6 @@
     </section>
   </main>
 
-  <!-- ============ ASIDE ============ -->
   <aside>
     <div class="aside-block">
       <div class="aside-block-head">
@@ -767,361 +717,41 @@
           <span class="activity-time">Ontem, 17:10</span>
         </span>
       </div>
-      <div class="activity-item">
-        <span class="activity-bullet"></span>
-        <span>
-          <strong>Apostila</strong> de Matemática atualizada
-          <span class="activity-time">Ontem, 14:05</span>
-        </span>
-      </div>
     </div>
   </aside>
-
-  <!-- ============ MODAL: Aviso (criar/editar) ============ -->
-  <div class="modal-overlay" id="noticeModalOverlay">
-    <div class="modal-card">
-      <button class="modal-close" id="noticeModalClose" type="button" aria-label="Fechar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <h3 id="noticeModalTitle">Novo aviso</h3>
-
-      <form id="noticeForm">
-        <input type="hidden" id="noticeId">
-
-        <label class="field-label" for="noticeTitulo">Título</label>
-        <input type="text" id="noticeTitulo" class="field-input" placeholder="Ex: Prova de História" required>
-
-        <label class="field-label" for="noticeDescricao">Descrição</label>
-        <textarea id="noticeDescricao" class="field-input field-textarea" placeholder="Detalhes do aviso" required></textarea>
-
-        <div class="field-row">
-          <div>
-            <label class="field-label" for="noticeData">Data</label>
-            <input type="date" id="noticeData" class="field-input" required>
-          </div>
-          <div>
-            <label class="field-label" for="noticePrioridade">Prioridade</label>
-            <select id="noticePrioridade" class="field-input"></select>
-          </div>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="noticeCancelBtn">Cancelar</button>
-          <button type="submit" class="btn-primary">Salvar aviso</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ============ MODAL: Confirmar exclusão de aviso ============ -->
-  <div class="modal-overlay" id="confirmDeleteNoticeOverlay">
-    <div class="modal-card modal-card-small">
-      <h3>Excluir aviso</h3>
-      <p class="confirm-text">Tem certeza que deseja excluir este aviso? Esta ação não pode ser desfeita.</p>
-      <div class="modal-actions">
-        <button type="button" class="btn-secondary" id="confirmDeleteNoticeCancel">Cancelar</button>
-        <button type="button" class="btn-danger" id="confirmDeleteNoticeConfirm">Excluir</button>
-      </div>
-    </div>
-  </div>
 
 </div>
 
 <script>
-  // Mobile sidebar toggle — minimal JS, no animation libraries
-  var menuBtn = document.getElementById('menuBtn');
-  var logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
-      } else {
-        window.location.href = 'index.html';
-      }
-    });
-  }
-  var sidebar = document.getElementById('sidebar');
-  if (menuBtn) {
-    menuBtn.addEventListener('click', function () {
-      sidebar.classList.toggle('open');
-    });
-  }
-  document.addEventListener('click', function (e) {
-    if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
-      sidebar.classList.remove('open');
-    }
-  });
+  // Script Geral de Interatividade
+  document.addEventListener('DOMContentLoaded', function () {
+    var menuBtn = document.getElementById('menuBtn');
+    var logoutBtn = document.getElementById('logoutBtn');
+    var sidebar = document.getElementById('sidebar');
 
-  /* =====================================================
-     Dados dinâmicos do Dashboard (lidos de AtlasData)
-     - Lista de tarefas (mostra as 3 mais próximas da entrega)
-     - Contador "Tarefas pendentes"
-     - "Próximo evento" vindo do calendário
-     Tudo isso reflete automaticamente o que o Modo Desenvolvedor
-     cria/edita/exclui, pois lê sempre do banco de dados compartilhado.
-     Como atlas-data.js agora é um módulo ES (assíncrono), esperamos o
-     evento 'atlas-data-ready' antes de usar qualquer função de AtlasData.
-  ===================================================== */
-  document.addEventListener('atlas-data-ready', function () {
-    if (!window.AtlasData) return;
-
-    function formatDateBR(isoDate) {
-      if (!isoDate) return '';
-      var parts = isoDate.split('-'); // yyyy-mm-dd
-      if (parts.length !== 3) return isoDate;
-      return parts[2] + '/' + parts[1];
-    }
-
-    function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    /* =====================================================================
-   ATLAS — Módulo do Dashboard (Navegação & Cliques Corrigidos)
-   ===================================================================== */
-
-function renderDashboard() {
-  // 1. Atualiza os contadores dos Cards
-  var totalMaterias = AtlasData.SUBJECTS ? AtlasData.SUBJECTS.length : 0;
-  var tarefas = AtlasData.getTasks() || [];
-  var pendentes = tarefas.length;
-
-  var elMatCount = document.getElementById('dashMateriasCount');
-  var elTaskCount = document.getElementById('dashTarefasCount');
-
-  if (elMatCount) elMatCount.textContent = totalMaterias;
-  if (elTaskCount) elTaskCount.textContent = pendentes;
-
-  // 2. Torna os Cards Clicáveis (Circulado em Roxo)
-  var cardMaterias = document.querySelector('.card-dash-materias') || document.getElementById('cardDashMaterias');
-  if (cardMaterias) {
-    cardMaterias.style.cursor = 'pointer';
-    cardMaterias.onclick = function () {
-      navegarPara('materias'); // Troca para a tela de matérias
-    };
-  }
-
-  var cardTarefas = document.querySelector('.card-dash-tarefas') || document.getElementById('cardDashTarefas');
-  if (cardTarefas) {
-    cardTarefas.style.cursor = 'pointer';
-    cardTarefas.onclick = function () {
-      navegarPara('tarefas'); // Troca para a tela de tarefas
-    };
-  }
-
-  // 3. Renderiza a Lista de Tarefas Recentes (Circulado em Vermelho)
-  var listaTarefasContainer = document.getElementById('dashTarefasLista');
-  if (listaTarefasContainer) {
-    if (tarefas.length === 0) {
-      listaTarefasContainer.innerHTML = '<p class="empty-msg">Nenhuma tarefa pendente.</p>';
-    } else {
-      // Pega as últimas 5 tarefas
-      var ultimasTarefas = tarefas.slice(-5).reverse();
-
-      listaTarefasContainer.innerHTML = ultimasTarefas.map(function (t) {
-        var dataFormatada = t.dataEntrega ? t.dataEntrega.split('-').reverse().join('/') : '--/--';
-        return `
-          <div class="dash-task-item" data-id="${t.id}" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="color: #e50914; font-weight: bold; font-size: 0.85rem;">• ${t.materia}</span>
-              <span style="color: #fff; font-size: 0.95rem;">${t.titulo}</span>
-            </div>
-            <span style="color: #888; font-size: 0.85rem;">${dataFormatada}</span>
-          </div>
-        `;
-      }).join('');
-
-      // Adiciona o evento de clique em CADA tarefa da lista
-      var itens = listaTarefasContainer.querySelectorAll('.dash-task-item');
-      itens.forEach(function (item) {
-        item.addEventListener('click', function () {
-          var idTarefa = item.getAttribute('data-id');
-          navegarPara('tarefas'); // Vai para a tela de tarefas
-          if (typeof abrirModalTarefa === 'function') {
-            abrirModalTarefa(idTarefa); // Abre a tarefa específica se você tiver essa função
-          }
-        });
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', function () {
+        if (window.AtlasData && typeof AtlasData.logout === 'function') {
+          AtlasData.logout();
+        } else {
+          window.location.href = 'index.html';
+        }
       });
     }
-  }
-}
 
-      // Contador de tarefas pendentes
-      var statTarefas = document.getElementById('statTarefasPendentes');
-      if (statTarefas) statTarefas.textContent = tasks.length;
-
-      // Próximo evento do calendário (a partir de hoje, se possível; senão o primeiro da lista)
-      var statEvento = document.getElementById('statProximoEvento');
-      if (statEvento) {
-        var todayISO = new Date().toISOString().slice(0, 10);
-        var upcoming = events.filter(function (e) { return e.data >= todayISO; });
-        var next = upcoming.length ? upcoming[0] : events[0];
-        statEvento.textContent = next ? next.titulo : '—';
-      }
-
-      // Lista de tarefas (somente quando há dados cadastrados; senão mantém o exemplo estático)
-      var list = document.getElementById('dashboardTaskList');
-      if (list && tasks.length > 0) {
-        var html = tasks.slice(0, 6).map(function (t) {
-          return '<div class="list-row">' +
-            '<span class="task-dot"></span>' +
-            '<span class="task-subject">' + escapeHtml(t.materia) + '</span>' +
-            '<span class="task-name">' + escapeHtml(t.titulo) + '</span>' +
-            '<span class="task-date">' + escapeHtml(formatDateBR(t.dataEntrega)) + '</span>' +
-            '</div>';
-        }).join('');
-        list.innerHTML = html;
-      }
-    }
-
-    renderDashboard();
-    // Mantém o dashboard atualizado se o Modo Desenvolvedor alterar dados em outra aba/página
-    AtlasData.onDataChange(renderDashboard);
-
-    // Banner fixo "Modo Desenvolvedor ativo"
-    AtlasData.injectDevBanner();
-    if (AtlasData.isDev()) document.body.classList.add('dev-mode-on');
-
-    /* =================================================
-       AVISOS DA TURMA — listagem + CRUD (modo dev)
-    ================================================= */
-    var noticesList = document.getElementById('noticesList');
-    var noticesEmpty = document.getElementById('noticesEmpty');
-
-    function priorityRank(p) {
-      return p === 'Urgente' ? 0 : p === 'Importante' ? 1 : 2;
-    }
-
-    function formatDateBRFull(isoDate) {
-      if (!isoDate) return '';
-      var parts = isoDate.split('-');
-      if (parts.length !== 3) return isoDate;
-      return parts[2] + '/' + parts[1] + '/' + parts[0];
-    }
-
-    function renderNotices() {
-      var notices = AtlasData.getNotices().slice().sort(function (a, b) {
-        var rankDiff = priorityRank(a.prioridade) - priorityRank(b.prioridade);
-        if (rankDiff !== 0) return rankDiff;
-        return (a.data || '').localeCompare(b.data || '');
+    if (menuBtn && sidebar) {
+      menuBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        sidebar.classList.toggle('open');
       });
 
-      noticesEmpty.style.display = notices.length ? 'none' : 'block';
-
-      noticesList.innerHTML = notices.map(function (n) {
-        var priorityClass = 'priority-' + (n.prioridade || 'Normal').toLowerCase();
-        return (
-          '<div class="notice ' + priorityClass + '">' +
-            '<div class="notice-head">' +
-              '<strong>' + escapeHtml(n.titulo) + '</strong>' +
-              '<span class="priority-badge">' + escapeHtml(n.prioridade) + '</span>' +
-            '</div>' +
-            '<div class="notice-desc">' + escapeHtml(n.descricao) + '</div>' +
-            '<div class="notice-foot">' +
-              '<span class="notice-date">' + escapeHtml(formatDateBRFull(n.data)) + '</span>' +
-              '<div class="notice-actions">' +
-                '<button type="button" class="icon-btn-mini" data-action="edit-notice" data-id="' + n.id + '" aria-label="Editar">' +
-                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
-                '</button>' +
-                '<button type="button" class="icon-btn-mini danger" data-action="delete-notice" data-id="' + n.id + '" aria-label="Excluir">' +
-                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
-                '</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>'
-        );
-      }).join('');
-    }
-
-    noticesList.addEventListener('click', function (e) {
-      var editBtn = e.target.closest('[data-action="edit-notice"]');
-      var delBtn = e.target.closest('[data-action="delete-notice"]');
-      if (editBtn) { openNoticeModal(editBtn.dataset.id); return; }
-      if (delBtn) { askDeleteNotice(delBtn.dataset.id); return; }
-    });
-
-    /* ----- Modal: criar/editar aviso ----- */
-    var noticeOverlay = document.getElementById('noticeModalOverlay');
-    var noticeModalTitle = document.getElementById('noticeModalTitle');
-    var noticeForm = document.getElementById('noticeForm');
-    var noticeIdInput = document.getElementById('noticeId');
-    var noticeTituloInput = document.getElementById('noticeTitulo');
-    var noticeDescricaoInput = document.getElementById('noticeDescricao');
-    var noticeDataInput = document.getElementById('noticeData');
-    var noticePrioridadeSelect = document.getElementById('noticePrioridade');
-
-    function fillPrioritySelect(selected) {
-      noticePrioridadeSelect.innerHTML = AtlasData.NOTICE_PRIORITIES.map(function (p) {
-        var sel = p === selected ? ' selected' : '';
-        return '<option value="' + p + '"' + sel + '>' + p + '</option>';
-      }).join('');
-    }
-
-    function openNoticeModal(id) {
-      var notice = id ? AtlasData.getNotices().find(function (n) { return n.id === id; }) : null;
-      noticeModalTitle.textContent = notice ? 'Editar aviso' : 'Novo aviso';
-      noticeIdInput.value = notice ? notice.id : '';
-      noticeTituloInput.value = notice ? notice.titulo : '';
-      noticeDescricaoInput.value = notice ? notice.descricao : '';
-      noticeDataInput.value = notice ? notice.data : '';
-      fillPrioritySelect(notice ? notice.prioridade : 'Normal');
-      noticeOverlay.classList.add('open');
-      setTimeout(function () { noticeTituloInput.focus(); }, 100);
-    }
-
-    function closeNoticeModal() {
-      noticeOverlay.classList.remove('open');
-      noticeForm.reset();
-    }
-
-    var addNoticeBtn = document.getElementById('addNoticeBtn');
-    if (addNoticeBtn) addNoticeBtn.addEventListener('click', function () { openNoticeModal(null); });
-    document.getElementById('noticeModalClose').addEventListener('click', closeNoticeModal);
-    document.getElementById('noticeCancelBtn').addEventListener('click', closeNoticeModal);
-    noticeOverlay.addEventListener('click', function (e) { if (e.target === noticeOverlay) closeNoticeModal(); });
-
-    noticeForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      AtlasData.saveNotice({
-        id: noticeIdInput.value || null,
-        titulo: noticeTituloInput.value.trim(),
-        descricao: noticeDescricaoInput.value.trim(),
-        data: noticeDataInput.value,
-        prioridade: noticePrioridadeSelect.value
+      document.addEventListener('click', function (e) {
+        if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn) {
+          sidebar.classList.remove('open');
+        }
       });
-      closeNoticeModal();
-      renderNotices();
-    });
-
-    /* ----- Confirmação de exclusão de aviso ----- */
-    var confirmNoticeOverlay = document.getElementById('confirmDeleteNoticeOverlay');
-    var pendingNoticeId = null;
-
-    function askDeleteNotice(id) {
-      pendingNoticeId = id;
-      confirmNoticeOverlay.classList.add('open');
     }
-    document.getElementById('confirmDeleteNoticeCancel').addEventListener('click', function () {
-      pendingNoticeId = null;
-      confirmNoticeOverlay.classList.remove('open');
-    });
-    confirmNoticeOverlay.addEventListener('click', function (e) {
-      if (e.target === confirmNoticeOverlay) { pendingNoticeId = null; confirmNoticeOverlay.classList.remove('open'); }
-    });
-    document.getElementById('confirmDeleteNoticeConfirm').addEventListener('click', function () {
-      if (!pendingNoticeId) return;
-      AtlasData.deleteNotice(pendingNoticeId);
-      pendingNoticeId = null;
-      confirmNoticeOverlay.classList.remove('open');
-      renderNotices();
-    });
-
-    renderNotices();
-    AtlasData.onDataChange(renderNotices);
   });
 </script>
-
 </body>
 </html>
