@@ -419,19 +419,29 @@
     if (window.AtlasData) {
       AtlasData.requireSession('index.html');
       
-      // Ativa classe no body para exibir recursos dev
-      if (AtlasData.isDevMode && AtlasData.isDevMode()) {
+      // Ativa classe no body para exibir recursos dev usando a função correta
+      if (typeof AtlasData.isDev === 'function' && AtlasData.isDev()) {
         document.body.classList.add('dev-mode-on');
       }
 
-      // Escutar tarefas em tempo real para o Dashboard
-      if (typeof AtlasData.listenTarefas === 'function') {
-        AtlasData.listenTarefas(renderDashboardTasks);
+      // Função que puxa os dados do atlas-data.js e renderiza as tarefas
+      function atualizarDashboard() {
+        if (typeof AtlasData.getTasks === 'function') {
+          renderDashboardTasks(AtlasData.getTasks());
+        }
       }
+
+      // Escuta mudanças nos dados do Firebase
+      if (typeof AtlasData.onDataChange === 'function') {
+        AtlasData.onDataChange(atualizarDashboard);
+      }
+      
+      // Chamada inicial para preencher a tela logo que carregar
+      atualizarDashboard();
     }
   });
 
-  // Função para renderizar dinamicamente as tarefas mais recentes do Firebase
+  // Função para renderizar dinamicamente as tarefas
   function renderDashboardTasks(tarefas) {
     var taskListContainer = document.getElementById('dashboardTaskList');
     var statTarefasPendentes = document.getElementById('statTarefasPendentes');
@@ -446,7 +456,7 @@
       return;
     }
 
-    // Ordenar pelas mais recentes (por data/timestamp de criação)
+    // Ordenar pelas mais recentes
     tarefas.sort(function(a, b) {
       return (b.criadoEm || 0) - (a.criadoEm || 0);
     });
