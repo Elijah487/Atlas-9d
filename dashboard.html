@@ -48,6 +48,30 @@
 
   .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
 
+  /* ============ FAIXA MODO DEV ============ */
+  .dev-banner {
+    display: none;
+    background: #7f1d1d;
+    color: #fca5a5;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px 16px;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .dev-banner button {
+    background: rgba(0,0,0,0.25);
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .dev-banner button:hover { background: rgba(0,0,0,0.4); }
+  body.dev-mode-on .dev-banner { display: flex; }
+
   /* ============ APP SHELL ============ */
   .app {
     display: grid;
@@ -247,7 +271,7 @@
   .subject-icon svg { width: 16px; height: 16px; }
   .subject-name { font-size: 14px; font-weight: 600; }
 
-  /* ===== Apostilas — atalho para o Drive ===== */
+  /* ===== Apostilas ===== */
   .stat-link { color: var(--blue-bright); font-weight: 600; }
   .stat-link:hover { text-decoration: underline; }
 
@@ -311,54 +335,6 @@
   }
   .btn-add-small:hover { background: var(--blue); color: #fff; }
 
-  .notice {
-    position: relative;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--ink-faint);
-    border-radius: var(--radius-sm);
-    padding: 10px 12px;
-    font-size: 13px;
-    color: var(--ink-dim);
-    margin-bottom: 8px;
-  }
-  .notice:last-child { margin-bottom: 0; }
-  .notice-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 3px;
-  }
-  .notice strong { color: var(--ink); font-size: 13px; font-weight: 600; }
-  .notice-desc { line-height: 1.5; }
-  .notice-foot {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-top: 7px;
-  }
-  .notice-date { font-size: 11.5px; color: var(--ink-faint); }
-  .notice-actions { display: none; gap: 4px; }
-  body.dev-mode-on .notice-actions { display: flex; }
-
-  .priority-badge {
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: 2px 7px;
-    border-radius: 100px;
-    text-transform: uppercase;
-    flex-shrink: 0;
-  }
-  .notice.priority-normal { border-left-color: var(--ink-faint); }
-  .notice.priority-normal .priority-badge { background: var(--surface); color: var(--ink-faint); }
-  .notice.priority-importante { border-left-color: var(--orange); }
-  .notice.priority-importante .priority-badge { background: rgba(224,162,58,0.15); color: var(--orange); }
-  .notice.priority-urgente { border-left-color: #ff5c5c; }
-  .notice.priority-urgente .priority-badge { background: rgba(255,92,92,0.15); color: #ff7a7a; }
-
   .notice-empty {
     font-size: 12.5px;
     color: var(--ink-faint);
@@ -377,90 +353,6 @@
   .activity-bullet { width: 6px; height: 6px; border-radius: 50%; background: var(--blue-bright); margin-top: 5px; flex-shrink: 0; }
   .activity-item span strong { color: var(--ink); font-weight: 600; }
   .activity-time { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
-
-  /* ============ MODAIS ============ */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 400;
-    background: rgba(4,6,10,0.78);
-    backdrop-filter: blur(6px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.25s, visibility 0.25s;
-  }
-  .modal-overlay.open { opacity: 1; visibility: visible; }
-  .modal-card {
-    width: 100%;
-    max-width: 440px;
-    max-height: 88vh;
-    overflow-y: auto;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 26px 26px 22px;
-    position: relative;
-    box-shadow: 0 30px 70px -20px rgba(0,0,0,0.6);
-  }
-  .modal-card-small { max-width: 380px; }
-  .modal-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-  .modal-close {
-    position: absolute;
-    top: 14px; right: 14px;
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--ink-dim);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-close:hover { color: var(--ink); }
-  .modal-close svg { width: 14px; height: 14px; }
-  .field-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ink-faint);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin-bottom: 6px;
-    margin-top: 14px;
-  }
-  .field-label:first-of-type { margin-top: 0; }
-  .field-input {
-    width: 100%;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--ink);
-    font-size: 14px;
-    font-family: inherit;
-  }
-  .field-input:focus { outline: none; border-color: var(--blue-dim); }
-  .field-textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-  .btn-secondary, .btn-primary, .btn-danger {
-    padding: 9px 18px;
-    border-radius: var(--radius-sm);
-    font-size: 13.5px;
-    font-weight: 600;
-    border: 1px solid transparent;
-  }
-  .btn-secondary { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
-  .btn-secondary:hover { color: var(--ink); }
-  .btn-primary { background: var(--blue); color: #fff; }
-  .btn-primary:hover { background: var(--blue-bright); }
-  .btn-danger { background: #5c2222; color: #ffb4b4; }
-  .btn-danger:hover { background: #732a2a; }
-  .confirm-text { font-size: 14px; color: var(--ink-dim); line-height: 1.5; }
 
   /* ============ MOBILE ============ */
   .menu-btn {
@@ -516,11 +408,81 @@
 </head>
 <body>
 
+<div class="dev-banner" id="devBanner">
+  <span>MODO DESENVOLVEDOR ATIVO — ALTERAÇÕES FEITAS AQUI APARECEM PARA TODOS OS ALUNOS</span>
+  <button id="exitDevBtn" type="button">Sair do modo</button>
+</div>
+
 <script type="module" src="atlas-data.js"></script>
 <script>
   document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+    if (window.AtlasData) {
+      AtlasData.requireSession('index.html');
+      
+      // Ativa classe no body para exibir recursos dev
+      if (AtlasData.isDevMode && AtlasData.isDevMode()) {
+        document.body.classList.add('dev-mode-on');
+      }
+
+      // Escutar tarefas em tempo real para o Dashboard
+      if (typeof AtlasData.listenTarefas === 'function') {
+        AtlasData.listenTarefas(renderDashboardTasks);
+      }
+    }
   });
+
+  // Função para renderizar dinamicamente as tarefas mais recentes do Firebase
+  function renderDashboardTasks(tarefas) {
+    var taskListContainer = document.getElementById('dashboardTaskList');
+    var statTarefasPendentes = document.getElementById('statTarefasPendentes');
+    if (!taskListContainer) return;
+
+    if (statTarefasPendentes) {
+      statTarefasPendentes.textContent = tarefas ? tarefas.length : 0;
+    }
+
+    if (!tarefas || tarefas.length === 0) {
+      taskListContainer.innerHTML = '<div class="list-row"><span class="task-name" style="color:var(--ink-faint);">Nenhuma tarefa cadastrada.</span></div>';
+      return;
+    }
+
+    // Ordenar pelas mais recentes (por data/timestamp de criação)
+    tarefas.sort(function(a, b) {
+      return (b.criadoEm || 0) - (a.criadoEm || 0);
+    });
+
+    // Pegar apenas as 5 mais recentes
+    var recentTasks = tarefas.slice(0, 5);
+    var html = '';
+
+    recentTasks.forEach(function(t) {
+      var materia = t.materia || 'Geral';
+      var titulo = t.titulo || 'Sem título';
+      var dataEntrega = '—';
+
+      if (t.dataEntrega) {
+        var parts = t.dataEntrega.split('-');
+        if (parts.length === 3) {
+          dataEntrega = parts[2] + '/' + parts[1];
+        } else {
+          dataEntrega = t.dataEntrega;
+        }
+      }
+
+      html += '<div class="list-row" onclick="window.location.href=\'tarefas.html\'">' +
+                '<span class="task-dot"></span>' +
+                '<span class="task-subject">' + escapeHtml(materia) + '</span>' +
+                '<span class="task-name">' + escapeHtml(titulo) + '</span>' +
+                '<span class="task-date">' + escapeHtml(dataEntrega) + '</span>' +
+              '</div>';
+    });
+
+    taskListContainer.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 </script>
 
 <div class="app">
@@ -585,7 +547,7 @@
         </a>
         <a class="stat" href="tarefas.html">
           <div class="stat-label">Tarefas pendentes</div>
-          <div class="stat-value accent" id="statTarefasPendentes">3</div>
+          <div class="stat-value accent" id="statTarefasPendentes">0</div>
         </a>
         <a class="stat" href="apostilas.html">
           <div class="stat-label">Apostilas</div>
@@ -604,24 +566,7 @@
         <a class="link" href="tarefas.html">Ver todas</a>
       </div>
       <div class="list" id="dashboardTaskList">
-        <div class="list-row" onclick="window.location.href='tarefas.html'">
-          <span class="task-dot"></span>
-          <span class="task-subject">Matemática</span>
-          <span class="task-name">Lista 5</span>
-          <span class="task-date">22/06</span>
-        </div>
-        <div class="list-row" onclick="window.location.href='tarefas.html'">
-          <span class="task-dot"></span>
-          <span class="task-subject">Português</span>
-          <span class="task-name">Redação</span>
-          <span class="task-date">25/06</span>
-        </div>
-        <div class="list-row" onclick="window.location.href='tarefas.html'">
-          <span class="task-dot"></span>
-          <span class="task-subject">Geografia</span>
-          <span class="task-name">Trabalho</span>
-          <span class="task-date">27/06</span>
-        </div>
+        <div class="list-row"><span class="task-name" style="color:var(--ink-faint);">Carregando tarefas...</span></div>
       </div>
     </section>
 
@@ -723,14 +668,24 @@
 </div>
 
 <script>
-  // Script Geral de Interatividade
   document.addEventListener('DOMContentLoaded', function () {
     var menuBtn = document.getElementById('menuBtn');
     var logoutBtn = document.getElementById('logoutBtn');
+    var exitDevBtn = document.getElementById('exitDevBtn');
     var sidebar = document.getElementById('sidebar');
 
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
+        if (window.AtlasData && typeof AtlasData.logout === 'function') {
+          AtlasData.logout();
+        } else {
+          window.location.href = 'index.html';
+        }
+      });
+    }
+
+    if (exitDevBtn) {
+      exitDevBtn.addEventListener('click', function () {
         if (window.AtlasData && typeof AtlasData.logout === 'function') {
           AtlasData.logout();
         } else {
