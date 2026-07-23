@@ -48,7 +48,7 @@
 
   .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
 
-  /* FIX CRÍTICO DE CLIQUE: Força o clique no ícone ou SVG a passar direto para o botão */
+  /* FIX CRÍTICO DE CLIQUE */
   button *, 
   .icon-btn *, 
   [data-action] * { 
@@ -144,8 +144,7 @@
   /* ============ MAIN ============ */
   main {
     grid-area: main;
-    padding: 84px 28px 48px;
-    margin-left: 232px;
+    padding: 84px 28px 48px; /* Ajuste do padding-top devido ao header fixo */
     overflow-x: hidden;
   }
 
@@ -166,7 +165,10 @@
 
   /* ============ SISTEMA DE PASTAS ============ */
   .folders-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 32px;
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+    gap: 16px; 
+    margin-top: 32px;
   }
   .folder-card {
     background: var(--surface); border: 1px solid var(--line);
@@ -215,7 +217,11 @@
   .task-card-actions, .note-card-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
 
   /* ============ GRID & CARDS ============ */
-  .notes-grid, .tasks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .notes-grid, .tasks-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+    gap: 14px; 
+  }
 
   .note-card, .task-card {
     position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
@@ -254,16 +260,13 @@
   .menu-btn { display: none; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); align-items: center; justify-content: center; flex-shrink: 0; position: relative !important; z-index: 10001 !important; pointer-events: auto !important; }
   .menu-btn svg { width: 17px; height: 17px; }
 
-  @media (max-width: 1180px) {
-    .tasks-grid, .notes-grid { grid-template-columns: repeat(2, 1fr); }
-  }
   @media (max-width: 720px) {
     .app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
     .sidebar { transform: translateX(-100%); transition: transform 0.25s ease-in-out; }
     .sidebar.open { transform: translateX(0); z-index: 9999 !important; }
     .menu-btn { display: flex; }
     .search-wrap { display: none; }
-    main { margin-left: 0; padding: 84px 18px 48px; }
+    main { padding: 84px 18px 48px; }
     .tasks-grid, .notes-grid, .folders-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 460px) { .class-badge span:last-child { display: none; } }
