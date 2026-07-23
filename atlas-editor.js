@@ -1,6 +1,8 @@
 /* =====================================================================
    ATLAS — Editor de texto rico (WYSIWYG) - Suporte Local & IA
-   Upload de imagens via Firebase Storage (sem Base64 gigante no Realtime DB)
+   Upload de imagens via AtlasData.uploadImageToStorage (Firebase Storage,
+   SDK modular v10 — o mesmo usado no atlas-data.js). Nada de Base64
+   gigante indo pro Realtime Database.
    ===================================================================== */
 (function (global) {
   'use strict';
@@ -34,12 +36,10 @@
     var sel = global.getSelection();
     if (sel && sel.rangeCount > 0) {
       var range = sel.getRangeAt(0);
-      // Garante que a seleção pertence à área do editor
       if (area.contains(range.commonAncestorContainer)) {
         return range.cloneRange();
       }
     }
-    // Fallback: cursor no fim do conteúdo
     var fallback = document.createRange();
     fallback.selectNodeContents(area);
     fallback.collapse(false);
@@ -52,7 +52,6 @@
     sel.addRange(savedRange);
   }
 
-  /* Insere um nó (imagem ou placeholder) na posição de um Range salvo */
   function insertNodeAtRange(area, savedRange, node) {
     area.focus();
     try {
@@ -61,13 +60,11 @@
       var range = sel.getRangeAt(0);
       range.deleteContents();
       range.insertNode(node);
-      // move o cursor para depois do nó inserido
       range.setStartAfter(node);
       range.setEndAfter(node);
       sel.removeAllRanges();
       sel.addRange(range);
     } catch (err) {
-      // Se o range salvo não for mais válido (DOM mudou), insere no fim
       area.appendChild(node);
     }
   }
@@ -101,12 +98,12 @@
     }
   }
 
-  /* Placeholder visual enquanto o upload roda */
+  /* Placeholder visual enquanto o upload roda (com % de progresso) */
   function buildPlaceholderEl() {
     var span = document.createElement('span');
     span.className = 'atlas-editor-uploading';
     span.setAttribute('contenteditable', 'false');
-    span.textContent = '⏳ Enviando imagem...';
+    span.textContent = '⏳ Enviando imagem... 0%';
     span.style.display = 'inline-block';
     span.style.padding = '6px 10px';
     span.style.margin = '4px 0';
@@ -118,83 +115,44 @@
   }
 
   /* ---------------------------------------------------------------------
-     Upload para o Firebase Storage.
-     Requer que 'firebase' (compat SDK) já esteja inicializado na página,
-     com firebase.storage() disponível.
+     Espera o AtlasData (atlas-data.js, módulo Firebase v10) estar pronto.
+     atlas-data.js é carregado como <script type="module">, então pode
+     ainda não existir no momento em que o editor é criado.
      --------------------------------------------------------------------- */
-  function uploadToFirebaseStorage(file, options) {
-    options = options || {};
-    if (!global.firebase || !global.firebase.storage) {
-      return Promise.reject(new Error(
-        'Firebase Storage não está disponível. Verifique se o SDK do Firebase ' +
-        '(app + storage) foi carregado e inicializado antes do atlas-editor.js.'
-      ));
+  function whenAtlasDataReady(callback) {
+    if (global.AtlasData && typeof global.AtlasData.uploadImageToStorage === 'function') {
+      if (typeof global.AtlasData.onFirebaseReady === 'function') {
+        global.AtlasData.onFirebaseReady(callback);
+      } else {
+        callback();
+      }
+      return;
     }
-
-    var folder = options.folder || 'atlas-editor-images';
-    var safeName = (file.name || 'imagem')
-      .toLowerCase()
-      .replace(/[^a-z0-9.\-_]/g, '-');
-    var fileName = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
-    var path = folder + '/' + fileName;
-
-    var storageRef = global.firebase.storage().ref().child(path);
-    var uploadTask = storageRef.put(file);
-
-    return new Promise(function (resolve, reject) {
-      uploadTask.on(
-        'state_changed',
-        null,
-        function (error) {
-          reject(error);
-        },
-        function () {
-          uploadTask.snapshot.ref.getDownloadURL().then(function (url) {
-            resolve(url);
-          }).catch(reject);
-        }
-      );
+    document.addEventListener('atlas-data-ready', function handler() {
+      document.removeEventListener('atlas-data-ready', handler);
+      whenAtlasDataReady(callback);
     });
   }
 
-  /* Redimensiona a imagem no client antes do upload, pra não mandar arquivos
-     gigantes pro Storage (mantém qualidade boa, mas controla o tamanho). */
-  function resizeImageFile(file, maxWidth) {
+  /* Faz upload de um File/Blob usando o pipeline já existente do
+     atlas-data.js (compressão + retry + getDownloadURL). Cada imagem do
+     editor recebe um ID próprio (não reaproveita o id da nota/tarefa),
+     senão duas imagens na mesma nota se sobrescreveriam no Storage. */
+  function uploadViaAtlasData(fileOrBlob, onProgress) {
     return new Promise(function (resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        var tempImg = new Image();
-        tempImg.onload = function () {
-          var width = tempImg.width;
-          var height = tempImg.height;
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-          var canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          var ctx = canvas.getContext('2d');
-          ctx.drawImage(tempImg, 0, 0, width, height);
-          canvas.toBlob(function (blob) {
-            if (!blob) {
-              reject(new Error('Falha ao converter imagem.'));
-              return;
-            }
-            resolve(blob);
-          }, 'image/jpeg', 0.82);
-        };
-        tempImg.onerror = reject;
-        tempImg.src = e.target.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      whenAtlasDataReady(function () {
+        var uniqueId = global.AtlasData.uid ? global.AtlasData.uid() : (Date.now() + '-' + Math.random().toString(36).slice(2, 9));
+        global.AtlasData
+          .uploadImageToStorage(fileOrBlob, 'editor-conteudo', uniqueId, onProgress)
+          .then(resolve)
+          .catch(reject);
+      });
     });
   }
 
-  /* Processa o arquivo escolhido: redimensiona -> sobe pro Storage -> insere URL */
+  /* Processa o arquivo escolhido do dispositivo */
   function processAndInsertFile(file, area, savedRange) {
-    if (!file || !file.type.startsWith('image/')) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
       alert('Por favor, selecione um arquivo de imagem válido.');
       return;
     }
@@ -202,10 +160,11 @@
     var placeholder = buildPlaceholderEl();
     insertNodeAtRange(area, savedRange, placeholder);
 
-    resizeImageFile(file, 1600)
-      .then(function (blob) {
-        return uploadToFirebaseStorage(blob, { folder: 'atlas-editor-images' });
-      })
+    uploadViaAtlasData(file, function (percent) {
+      if (placeholder.parentNode) {
+        placeholder.textContent = '⏳ Enviando imagem... ' + percent + '%';
+      }
+    })
       .then(function (downloadUrl) {
         var img = buildImageEl(downloadUrl);
         if (placeholder.parentNode) {
@@ -221,17 +180,16 @@
           placeholder.style.background = 'rgba(220,53,69,0.12)';
           placeholder.style.color = '#b02a37';
         }
-        alert('Não foi possível enviar a imagem. Verifique sua conexão ou as regras do Firebase Storage.');
+        alert('Não foi possível enviar a imagem. Verifique sua conexão ou tente novamente em instantes.');
       });
   }
 
   /* Trata uma URL colada pelo usuário.
-     - http(s)://... -> imagem já está hospedada publicamente, insere direto.
-     - data:...       -> Base64 embutido (comum em respostas de IA), precisa
-                          virar Blob e subir pro Storage, senão o link some.
-     - blob:...        -> URL temporária de sessão do navegador (também comum
-                          em IAs tipo ChatGPT/Gemini), também precisa subir
-                          pro Storage porque deixa de existir depois. */
+     - http(s)://... -> já é pública, insere direto.
+     - data:...        -> Base64 embutido (comum em respostas de IA),
+                          precisa virar Blob e subir pro Storage.
+     - blob:...        -> URL temporária de sessão do navegador (também
+                          comum em IAs tipo ChatGPT/Gemini), idem. */
   function processPastedUrl(url, area, savedRange) {
     if (/^https?:\/\//i.test(url)) {
       renderImageInEditor(area, url, savedRange);
@@ -240,6 +198,7 @@
 
     if (/^data:image\//i.test(url) || /^blob:/i.test(url)) {
       var placeholder = buildPlaceholderEl();
+      placeholder.textContent = '⏳ Importando imagem...';
       insertNodeAtRange(area, savedRange, placeholder);
 
       fetch(url)
@@ -248,7 +207,11 @@
           return res.blob();
         })
         .then(function (blob) {
-          return uploadToFirebaseStorage(blob, { folder: 'atlas-editor-images' });
+          return uploadViaAtlasData(blob, function (percent) {
+            if (placeholder.parentNode) {
+              placeholder.textContent = '⏳ Importando imagem... ' + percent + '%';
+            }
+          });
         })
         .then(function (downloadUrl) {
           var img = buildImageEl(downloadUrl);
@@ -269,7 +232,7 @@
       return;
     }
 
-    // Qualquer outro esquema desconhecido: tenta inserir direto mesmo assim.
+    // Esquema desconhecido: tenta inserir direto mesmo assim.
     renderImageInEditor(area, url, savedRange);
   }
 
@@ -301,10 +264,7 @@
           return;
         }
 
-        /* Botão de Imagem */
         if (btn.cmd === 'uploadImageBtn') {
-          // Salva a posição do cursor ANTES de abrir qualquer diálogo,
-          // pois o foco muda assim que o <input type="file"> ou o prompt() abre.
           var savedRange = saveSelection(area);
 
           var escolha = global.confirm(
@@ -313,7 +273,6 @@
           );
 
           if (escolha) {
-            // guarda o range no próprio input, pro listener de 'change' usar depois
             fileInput._atlasSavedRange = savedRange;
             setTimeout(function () {
               fileInput.click();
@@ -352,7 +311,6 @@
     area.setAttribute('data-placeholder', options.placeholder || 'Escreva aqui...');
     if (options.minHeight) area.style.minHeight = options.minHeight;
 
-    /* Input de arquivo para o PC / IA */
     var fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
