@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.2 — Fix Completo)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.3 — Fix Piscada & Sync)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -138,7 +138,7 @@ import {
     return template.innerHTML;
   }
 
-  /* --- Validação e Compressão com Fallback (PNG/JPEG/WebP) --- */
+  /* --- Validação e Compressão --- */
   function validateAndCompressImage(file) {
     return new Promise(function (resolve, reject) {
       if (!file || !file.type || !file.type.match(/^image\//)) {
@@ -175,7 +175,6 @@ import {
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Tenta exportar para WebP com fallback para JPEG
           canvas.toBlob(
             function (blob) {
               if (blob) {
@@ -203,7 +202,7 @@ import {
     });
   }
 
-  /* --- Upload com Retry Automático --- */
+  /* --- Upload para o Storage --- */
   function executeResumableUpload(fileRef, blob, onProgress, attemptsLeft) {
     attemptsLeft = typeof attemptsLeft === 'number' ? attemptsLeft : 3;
 
@@ -278,7 +277,7 @@ import {
     });
   }
 
-  /* --- Inicialização do Firebase com Sincronização Auth --- */
+  /* --- Inicialização do Firebase --- */
   function onFirebaseReady(callback) {
     if (firebaseReady) callback();
     else firebaseReadyCallbacks.push(callback);
@@ -309,9 +308,16 @@ import {
       ref(firebaseDbInstance, DATA_PATH + '/' + collectionName),
       function (snapshot) {
         var newData = objectToArray(snapshot.val());
+        // Compara de forma rápida para evitar disparar a interface se os dados forem idênticos
+        var strOld = JSON.stringify(cache[collectionName] || []);
+        var strNew = JSON.stringify(newData);
+        
         cache[collectionName] = newData;
         saveToSessionStorage();
-        scheduleNotify();
+        
+        if (strOld !== strNew) {
+          scheduleNotify();
+        }
       },
       function (error) {
         console.error('Atlas: Erro ao sincronizar ' + collectionName, error);
@@ -348,7 +354,6 @@ import {
       console.error('Atlas: falha ao definir persistência de sessão.', e);
     });
 
-    // Garante que o Firebase Auth restaure o token antes de marcar como pronto
     onAuthStateChanged(firebaseAuthInstance, function () {
       markFirebaseReady();
     });
@@ -635,18 +640,18 @@ import {
     SUBJECTS:          SUBJECTS,
     BIMESTRES:         BIMESTRES,
     NOTICE_PRIORITIES: NOTICE_PRIORITIES,
-    slugify:        slugify,
-    uid:            uid,
-    sanitizeHtml:   sanitizeHtml,
-    getSession:     getSession,
-    clearSession:   clearSession,
-    isDev:          isDev,
-    isLoggedIn:     isLoggedIn,
-    loginWithRole:  loginWithRole,
-    loginAsDev:     loginAsDev,
-    requireSession: requireSession,
-    logout:         logout,
-    onFirebaseReady:onFirebaseReady,
+    slugify:           slugify,
+    uid:               uid,
+    sanitizeHtml:      sanitizeHtml,
+    getSession:        getSession,
+    clearSession:      clearSession,
+    isDev:             isDev,
+    isLoggedIn:        isLoggedIn,
+    loginWithRole:     loginWithRole,
+    loginAsDev:        loginAsDev,
+    requireSession:    requireSession,
+    logout:            logout,
+    onFirebaseReady:   onFirebaseReady,
 
     uploadImageToStorage:        uploadImageToStorage,
     deleteImageFromStorageByUrl: deleteImageFromStorageByUrl,
