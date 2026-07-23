@@ -188,7 +188,7 @@
   .page-title { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
   .page-sub { font-size: 14px; color: var(--ink-dim); margin-top: 4px; }
 
-  section { margin-top: 20px; }
+  section { margin-top: 28px; }
 
   .section-head {
     display: flex;
@@ -218,34 +218,6 @@
   }
   .bimestre-tab:hover { color: var(--ink); }
   .bimestre-tab.active { color: var(--blue-bright); border-color: var(--blue-bright); }
-
-  /* ============ BOTÕES DE TROCA (Anotações / Tarefas) ============ */
-  .type-tabs {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-    margin-bottom: 10px;
-  }
-  .type-tab {
-    padding: 8px 18px;
-    border-radius: var(--radius-sm);
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    color: var(--ink-dim);
-    font-size: 13.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-  .type-tab:hover {
-    color: var(--ink);
-    border-color: var(--blue-dim);
-  }
-  .type-tab.active {
-    background: var(--blue-dim);
-    color: var(--blue-bright);
-    border-color: var(--blue-bright);
-  }
 
   /* ============ BOTÃO "+ Adicionar" ============ */
   .btn-add {
@@ -551,11 +523,6 @@
 
     <div id="subjectContent">
 
-      <div class="type-tabs">
-        <button id="btnShowNotes" class="type-tab active" type="button">Anotações</button>
-        <button id="btnShowTasks" class="type-tab" type="button">Tarefas</button>
-      </div>
-
       <section id="notesSection">
         <div class="section-head">
           <h2>Anotações</h2>
@@ -565,7 +532,7 @@
         <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
       </section>
 
-      <section id="tasksSection" style="display: none;">
+      <section id="tasksSection">
         <div class="section-head">
           <h2>Tarefas</h2>
           <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
@@ -630,35 +597,6 @@ document.addEventListener('atlas-data-ready', function () {
     return String(str || '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  /* ---------------------------------------------------------
-     LÓGICA DE ALTERNÂNCIA (Anotações vs Tarefas)
-  --------------------------------------------------------- */
-  var btnShowNotes = document.getElementById('btnShowNotes');
-  var btnShowTasks = document.getElementById('btnShowTasks');
-  var notesSection = document.getElementById('notesSection');
-  var tasksSection = document.getElementById('tasksSection');
-
-  function switchTypeTab(type) {
-    if (type === 'notes') {
-      if (notesSection) notesSection.style.display = 'block';
-      if (tasksSection) tasksSection.style.display = 'none';
-      if (btnShowNotes) btnShowNotes.classList.add('active');
-      if (btnShowTasks) btnShowTasks.classList.remove('active');
-    } else {
-      if (notesSection) notesSection.style.display = 'none';
-      if (tasksSection) tasksSection.style.display = 'block';
-      if (btnShowNotes) btnShowNotes.classList.remove('active');
-      if (btnShowTasks) btnShowTasks.classList.add('active');
-    }
-  }
-
-  if (btnShowNotes) {
-    btnShowNotes.addEventListener('click', function () { switchTypeTab('notes'); });
-  }
-  if (btnShowTasks) {
-    btnShowTasks.addEventListener('click', function () { switchTypeTab('tasks'); });
   }
 
   /* ---------------------------------------------------------
@@ -755,7 +693,7 @@ document.addEventListener('atlas-data-ready', function () {
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
         '</a>' +
         '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + escapeHtml(n.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2L4 6"/></svg>' +
         '</button>' +
       '</div>'
     );
@@ -769,20 +707,28 @@ document.addEventListener('atlas-data-ready', function () {
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
         '</a>' +
         '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + escapeHtml(t.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2L4 6"/></svg>' +
         '</button>' +
       '</div>'
     );
   }
 
   /* ---------------------------------------------------------
-     Renderizar Anotações
+     Renderizar Anotações (Mais recentes primeiro)
   --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid') || document.getElementById('notesList');
   var notesEmpty = document.getElementById('notesEmpty');
 
   function renderNotes() {
-    var notes = (AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || [];
+    var notes = ((AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || []).slice();
+
+    // Ordenação: mais recentes no início, criados primeiro no final
+    notes.sort(function (a, b) {
+      var dateA = a.atualizadoEm || a.criadoEm || a.id || '';
+      var dateB = b.atualizadoEm || b.criadoEm || b.id || '';
+      return dateB.localeCompare(dateA);
+    });
+
     if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
 
     if (notesGrid) {
@@ -840,15 +786,21 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Renderizar Tarefas
+     Renderizar Tarefas (Mais recentes primeiro)
   --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList') || document.getElementById('tasksGrid');
   var tasksEmpty = document.getElementById('tasksEmpty');
 
   function renderTasks() {
-    var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice().sort(function (a, b) {
-      return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
+    var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice();
+
+    // Ordenação: mais recentes no início, criados primeiro no final
+    tasks.sort(function (a, b) {
+      var dateA = a.atualizadoEm || a.criadoEm || a.dataEntrega || a.id || '';
+      var dateB = b.atualizadoEm || b.criadoEm || b.dataEntrega || b.id || '';
+      return dateB.localeCompare(dateA);
     });
+
     if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
 
     if (tasksList) {
