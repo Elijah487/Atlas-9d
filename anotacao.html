@@ -683,9 +683,9 @@ document.addEventListener('atlas-data-ready', function () {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Salvando...';
 
-      AtlasData.uploadImageToStorage(file, 'anotacoes', targetId, function (percent) {
-        submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
-      })
+      AtlasImgBB.upload(file, function (percent) {
+  submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
+})
       .then(function (imageUrl) {
         var saved = AtlasData.saveNote({
           id: targetId,
