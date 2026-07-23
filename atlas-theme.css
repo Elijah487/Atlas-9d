@@ -1146,6 +1146,17 @@ a,
   margin: 10px 0 !important;
   border-radius: 6px !important;
 }
+/* Transição suave entre abas para eliminar piscadas */
+.atlas-view {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.atlas-view.active {
+  display: block;
+  opacity: 1;
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
