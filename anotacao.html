@@ -673,19 +673,21 @@ document.addEventListener('atlas-data-ready', function () {
 
     /* FIX DEFINITIVO DO ENVIO ASSÍNCRONO DE FORMULÁRIO */
     document.getElementById('noteForm').addEventListener('submit', function (e) {
-      e.preventDefault();
+  e.preventDefault();
+
+  if (conteudoEditor.hasPendingUploads()) {
+    alert('Ainda tem uma imagem sendo enviada no conteúdo. Aguarde ela terminar antes de salvar.');
+    return;
+  }
+
+  var submitBtn = document.getElementById('noteSubmitBtn');
+  var fileInput = document.getElementById('noteImageInput');
+  var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+  var targetId = existing ? existing.id : AtlasData.uid();
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Salvando...';
       
-      var submitBtn = document.getElementById('noteSubmitBtn');
-      var fileInput = document.getElementById('noteImageInput');
-      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-      var targetId = existing ? existing.id : AtlasData.uid();
-
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Salvando...';
-
-      AtlasImgBB.upload(file, function (percent) {
-  submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
-})
       .then(function (imageUrl) {
         var saved = AtlasData.saveNote({
           id: targetId,
