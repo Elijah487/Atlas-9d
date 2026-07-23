@@ -225,6 +225,54 @@
       });
   }
 
+  /* Trata uma URL colada pelo usuário.
+     - http(s)://... -> imagem já está hospedada publicamente, insere direto.
+     - data:...       -> Base64 embutido (comum em respostas de IA), precisa
+                          virar Blob e subir pro Storage, senão o link some.
+     - blob:...        -> URL temporária de sessão do navegador (também comum
+                          em IAs tipo ChatGPT/Gemini), também precisa subir
+                          pro Storage porque deixa de existir depois. */
+  function processPastedUrl(url, area, savedRange) {
+    if (/^https?:\/\//i.test(url)) {
+      renderImageInEditor(area, url, savedRange);
+      return;
+    }
+
+    if (/^data:image\//i.test(url) || /^blob:/i.test(url)) {
+      var placeholder = buildPlaceholderEl();
+      insertNodeAtRange(area, savedRange, placeholder);
+
+      fetch(url)
+        .then(function (res) {
+          if (!res.ok) throw new Error('Não foi possível ler a imagem da URL fornecida.');
+          return res.blob();
+        })
+        .then(function (blob) {
+          return uploadToFirebaseStorage(blob, { folder: 'atlas-editor-images' });
+        })
+        .then(function (downloadUrl) {
+          var img = buildImageEl(downloadUrl);
+          if (placeholder.parentNode) {
+            placeholder.parentNode.replaceChild(img, placeholder);
+          } else {
+            area.appendChild(img);
+          }
+        })
+        .catch(function (err) {
+          console.error('[AtlasEditor] Erro ao processar URL colada (data:/blob:):', err);
+          if (placeholder.parentNode) {
+            placeholder.textContent = '⚠️ Não foi possível importar essa imagem. Baixe-a e faça upload pelo computador.';
+            placeholder.style.background = 'rgba(220,53,69,0.12)';
+            placeholder.style.color = '#b02a37';
+          }
+        });
+      return;
+    }
+
+    // Qualquer outro esquema desconhecido: tenta inserir direto mesmo assim.
+    renderImageInEditor(area, url, savedRange);
+  }
+
   function buildToolbar(editorApi, fileInput, area) {
     var bar = document.createElement('div');
     bar.className = 'atlas-editor-toolbar';
@@ -273,7 +321,7 @@
           } else {
             var imgUrl = global.prompt('Cole o link (URL) da imagem:');
             if (imgUrl && imgUrl.trim() !== '') {
-              renderImageInEditor(area, imgUrl.trim(), savedRange);
+              processPastedUrl(imgUrl.trim(), area, savedRange);
             }
           }
           return;
