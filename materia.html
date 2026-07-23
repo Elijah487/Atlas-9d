@@ -188,7 +188,7 @@
   .page-title { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
   .page-sub { font-size: 14px; color: var(--ink-dim); margin-top: 4px; }
 
-  section { margin-top: 28px; }
+  section { margin-top: 24px; }
 
   .section-head {
     display: flex;
@@ -255,9 +255,9 @@
   .task-card-actions,
   .note-card-actions {
     display: none;
+    align-items: center;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: auto;
   }
 
   body.dev-mode-on .task-card-actions,
@@ -276,8 +276,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 10px;
     min-height: 180px;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -288,7 +288,7 @@
   }
   .note-card:hover { border-color: var(--blue-dim); background: var(--surface-2); transform: translateY(-2px); }
   .note-card-top { display: flex; align-items: center; justify-content: space-between; }
-  .note-card-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+  .note-card-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
   .note-card-excerpt {
     font-size: 13px;
     color: var(--ink-dim);
@@ -305,6 +305,7 @@
     justify-content: space-between;
     gap: 8px;
     margin-top: auto;
+    padding-top: 8px;
   }
 
   /* ============ EMPTY STATE ============ */
@@ -331,8 +332,8 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
+    justify-content: flex-start;
+    gap: 10px;
     min-height: 180px;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -386,6 +387,7 @@
     letter-spacing: -0.01em;
     position: relative;
     z-index: 1;
+    color: var(--ink);
   }
   .task-card-excerpt {
     font-size: 13px;
@@ -397,6 +399,7 @@
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    margin-top: auto;
   }
   .task-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
 
@@ -523,7 +526,7 @@
 
     <div id="subjectContent">
 
-      <section id="notesSection">
+      <section>
         <div class="section-head">
           <h2>Anotações</h2>
           <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
@@ -532,7 +535,7 @@
         <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
       </section>
 
-      <section id="tasksSection">
+      <section>
         <div class="section-head">
           <h2>Tarefas</h2>
           <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
@@ -547,6 +550,27 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+  var menuBtn = document.getElementById('menuBtn');
+  var sidebar = document.getElementById('sidebar');
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener('click', function () {
+      sidebar.classList.toggle('open');
+    });
+  }
+
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      if (window.AtlasData && typeof window.AtlasData.logout === 'function') {
+        window.AtlasData.logout();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  }
+});
+
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
@@ -600,7 +624,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Tratamento de Datas e Excerpt
+     Tratamento SEGURO de Formatação de Datas
   --------------------------------------------------------- */
   function formatDateBR(isoDate) {
     if (!isoDate || typeof isoDate !== 'string') return '';
@@ -693,7 +717,7 @@ document.addEventListener('atlas-data-ready', function () {
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
         '</a>' +
         '<button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + escapeHtml(n.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2L4 6"/></svg>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
         '</button>' +
       '</div>'
     );
@@ -707,14 +731,14 @@ document.addEventListener('atlas-data-ready', function () {
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
         '</a>' +
         '<button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + escapeHtml(t.id) + '" aria-label="Excluir">' +
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2L4 6"/></svg>' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>' +
         '</button>' +
       '</div>'
     );
   }
 
   /* ---------------------------------------------------------
-     Renderizar Anotações (Mais recentes primeiro)
+     Anotações (Ordenadas: mais recentes primeiro)
   --------------------------------------------------------- */
   var notesGrid = document.getElementById('notesGrid') || document.getElementById('notesList');
   var notesEmpty = document.getElementById('notesEmpty');
@@ -722,7 +746,7 @@ document.addEventListener('atlas-data-ready', function () {
   function renderNotes() {
     var notes = ((AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || []).slice();
 
-    // Ordenação: mais recentes no início, criados primeiro no final
+    // Ordenação: mais recentes primeiro
     notes.sort(function (a, b) {
       var dateA = a.atualizadoEm || a.criadoEm || a.id || '';
       var dateB = b.atualizadoEm || b.criadoEm || b.id || '';
@@ -775,6 +799,16 @@ document.addEventListener('atlas-data-ready', function () {
         window.location.href = card.dataset.href;
       }
     });
+
+    notesGrid.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        var card = e.target.closest('.note-card');
+        if (card && card.dataset.href) {
+          e.preventDefault();
+          window.location.href = card.dataset.href;
+        }
+      }
+    });
   }
 
   var addNoteBtn = document.getElementById('addNoteBtn');
@@ -786,7 +820,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Renderizar Tarefas (Mais recentes primeiro)
+     Tarefas (Ordenadas: mais recentes primeiro)
   --------------------------------------------------------- */
   var tasksList = document.getElementById('tasksList') || document.getElementById('tasksGrid');
   var tasksEmpty = document.getElementById('tasksEmpty');
@@ -794,7 +828,7 @@ document.addEventListener('atlas-data-ready', function () {
   function renderTasks() {
     var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice();
 
-    // Ordenação: mais recentes no início, criados primeiro no final
+    // Ordenação: mais recentes primeiro
     tasks.sort(function (a, b) {
       var dateA = a.atualizadoEm || a.criadoEm || a.dataEntrega || a.id || '';
       var dateB = b.atualizadoEm || b.criadoEm || b.dataEntrega || b.id || '';
@@ -852,6 +886,16 @@ document.addEventListener('atlas-data-ready', function () {
       var card = e.target.closest('.task-card');
       if (card && card.dataset.href) {
         window.location.href = card.dataset.href;
+      }
+    });
+
+    tasksList.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        var card = e.target.closest('.task-card');
+        if (card && card.dataset.href) {
+          e.preventDefault();
+          window.location.href = card.dataset.href;
+        }
       }
     });
   }
