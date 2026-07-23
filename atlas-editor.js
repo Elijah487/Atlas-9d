@@ -166,65 +166,69 @@
       });
   }
 
-  /* Trata uma URL colada pelo usuário.
-     - http(s)://... -> já é pública, insere direto.
-     - data:...        -> Base64 embutido (comum em respostas de IA),
-                          precisa virar Blob e subir pro ImgBB.
-     - blob:...        -> URL temporária de sessão do navegador (também
-                          comum em IAs tipo ChatGPT/Gemini), idem. */
+  /* Trata uma URL colada pelo usuário — SEMPRE tenta baixar a imagem e
+     re-hospedar no ImgBB, mesmo que já seja http(s)://. Isso é essencial
+     porque links de imagem de IAs (ChatGPT, Gemini, etc.) costumam ser
+     temporários/assinados: parecem uma URL pública normal, mas expiram
+     depois de um tempo e quebram a imagem salva. Só usamos o link original
+     como último recurso, se o download falhar (ex: CORS bloqueado). */
   function processPastedUrl(url, area, savedRange) {
-    if (/^https?:\/\//i.test(url)) {
-      renderImageInEditor(area, url, savedRange);
-      return;
-    }
+    var placeholder = buildPlaceholderEl('⏳ Importando imagem...');
+    insertNodeAtRange(area, savedRange, placeholder);
 
-    if (/^data:image\//i.test(url) || /^blob:/i.test(url)) {
-      var placeholder = buildPlaceholderEl('⏳ Importando imagem...');
-      insertNodeAtRange(area, savedRange, placeholder);
-
-      try {
-        checkImgBBAvailable();
-      } catch (err) {
-        console.error('[AtlasEditor]', err.message);
+    try {
+      checkImgBBAvailable();
+    } catch (err) {
+      console.error('[AtlasEditor]', err.message);
+      // Sem ImgBB disponível: melhor esforço, insere o link cru.
+      if (/^https?:\/\//i.test(url)) {
+        if (placeholder.parentNode) {
+          placeholder.parentNode.replaceChild(buildImageEl(url), placeholder);
+        }
+      } else {
         placeholder.textContent = '⚠️ ' + err.message;
         placeholder.style.background = 'rgba(220,53,69,0.12)';
         placeholder.style.color = '#b02a37';
-        return;
       }
-
-      fetch(url)
-        .then(function (res) {
-          if (!res.ok) throw new Error('Não foi possível ler a imagem da URL fornecida.');
-          return res.blob();
-        })
-        .then(function (blob) {
-          return global.AtlasImgBB.upload(blob, function (percent) {
-            if (placeholder.parentNode) {
-              placeholder.textContent = '⏳ Importando imagem... ' + percent + '%';
-            }
-          });
-        })
-        .then(function (downloadUrl) {
-          var img = buildImageEl(downloadUrl);
-          if (placeholder.parentNode) {
-            placeholder.parentNode.replaceChild(img, placeholder);
-          } else {
-            area.appendChild(img);
-          }
-        })
-        .catch(function (err) {
-          console.error('[AtlasEditor] Erro ao processar URL colada (data:/blob:):', err);
-          if (placeholder.parentNode) {
-            placeholder.textContent = '⚠️ Não foi possível importar essa imagem. Baixe-a e faça upload pelo computador.';
-            placeholder.style.background = 'rgba(220,53,69,0.12)';
-            placeholder.style.color = '#b02a37';
-          }
-        });
       return;
     }
 
-    // Esquema desconhecido: tenta inserir direto mesmo assim.
-    renderImageInEditor(area, url, savedRange);
+    fetch(url, { mode: 'cors' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Não foi possível ler a imagem da URL fornecida (HTTP ' + res.status + ').');
+        return res.blob();
+      })
+      .then(function (blob) {
+        return global.AtlasImgBB.upload(blob, function (percent) {
+          if (placeholder.parentNode) {
+            placeholder.textContent = '⏳ Importando imagem... ' + percent + '%';
+          }
+        });
+      })
+      .then(function (downloadUrl) {
+        var img = buildImageEl(downloadUrl);
+        if (placeholder.parentNode) {
+          placeholder.parentNode.replaceChild(img, placeholder);
+        } else {
+          area.appendChild(img);
+        }
+      })
+      .catch(function (err) {
+        console.error('[AtlasEditor] Erro ao importar/re-hospedar URL colada:', err);
+        // Fallback: se for http(s), tenta inserir o link original mesmo
+        // assim (pode funcionar por um tempo, mas não é garantido).
+        if (/^https?:\/\//i.test(url)) {
+          if (placeholder.parentNode) {
+            placeholder.parentNode.replaceChild(buildImageEl(url), placeholder);
+          }
+          console.warn('[AtlasEditor] Usando o link original sem re-hospedar. ' +
+            'Se for um link temporário de IA, a imagem pode quebrar depois de um tempo.');
+        } else if (placeholder.parentNode) {
+          placeholder.textContent = '⚠️ Não foi possível importar essa imagem. Baixe-a no seu computador e envie pelo botão de upload.';
+          placeholder.style.background = 'rgba(220,53,69,0.12)';
+          placeholder.style.color = '#b02a37';
+        }
+      });
   }
 
   function buildToolbar(editorApi, fileInput, area) {
