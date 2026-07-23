@@ -1,7 +1,7 @@
 /* =====================================================================
    ATLAS — Editor de texto rico (WYSIWYG) - Suporte Local & IA
+   Upload de imagens via Firebase Storage (sem Base64 gigante no Realtime DB)
    ===================================================================== */
-
 (function (global) {
   'use strict';
 
@@ -25,9 +25,54 @@
     { cmd: 'removeFormat', label: '⌫', title: 'Limpar formatação' }
   ];
 
-  /* Função para desenhar a imagem de forma segura no editor */
-  function renderImageInEditor(area, srcUrl) {
+  /* ---------------------------------------------------------------------
+     Seleção / Cursor: precisamos guardar onde o usuário estava digitando
+     ANTES de disparar o upload assíncrono, porque o foco se perde durante
+     o diálogo de escolha de arquivo / requisição de rede.
+     --------------------------------------------------------------------- */
+  function saveSelection(area) {
+    var sel = global.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      var range = sel.getRangeAt(0);
+      // Garante que a seleção pertence à área do editor
+      if (area.contains(range.commonAncestorContainer)) {
+        return range.cloneRange();
+      }
+    }
+    // Fallback: cursor no fim do conteúdo
+    var fallback = document.createRange();
+    fallback.selectNodeContents(area);
+    fallback.collapse(false);
+    return fallback;
+  }
+
+  function restoreSelection(savedRange) {
+    var sel = global.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  }
+
+  /* Insere um nó (imagem ou placeholder) na posição de um Range salvo */
+  function insertNodeAtRange(area, savedRange, node) {
     area.focus();
+    try {
+      restoreSelection(savedRange);
+      var sel = global.getSelection();
+      var range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(node);
+      // move o cursor para depois do nó inserido
+      range.setStartAfter(node);
+      range.setEndAfter(node);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (err) {
+      // Se o range salvo não for mais válido (DOM mudou), insere no fim
+      area.appendChild(node);
+    }
+  }
+
+  function buildImageEl(srcUrl) {
     var img = document.createElement('img');
     img.src = srcUrl;
     img.style.maxWidth = '100%';
@@ -35,51 +80,149 @@
     img.style.display = 'block';
     img.style.margin = '10px 0';
     img.style.borderRadius = '8px';
+    return img;
+  }
 
-    var sel = global.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      var range = sel.getRangeAt(0);
-      range.deleteContents();
-      range.insertNode(img);
-      range.collapse(false);
+  function renderImageInEditor(area, srcUrl, savedRange) {
+    var img = buildImageEl(srcUrl);
+    if (savedRange) {
+      insertNodeAtRange(area, savedRange, img);
     } else {
-      area.appendChild(img);
+      area.focus();
+      var sel = global.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        var range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(img);
+        range.collapse(false);
+      } else {
+        area.appendChild(img);
+      }
     }
   }
 
-  /* Converte arquivo do PC/IA e redimensiona para não pesar no banco */
-  function processAndInsertFile(file, area) {
+  /* Placeholder visual enquanto o upload roda */
+  function buildPlaceholderEl() {
+    var span = document.createElement('span');
+    span.className = 'atlas-editor-uploading';
+    span.setAttribute('contenteditable', 'false');
+    span.textContent = '⏳ Enviando imagem...';
+    span.style.display = 'inline-block';
+    span.style.padding = '6px 10px';
+    span.style.margin = '4px 0';
+    span.style.borderRadius = '6px';
+    span.style.background = 'rgba(0,0,0,0.06)';
+    span.style.fontStyle = 'italic';
+    span.style.fontSize = '0.9em';
+    return span;
+  }
+
+  /* ---------------------------------------------------------------------
+     Upload para o Firebase Storage.
+     Requer que 'firebase' (compat SDK) já esteja inicializado na página,
+     com firebase.storage() disponível.
+     --------------------------------------------------------------------- */
+  function uploadToFirebaseStorage(file, options) {
+    options = options || {};
+    if (!global.firebase || !global.firebase.storage) {
+      return Promise.reject(new Error(
+        'Firebase Storage não está disponível. Verifique se o SDK do Firebase ' +
+        '(app + storage) foi carregado e inicializado antes do atlas-editor.js.'
+      ));
+    }
+
+    var folder = options.folder || 'atlas-editor-images';
+    var safeName = (file.name || 'imagem')
+      .toLowerCase()
+      .replace(/[^a-z0-9.\-_]/g, '-');
+    var fileName = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '-' + safeName;
+    var path = folder + '/' + fileName;
+
+    var storageRef = global.firebase.storage().ref().child(path);
+    var uploadTask = storageRef.put(file);
+
+    return new Promise(function (resolve, reject) {
+      uploadTask.on(
+        'state_changed',
+        null,
+        function (error) {
+          reject(error);
+        },
+        function () {
+          uploadTask.snapshot.ref.getDownloadURL().then(function (url) {
+            resolve(url);
+          }).catch(reject);
+        }
+      );
+    });
+  }
+
+  /* Redimensiona a imagem no client antes do upload, pra não mandar arquivos
+     gigantes pro Storage (mantém qualidade boa, mas controla o tamanho). */
+  function resizeImageFile(file, maxWidth) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var tempImg = new Image();
+        tempImg.onload = function () {
+          var width = tempImg.width;
+          var height = tempImg.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(tempImg, 0, 0, width, height);
+          canvas.toBlob(function (blob) {
+            if (!blob) {
+              reject(new Error('Falha ao converter imagem.'));
+              return;
+            }
+            resolve(blob);
+          }, 'image/jpeg', 0.82);
+        };
+        tempImg.onerror = reject;
+        tempImg.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* Processa o arquivo escolhido: redimensiona -> sobe pro Storage -> insere URL */
+  function processAndInsertFile(file, area, savedRange) {
     if (!file || !file.type.startsWith('image/')) {
       alert('Por favor, selecione um arquivo de imagem válido.');
       return;
     }
 
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      var tempImg = new Image();
-      tempImg.onload = function () {
-        var canvas = document.createElement('canvas');
-        var maxWidth = 800; // Redimensiona para ser leve
-        var width = tempImg.width;
-        var height = tempImg.height;
+    var placeholder = buildPlaceholderEl();
+    insertNodeAtRange(area, savedRange, placeholder);
 
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
+    resizeImageFile(file, 1600)
+      .then(function (blob) {
+        return uploadToFirebaseStorage(blob, { folder: 'atlas-editor-images' });
+      })
+      .then(function (downloadUrl) {
+        var img = buildImageEl(downloadUrl);
+        if (placeholder.parentNode) {
+          placeholder.parentNode.replaceChild(img, placeholder);
+        } else {
+          area.appendChild(img);
         }
-
-        canvas.width = width;
-        canvas.height = height;
-        var ctx = canvas.getContext('2d');
-        ctx.drawImage(tempImg, 0, 0, width, height);
-
-        // Gera a imagem comprimida
-        var compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        renderImageInEditor(area, compressedDataUrl);
-      };
-      tempImg.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
+      })
+      .catch(function (err) {
+        console.error('[AtlasEditor] Erro ao enviar imagem para o Firebase Storage:', err);
+        if (placeholder.parentNode) {
+          placeholder.textContent = '⚠️ Falha ao enviar imagem. Tente novamente.';
+          placeholder.style.background = 'rgba(220,53,69,0.12)';
+          placeholder.style.color = '#b02a37';
+        }
+        alert('Não foi possível enviar a imagem. Verifique sua conexão ou as regras do Firebase Storage.');
+      });
   }
 
   function buildToolbar(editorApi, fileInput, area) {
@@ -112,15 +255,25 @@
 
         /* Botão de Imagem */
         if (btn.cmd === 'uploadImageBtn') {
-          var escolha = global.confirm('Clique em "OK" para escolher uma imagem salva no seu computador/celular.\nOu clique em "Cancelar" para colar um Link (URL) da internet.');
+          // Salva a posição do cursor ANTES de abrir qualquer diálogo,
+          // pois o foco muda assim que o <input type="file"> ou o prompt() abre.
+          var savedRange = saveSelection(area);
+
+          var escolha = global.confirm(
+            'Clique em "OK" para escolher uma imagem salva no seu computador/celular.\n' +
+            'Ou clique em "Cancelar" para colar um Link (URL) da internet.'
+          );
+
           if (escolha) {
+            // guarda o range no próprio input, pro listener de 'change' usar depois
+            fileInput._atlasSavedRange = savedRange;
             setTimeout(function () {
               fileInput.click();
             }, 100);
           } else {
             var imgUrl = global.prompt('Cole o link (URL) da imagem:');
             if (imgUrl && imgUrl.trim() !== '') {
-              renderImageInEditor(area, imgUrl.trim());
+              renderImageInEditor(area, imgUrl.trim(), savedRange);
             }
           }
           return;
@@ -156,13 +309,14 @@
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
-
     fileInput.addEventListener('change', function (e) {
       var file = e.target.files && e.target.files[0];
+      var savedRange = fileInput._atlasSavedRange || saveSelection(area);
       if (file) {
-        processAndInsertFile(file, area);
-        fileInput.value = '';
+        processAndInsertFile(file, area, savedRange);
       }
+      fileInput._atlasSavedRange = null;
+      fileInput.value = '';
     });
 
     var api = {
@@ -174,7 +328,6 @@
     };
 
     var toolbar = buildToolbar(api, fileInput, area);
-
     container.appendChild(toolbar);
     container.appendChild(area);
     container.appendChild(fileInput);
