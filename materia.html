@@ -39,592 +39,412 @@
   }
 
   a { color: inherit; text-decoration: none; }
-  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-  ul { list-style: none; }
-  input { font-family: inherit; }
 
-  ::selection { background: var(--blue); color: #fff; }
-  :focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 2px; }
-
-  .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
-
-  /* FIX CRÍTICO DE CLIQUE: Força o clique no ícone ou SVG a passar direto para o botão */
-  button *, 
-  .icon-btn *, 
-  [data-action] * { 
-    pointer-events: none !important; 
+  /* ============ LAYOUT & HEADER ============ */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
   }
 
-  /* ============ APP SHELL ============ */
-  .app {
-    display: grid;
-    grid-template-columns: 232px 1fr;
-    grid-template-rows: 60px 1fr;
-    grid-template-areas:
-      "header header"
-      "sidebar main";
-    min-height: 100vh;
-  }
-
-  /* ============ HEADER ============ */
-  header {
-    grid-area: header;
+  .nav-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    padding: 0 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    position: fixed !important;
-    top: 0; left: 0; right: 0;
-    height: 60px;
-    z-index: 10000 !important;
-    pointer-events: auto !important;
+    margin-bottom: 24px;
   }
 
-  .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .brand-mark {
-    width: 26px; height: 26px;
-    border-radius: 7px;
-    background: var(--blue);
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 13px; color: #fff; flex-shrink: 0;
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.15s;
   }
-  .brand-word { font-size: 16px; font-weight: 600; }
+  .back-btn:hover { color: var(--ink); }
 
-  .search-wrap {
-    flex: 1; max-width: 420px; display: flex; align-items: center; gap: 8px;
-    background: var(--surface-2); border: 1px solid var(--line);
-    border-radius: var(--radius-sm); padding: 8px 12px;
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 20px;
   }
-  .search-wrap svg { width: 16px; height: 16px; color: var(--ink-faint); flex-shrink: 0; }
-  .search-wrap input { flex: 1; background: none; border: none; color: var(--ink); font-size: 14px; outline: none; }
-  .search-wrap input::placeholder { color: var(--ink-faint); }
-
-  .header-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-  .class-badge {
-    display: flex; align-items: center; gap: 7px; padding: 7px 12px;
-    border-radius: var(--radius-sm); background: var(--surface-2);
-    border: 1px solid var(--line); font-size: 13px; color: var(--ink-dim);
-  }
-  .class-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
-
-  .logout-btn {
-    display: flex; align-items: center; gap: 6px; padding: 7px 12px;
-    border-radius: var(--radius-sm); background: var(--surface-2);
-    border: 1px solid var(--line); color: var(--ink-dim);
-    font-size: 13px; font-weight: 600; cursor: pointer;
-    position: relative !important; z-index: 10001 !important; pointer-events: auto !important;
-  }
-  .logout-btn:hover { background: #2a1414; border-color: #5c2222; color: #ff9a9a; }
-  .logout-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-  @media (max-width: 460px) { .logout-btn span { display: none; } }
-
-  /* ============ SIDEBAR ============ */
-  .sidebar {
-    grid-area: sidebar;
-    background: var(--surface);
-    border-right: 1px solid var(--line);
-    padding: 18px 12px;
-    display: flex; flex-direction: column; gap: 2px;
-    position: fixed; top: 60px; left: 0; bottom: 0; width: 232px;
-    z-index: 9990 !important; pointer-events: auto !important;
-  }
-
-  .nav-item {
-    display: flex; align-items: center; gap: 11px; padding: 10px 12px;
-    border-radius: var(--radius-sm); font-size: 14px; color: var(--ink-dim);
-  }
-  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
-  .nav-item.active { background: var(--blue-dim); color: var(--blue-bright); font-weight: 600; }
-  .sidebar-divider { height: 1px; background: var(--line); margin: 14px 4px; }
-
-  /* ============ MAIN ============ */
-  main {
-    grid-area: main;
-    padding: 84px 28px 48px;
-    margin-left: 232px;
-    overflow-x: hidden;
-  }
-
-  .page-title { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
-  .page-sub { font-size: 14px; color: var(--ink-dim); margin-top: 4px; }
-
-  .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-  .section-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 
   /* ============ ABAS DE BIMESTRE ============ */
-  .bimestre-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 0; margin-top: 24px; }
-  .bimestre-tab {
-    padding: 10px 18px; font-size: 13.5px; font-weight: 600; color: var(--ink-dim);
-    border-bottom: 2px solid transparent; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  .bimestre-tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+    overflow-x: auto;
   }
-  .bimestre-tab:hover { color: var(--ink); }
-  .bimestre-tab.active { color: var(--blue-bright); border-color: var(--blue-bright); }
 
-  /* ============ SISTEMA DE PASTAS ============ */
-  .folders-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 32px;
+  .tab-btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
   }
-  .folder-card {
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--radius); padding: 24px; cursor: pointer;
-    transition: all 0.2s ease; display: flex; flex-direction: column; align-items: flex-start; gap: 12px;
-  }
-  .folder-card:hover { border-color: var(--blue-dim); background: var(--surface-2); transform: translateY(-3px); }
-  .folder-icon {
-    font-size: 28px; background: rgba(255,255,255,0.03);
-    padding: 14px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-  }
-  .folder-title { font-size: 18px; font-weight: 700; color: var(--ink); }
-  .folder-desc { font-size: 13.5px; color: var(--ink-dim); line-height: 1.4; }
 
-  .btn-back {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 13.5px; font-weight: 600; color: var(--ink-dim);
-    padding: 8px 0; margin-bottom: 12px; cursor: pointer;
+  .tab-btn:hover {
+    color: var(--ink);
+    border-color: var(--ink-faint);
   }
-  .btn-back:hover { color: var(--blue-bright); }
-  .btn-back svg { width: 16px; height: 16px; }
 
-  /* ============ BOTÃO "+ Adicionar" ============ */
+  .tab-btn.active {
+    background: var(--blue-dim);
+    border-color: var(--blue);
+    color: var(--blue-bright);
+  }
+
+  /* ============ BOTÕES / ABAS DE CONTEÚDO (ANOTAÇÕES E TAREFAS) ============ */
+  .content-type-switch {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .content-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .content-tab-btn:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+
+  .content-tab-btn.active {
+    background: var(--surface-2);
+    border-color: var(--blue);
+    color: var(--blue-bright);
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.15);
+  }
+
+  /* ============ PAINÉIS DE CONTEÚDO ============ */
+  .content-panel {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .content-panel.active {
+    display: block;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .section-head h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
   .btn-add {
-    padding: 7px 14px; border-radius: var(--radius-sm);
-    background: var(--blue-dim); color: var(--blue-bright);
-    border: 1px solid var(--blue-dim); font-size: 13px; font-weight: 600;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
   }
-  .btn-add:hover { background: var(--blue); color: #fff; }
+  .btn-add:hover { background: var(--blue-bright); }
 
-  .dev-only { display: none; }
-  body.dev-mode-on .dev-only { display: inline-flex; }
-
-  /* ============ BOTÕES DE AÇÃO DOS CARDS ============ */
-  .icon-btn {
-    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line);
-    background: var(--surface-2); color: var(--ink-dim); display: inline-flex;
-    align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s ease;
-    z-index: 10; position: relative;
+  /* ============ GRIDS & CARDS ============ */
+  .notes-grid, .tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
   }
-  .icon-btn:hover { color: var(--blue-bright); border-color: var(--blue-dim); background: var(--surface); }
-  .icon-btn.danger:hover { color: #ff7a7a; border-color: #5c2222; background: rgba(239, 68, 68, 0.15); }
-  .icon-btn svg { width: 14px; height: 14px; }
-
-  /* Exibe sempre os botões de ação do card */
-  .task-card-actions, .note-card-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: auto; }
-
-  /* ============ GRID & CARDS ============ */
-  .notes-grid, .tasks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 
   .note-card, .task-card {
-    position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
-    min-height: 180px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 18px; cursor: pointer; transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
   }
-  .note-card:hover, .task-card:hover { border-color: var(--blue-dim); background: var(--surface-2); transform: translateY(-2px); }
 
-  .note-card-title, .task-card-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; position: relative; z-index: 1; }
-  .note-card-excerpt, .task-card-excerpt {
-    font-size: 13px; color: var(--ink-dim); line-height: 1.5; position: relative; z-index: 1;
-    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  .note-card:hover, .task-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--blue-bright);
   }
-  .task-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
-  .note-card-date { font-size: 11.5px; color: var(--ink-faint); }
-  .note-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }
 
-  .task-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; z-index: 1; }
-  .task-due-badge { font-size: 11.5px; color: var(--ink-faint); flex-shrink: 0; display: flex; align-items: center; gap: 4px; }
-  .task-due-badge.due-soon { color: var(--orange); font-weight: 600; }
-  .task-due-badge svg { width: 12px; height: 12px; }
-
-  /* Efeitos das tarefas */
-  .task-card { --sc: var(--blue-bright); overflow: hidden; }
-  .task-card::before {
-    content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, var(--sc) 0%, transparent 60%);
-    opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+  .card-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 6px;
   }
-  .task-card:hover::before { opacity: 0.08; }
 
-  /* ============ EMPTY STATE ============ */
-  .empty-banner { text-align: center; padding: 36px 20px; color: var(--ink-faint); font-size: 13.5px; border: 1px dashed var(--line); border-radius: var(--radius); margin-top: 16px; }
-  .empty-banner a { color: var(--blue-bright); font-weight: 600; }
-
-  /* ============ MOBILE ============ */
-  .menu-btn { display: none; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--surface-2); align-items: center; justify-content: center; flex-shrink: 0; position: relative !important; z-index: 10001 !important; pointer-events: auto !important; }
-  .menu-btn svg { width: 17px; height: 17px; }
-
-  @media (max-width: 1180px) {
-    .tasks-grid, .notes-grid { grid-template-columns: repeat(2, 1fr); }
+  .card-snippet {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  @media (max-width: 720px) {
-    .app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
-    .sidebar { transform: translateX(-100%); transition: transform 0.25s ease-in-out; }
-    .sidebar.open { transform: translateX(0); z-index: 9999 !important; }
-    .menu-btn { display: flex; }
-    .search-wrap { display: none; }
-    main { margin-left: 0; padding: 84px 18px 48px; }
-    .tasks-grid, .notes-grid, .folders-grid { grid-template-columns: 1fr; }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    margin-top: 4px;
   }
-  @media (max-width: 460px) { .class-badge span:last-child { display: none; } }
+
+  .empty-banner {
+    text-align: center;
+    padding: 36px 16px;
+    color: var(--ink-dim);
+    font-size: 14px;
+    background: var(--surface-2);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+  }
+
+  .dev-only { display: none; }
+  body.atlas-dev-active .dev-only { display: inline-flex; }
 
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
-<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="atlas-theme.css">
 </head>
 <body>
 
-<script type="module" src="atlas-data.js"></script>
-<script src="atlas-editor.js"></script>
+  <div class="container">
+    <header class="nav-header">
+      <a href="materias.html" class="back-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Voltar para Matérias
+      </a>
+    </header>
 
-<div class="app">
+    <h1 class="page-title" id="materiaTitle">Matéria</h1>
 
-  <header>
-    <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-    </button>
-    <div class="brand">
-      <div class="brand-mark">A</div><span class="brand-word">Atlas</span>
-    </div>
-    <div class="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" placeholder="Pesquisar matérias, tarefas, apostilas...">
-    </div>
-    <div class="header-right">
-      <div class="class-badge"><span class="dot"></span><span>Turma:</span><span><strong>9º D</strong></span></div>
-      <button class="logout-btn" id="logoutBtn" type="button" title="Sair">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-        <span>Sair</span>
+    <div class="bimestre-tabs" id="bimestreTabs"></div>
+
+    <div class="content-type-switch">
+      <button type="button" class="content-tab-btn active" id="btnTabNotes" onclick="switchContentTab('notes')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Anotações
+      </button>
+      <button type="button" class="content-tab-btn" id="btnTabTasks" onclick="switchContentTab('tasks')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Tarefas
       </button>
     </div>
-  </header>
 
-  <nav class="sidebar" id="sidebar">
-    <a class="nav-item fast" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</a>
-    <a class="nav-item active fast" href="materias.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>Matérias</a>
-    <a class="nav-item fast" href="apostilas.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>Apostilas (PDF)</a>
-    <a class="nav-item fast" href="tarefas.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tarefas</a>
-    <a class="nav-item fast" href="calendario.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Calendário</a>
-    <div class="sidebar-divider"></div>
-  </nav>
-
-  <main>
-    <h1 class="page-title" id="pageTitle">Matéria</h1>
-    <p class="page-sub" id="pageSub">Selecione um bimestre para acessar o conteúdo.</p>
-
-    <section>
-      <div class="bimestre-tabs" id="bimestreTabs"></div>
-    </section>
-
-    <div class="empty-banner" id="invalidSubjectBanner" style="display:none;">
-      Matéria não encontrada. <a href="materias.html">Voltar para Matérias</a>
+    <div class="content-panel active" id="panelNotes">
+      <div class="section-head">
+        <h2>Anotações do Bimestre</h2>
+        <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
+      </div>
+      <div class="notes-grid" id="notesGrid"></div>
+      <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
     </div>
 
-    <div id="subjectContent">
-
-      <div id="viewFolders" class="folders-grid">
-        <div class="folder-card" id="btnOpenNotes">
-          <div class="folder-icon">📝</div>
-          <div>
-            <div class="folder-title">Anotações</div>
-            <div class="folder-desc">Resumos, matérias e conteúdo passado em sala.</div>
-          </div>
-        </div>
-        <div class="folder-card" id="btnOpenTasks">
-          <div class="folder-icon">✅</div>
-          <div>
-            <div class="folder-title">Tarefas</div>
-            <div class="folder-desc">Exercícios, listas e trabalhos para entregar.</div>
-          </div>
-        </div>
+    <div class="content-panel" id="panelTasks">
+      <div class="section-head">
+        <h2>Tarefas do Bimestre</h2>
+        <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
       </div>
-
-      <div id="viewNotes" style="display:none; margin-top: 24px;">
-        <button class="btn-back" id="backFromNotes" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          Voltar para Pastas
-        </button>
-        <div class="section-head">
-          <h2>Pasta: Anotações</h2>
-          <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
-        </div>
-        <div class="notes-grid" id="notesGrid"></div>
-        <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
-      </div>
-
-      <div id="viewTasks" style="display:none; margin-top: 24px;">
-        <button class="btn-back" id="backFromTasks" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          Voltar para Pastas
-        </button>
-        <div class="section-head">
-          <h2>Pasta: Tarefas</h2>
-          <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
-        </div>
-        <div class="tasks-grid" id="tasksList"></div>
-        <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
-      </div>
-
+      <div class="tasks-grid" id="tasksList"></div>
+      <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
     </div>
-  </main>
 
-</div>
+  </div>
 
-<script>
-document.addEventListener('atlas-data-ready', function () {
-  if (!window.AtlasData) return;
-
-  // --- CONTROLES DE INTERFACE (MENU E LOGOUT) ---
-  var menuBtn = document.getElementById('menuBtn');
-  var logoutBtn = document.getElementById('logoutBtn');
-  var sidebar = document.getElementById('sidebar');
-
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', function (e) {
-      e.preventDefault(); e.stopPropagation();
-      if (typeof AtlasData.logout === 'function') { AtlasData.logout(); } 
-      else { window.location.href = 'index.html'; }
+  <script src="atlas-data.js"></script>
+  <script>
+    var urlParams = new URLSearchParams(window.location.search);
+    var materiaSlug = urlParams.get('materia') || '';
+    
+    var materiaObj = (AtlasData.SUBJECTS || []).find(function(s) {
+      return AtlasData.slugify(s.name) === materiaSlug || s.name.toLowerCase() === materiaSlug.toLowerCase();
     });
-  }
 
-  if (menuBtn && sidebar) {
-    menuBtn.addEventListener('click', function (e) {
-      e.preventDefault(); e.stopPropagation();
-      sidebar.classList.toggle('open');
-    });
-  }
+    var materiaName = materiaObj ? materiaObj.name : (materiaSlug ? materiaSlug.charAt(0).toUpperCase() + materiaSlug.slice(1) : 'Matéria');
+    document.getElementById('materiaTitle').textContent = materiaName;
 
-  document.addEventListener('click', function (e) {
-    if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && menuBtn && !menuBtn.contains(e.target)) {
-      sidebar.classList.remove('open');
+    var currentBimestre = '1º Bimestre';
+
+    function isDevSession() {
+      return typeof AtlasData !== 'undefined' && AtlasData.isDev && AtlasData.isDev();
     }
-  });
 
-  // --- DADOS DA MATÉRIA ---
-  var SUBJECTS = AtlasData.SUBJECTS || [];
-  var BIMESTRES = AtlasData.BIMESTRES || [];
-  var SUBJECT_BY_SLUG = {};
-  
-  SUBJECTS.forEach(function (name) { if (name) SUBJECT_BY_SLUG[AtlasData.slugify(name)] = name; });
+    function renderTabs() {
+      var container = document.getElementById('bimestreTabs');
+      if (!container) return;
+      var bimestres = AtlasData.BIMESTRES || ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
 
-  var params = new URLSearchParams(window.location.search);
-  var slug = params.get('materia') || '';
-  var materiaName = SUBJECT_BY_SLUG[slug] || null;
-
-  var pageTitle = document.getElementById('pageTitle');
-  var pageSub = document.getElementById('pageSub');
-  var invalidBanner = document.getElementById('invalidSubjectBanner');
-  var subjectContent = document.getElementById('subjectContent');
-  var tabsWrap = document.getElementById('bimestreTabs');
-
-  if (!materiaName) {
-    if (pageTitle) pageTitle.textContent = 'Matéria';
-    if (pageSub) pageSub.textContent = '';
-    if (invalidBanner) invalidBanner.style.display = 'block';
-    if (subjectContent) subjectContent.style.display = 'none';
-    if (tabsWrap) tabsWrap.style.display = 'none';
-    return;
-  }
-
-  if (pageTitle) pageTitle.textContent = materiaName;
-  document.title = materiaName + ' — Atlas';
-
-  var currentBimestre = BIMESTRES[0] || '1º Bimestre';
-  var currentView = 'folders';
-
-  function isDevSession() { return !!(AtlasData.isDev && AtlasData.isDev()); }
-  if (isDevSession()) document.body.classList.add('dev-mode-on');
-
-  function escapeHtml(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-
-  function formatDateBR(isoDate) {
-    if (!isoDate || typeof isoDate !== 'string') return '';
-    var parts = isoDate.split('T')[0].split('-');
-    if (parts.length !== 3) return isoDate;
-    return parts[2] + '/' + parts[1] + '/' + parts[0];
-  }
-
-  function getSafeDateFormatted(dateVal) {
-    if (!dateVal) return '';
-    try { var d = new Date(dateVal); if (isNaN(d.getTime())) return ''; return formatDateBR(d.toISOString().slice(0, 10)); } catch (e) { return ''; }
-  }
-
-  function isDueSoon(isoDate) {
-    if (!isoDate || typeof isoDate !== 'string') return false;
-    try {
-      var due = new Date(isoDate.split('T')[0] + 'T00:00:00');
-      if (isNaN(due.getTime())) return false;
-      var today = new Date(); today.setHours(0, 0, 0, 0);
-      var diffDays = Math.round((due - today) / 86400000);
-      return diffDays >= 0 && diffDays <= 3;
-    } catch (e) { return false; }
-  }
-
-  function htmlToExcerpt(html, maxLen) {
-    if (!html) return '';
-    var tmp = document.createElement('div'); tmp.innerHTML = html;
-    var blockTags = ['P', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'DIV', 'BR', 'HR'];
-    Array.prototype.forEach.call(tmp.querySelectorAll(blockTags.join(',')), function (el) { el.insertAdjacentText('afterend', ' '); });
-    var text = (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
-    return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
-  }
-
-  // --- NAVEGAÇÃO DE VIEWS (Pastas) ---
-  var viewFolders = document.getElementById('viewFolders');
-  var viewNotes = document.getElementById('viewNotes');
-  var viewTasks = document.getElementById('viewTasks');
-
-  function updateView() {
-    viewFolders.style.display = (currentView === 'folders') ? 'grid' : 'none';
-    viewNotes.style.display = (currentView === 'notes') ? 'block' : 'none';
-    viewTasks.style.display = (currentView === 'tasks') ? 'block' : 'none';
-  }
-
-  document.getElementById('btnOpenNotes').addEventListener('click', function() { currentView = 'notes'; updateView(); renderNotes(); });
-  document.getElementById('btnOpenTasks').addEventListener('click', function() { currentView = 'tasks'; updateView(); renderTasks(); });
-  document.getElementById('backFromNotes').addEventListener('click', function() { currentView = 'folders'; updateView(); });
-  document.getElementById('backFromTasks').addEventListener('click', function() { currentView = 'folders'; updateView(); });
-
-  // --- ABAS DE BIMESTRE ---
-  function renderTabs() {
-    if (!tabsWrap) return;
-    tabsWrap.innerHTML = BIMESTRES.map(function (b) {
-      var active = b === currentBimestre ? ' active' : '';
-      return '<div class="bimestre-tab' + active + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</div>';
-    }).join('');
-
-    Array.from(tabsWrap.querySelectorAll('.bimestre-tab')).forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        currentBimestre = tab.dataset.bimestre;
-        renderTabs();
-        if (currentView === 'notes') renderNotes();
-        if (currentView === 'tasks') renderTasks();
-      });
-    });
-  }
-
-  function noteActionsHtml(n) {
-    return '<div class="note-card-actions"><a class="icon-btn" data-action="edit-note" href="anotacao.html?id=' + encodeURIComponent(n.id) + '&editar=1" aria-label="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a><button type="button" class="icon-btn danger" data-action="delete-note" data-id="' + escapeHtml(n.id) + '" aria-label="Excluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button></div>';
-  }
-
-  function taskActionsHtml(t) {
-    return '<div class="task-card-actions"><a class="icon-btn" data-action="edit-task" href="tarefa.html?id=' + encodeURIComponent(t.id) + '&editar=1" aria-label="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></a><button type="button" class="icon-btn danger" data-action="delete-task" data-id="' + escapeHtml(t.id) + '" aria-label="Excluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg></button></div>';
-  }
-
-  // --- RENDER ANOTAÇÕES ---
-  var notesGrid = document.getElementById('notesGrid');
-  var notesEmpty = document.getElementById('notesEmpty');
-  function renderNotes() {
-    var notes = (AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || [];
-    if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
-    if (notesGrid) {
-      notesGrid.innerHTML = notes.map(function (n) {
-        var excerpt = htmlToExcerpt(n.conteudo, 140);
-        var dateText = getSafeDateFormatted(n.atualizadoEm || n.criadoEm);
-        return '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '" tabindex="0" role="link"><div class="note-card-title">' + escapeHtml(n.titulo) + '</div><div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div><div class="note-card-foot"><span class="note-card-date">' + escapeHtml(dateText) + '</span>' + noteActionsHtml(n) + '</div></div>';
+      container.innerHTML = bimestres.map(function(b) {
+        var activeClass = (b === currentBimestre) ? ' active' : '';
+        return '<button class="tab-btn' + activeClass + '" data-bimestre="' + b + '">' + b + '</button>';
       }).join('');
-    }
-  }
 
-  if (notesGrid) {
-    notesGrid.addEventListener('click', async function (e) {
-      var editBtn = e.target.closest('[data-action="edit-note"]'); 
-      var delBtn = e.target.closest('[data-action="delete-note"]');
-      
-      if (editBtn) { e.stopPropagation(); return; }
-      
-      if (delBtn) {
-        e.preventDefault(); e.stopPropagation();
-        if (!confirm('Deseja realmente apagar esta anotação?')) return;
-        
-        delBtn.style.pointerEvents = 'none';
-        delBtn.style.opacity = '0.4';
-
-        try {
-          if (typeof AtlasData.deleteNote === 'function') await AtlasData.deleteNote(delBtn.dataset.id);
-          else if (typeof AtlasData.removerAnotacao === 'function') await AtlasData.removerAnotacao(delBtn.dataset.id);
+      container.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          currentBimestre = this.dataset.bimestre;
+          renderTabs();
           renderNotes();
-        } catch (err) {
-          console.error('Erro ao apagar anotação:', err);
-          alert('Erro ao apagar a anotação.');
-          delBtn.style.pointerEvents = 'auto';
-          delBtn.style.opacity = '1';
-        }
-        return;
-      }
-      var card = e.target.closest('.note-card'); if (card && card.dataset.href) window.location.href = card.dataset.href;
-    });
-  }
-
-  var addNoteBtn = document.getElementById('addNoteBtn');
-  if (addNoteBtn) { addNoteBtn.addEventListener('click', function () { window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre); }); }
-
-  // --- RENDER TAREFAS ---
-  var tasksList = document.getElementById('tasksList');
-  var tasksEmpty = document.getElementById('tasksEmpty');
-  function renderTasks() {
-    var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice().sort(function (a, b) { return (a.dataEntrega || '').localeCompare(b.dataEntrega || ''); });
-    if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
-    if (tasksList) {
-      tasksList.innerHTML = tasks.map(function (t) {
-        var excerpt = htmlToExcerpt(t.resposta, 110); var dueSoon = isDueSoon(t.dataEntrega);
-        var excerptHtml = excerpt ? '<div class="task-card-excerpt">' + escapeHtml(excerpt) + '</div>' : '<div class="task-card-excerpt is-empty">Sem resposta/gabarito cadastrado ainda.</div>';
-        return '<div class="task-card" data-href="tarefa.html?id=' + encodeURIComponent(t.id) + '" data-id="' + escapeHtml(t.id) + '" tabindex="0" role="link"><div class="task-card-top"><span class="task-due-badge' + (dueSoon ? ' due-soon' : '') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' + escapeHtml(formatDateBR(t.dataEntrega)) + '</span>' + taskActionsHtml(t) + '</div><div class="task-card-title">' + escapeHtml(t.titulo) + '</div>' + excerptHtml + '</div>';
-      }).join('');
-    }
-  }
-
-  if (tasksList) {
-    tasksList.addEventListener('click', async function (e) {
-      var editBtn = e.target.closest('[data-action="edit-task"]'); 
-      var delBtn = e.target.closest('[data-action="delete-task"]');
-      
-      if (editBtn) { e.stopPropagation(); return; }
-      
-      if (delBtn) {
-        e.preventDefault(); e.stopPropagation();
-        if (!confirm('Deseja realmente apagar esta tarefa?')) return;
-        
-        delBtn.style.pointerEvents = 'none';
-        delBtn.style.opacity = '0.4';
-
-        try {
-          if (typeof AtlasData.deleteTask === 'function') await AtlasData.deleteTask(delBtn.dataset.id);
-          else if (typeof AtlasData.removerTarefa === 'function') await AtlasData.removerTarefa(delBtn.dataset.id);
           renderTasks();
-        } catch (err) {
-          console.error('Erro ao apagar tarefa:', err);
-          alert('Erro ao apagar a tarefa.');
-          delBtn.style.pointerEvents = 'auto';
-          delBtn.style.opacity = '1';
-        }
-        return;
+        });
+      });
+    }
+
+    function switchContentTab(type) {
+      var btnNotes = document.getElementById('btnTabNotes');
+      var btnTasks = document.getElementById('btnTabTasks');
+      var panelNotes = document.getElementById('panelNotes');
+      var panelTasks = document.getElementById('panelTasks');
+
+      if (type === 'notes') {
+        btnNotes.classList.add('active');
+        btnTasks.classList.remove('active');
+        panelNotes.classList.add('active');
+        panelTasks.classList.remove('active');
+      } else {
+        btnTasks.classList.add('active');
+        btnNotes.classList.remove('active');
+        panelTasks.classList.add('active');
+        panelNotes.classList.remove('active');
       }
-      var card = e.target.closest('.task-card'); if (card && card.dataset.href) window.location.href = card.dataset.href;
-    });
-  }
+    }
 
-  var addTaskBtn = document.getElementById('addTaskBtn');
-  if (addTaskBtn) { addTaskBtn.addEventListener('click', function () { window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre); }); }
+    function renderNotes() {
+      var notesGrid = document.getElementById('notesGrid');
+      var notesEmpty = document.getElementById('notesEmpty');
+      var notes = ((AtlasData.getNotesBy ? AtlasData.getNotesBy(materiaName, currentBimestre) : []) || []).slice();
 
-  // --- INICIALIZAÇÃO ---
-  renderTabs();
-  updateView();
+      notes.sort(function (a, b) {
+        var dateA = a.atualizadoEm || a.criadoEm || a.id || '';
+        var dateB = b.atualizadoEm || b.criadoEm || b.id || '';
+        return dateB.localeCompare(dateA);
+      });
 
-  if (typeof AtlasData.onDataChange === 'function') {
-    AtlasData.onDataChange(function () {
-      if (currentView === 'notes') renderNotes();
-      if (currentView === 'tasks') renderTasks();
-    });
-  }
+      if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
 
-  if (typeof AtlasData.injectDevBanner === 'function') { AtlasData.injectDevBanner(); }
-});
-</script>
+      if (notesGrid) {
+        notesGrid.innerHTML = notes.map(function (n) {
+          var cleanSnippet = (n.conteudo || '').replace(/<[^>]*>/g, '').trim();
+          return (
+            '<div class="note-card" onclick="window.location.href=\'anotacao.html?id=' + encodeURIComponent(n.id) + '\'">' +
+              '<div>' +
+                '<div class="card-title">' + (n.titulo || 'Sem título') + '</div>' +
+                '<div class="card-snippet">' + (cleanSnippet || 'Sem conteúdo adicional...') + '</div>' +
+              '</div>' +
+              '<div class="card-footer">' +
+                '<span>' + (n.bimestre || currentBimestre) + '</span>' +
+                '<span>Ver anotação &rarr;</span>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      }
+    }
+
+    function renderTasks() {
+      var tasksList = document.getElementById('tasksList');
+      var tasksEmpty = document.getElementById('tasksEmpty');
+      var tasks = ((AtlasData.getTasksBy ? AtlasData.getTasksBy(materiaName, currentBimestre) : []) || []).slice();
+
+      tasks.sort(function (a, b) {
+        var dateA = a.dataEntrega || a.id || '';
+        var dateB = b.dataEntrega || b.id || '';
+        return dateA.localeCompare(dateB);
+      });
+
+      if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
+
+      if (tasksList) {
+        tasksList.innerHTML = tasks.map(function (t) {
+          var cleanSnippet = (t.resposta || '').replace(/<[^>]*>/g, '').trim();
+          return (
+            '<div class="task-card" onclick="window.location.href=\'tarefa.html?id=' + encodeURIComponent(t.id) + '\'">' +
+              '<div>' +
+                '<div class="card-title">' + (t.titulo || 'Sem título') + '</div>' +
+                '<div class="card-snippet">' + (cleanSnippet || 'Sem resposta cadastrada...') + '</div>' +
+              '</div>' +
+              '<div class="card-footer">' +
+                '<span>Data: ' + (t.dataEntrega || 'Sem data') + '</span>' +
+                '<span>Ver tarefa &rarr;</span>' +
+              '</div>' +
+            '</div>'
+          );
+        }).join('');
+      }
+    }
+
+    var addNoteBtn = document.getElementById('addNoteBtn');
+    if (addNoteBtn) {
+      addNoteBtn.addEventListener('click', function () {
+        if (!isDevSession()) return;
+        window.location.href = 'anotacao.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+      });
+    }
+
+    var addTaskBtn = document.getElementById('addTaskBtn');
+    if (addTaskBtn) {
+      addTaskBtn.addEventListener('click', function () {
+        if (!isDevSession()) return;
+        window.location.href = 'tarefa.html?nova=1&materia=' + encodeURIComponent(AtlasData.slugify(materiaName)) + '&bimestre=' + encodeURIComponent(currentBimestre);
+      });
+    }
+
+    renderTabs();
+    renderNotes();
+    renderTasks();
+
+    if (typeof AtlasData !== 'undefined' && typeof AtlasData.onDataChange === 'function') {
+      AtlasData.onDataChange(function () {
+        renderNotes();
+        renderTasks();
+      });
+    }
+
+    if (typeof AtlasData !== 'undefined' && typeof AtlasData.injectDevBanner === 'function') {
+      AtlasData.injectDevBanner();
+    }
+  </script>
 </body>
 </html>
