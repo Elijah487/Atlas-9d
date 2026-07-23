@@ -1157,6 +1157,12 @@ a,
   display: block;
   opacity: 1;
 }
+/* Faz o clique passar direto pelo ícone e atingir o botão */
+button svg, 
+button i, 
+button span {
+  pointer-events: none;
+}
 /* =====================================================================
    FIM DO ATLAS DESIGN SYSTEM — atlas-theme.css
    ===================================================================== */
