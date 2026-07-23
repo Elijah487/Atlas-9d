@@ -327,8 +327,6 @@
 </head>
 <body>
 
-<script type="module" src="atlas-data.js"></script>
-<script src="atlas-editor.js"></script>
 <script>
   document.addEventListener('atlas-data-ready', function () {
     if (window.AtlasData) { AtlasData.requireSession('index.html'); }
@@ -671,42 +669,50 @@ document.addEventListener('atlas-data-ready', function () {
       });
     }
 
-    /* FIX DEFINITIVO DO ENVIO ASSÍNCRONO DE FORMULÁRIO */
+    /* FIX DEFINITIVO DO ENVIO ASSÍNCRONO DE FORMULÁRIO — usando ImgBB
+       em vez do Firebase Storage (Storage passou a exigir plano pago). */
     document.getElementById('noteForm').addEventListener('submit', function (e) {
-  e.preventDefault();
+      e.preventDefault();
 
-  if (conteudoEditor.hasPendingUploads()) {
-    alert('Ainda tem uma imagem sendo enviada no conteúdo. Aguarde ela terminar antes de salvar.');
-    return;
-  }
+      if (conteudoEditor.hasPendingUploads()) {
+        alert('Ainda tem uma imagem sendo enviada no conteúdo. Aguarde ela terminar antes de salvar.');
+        return;
+      }
 
-  var submitBtn = document.getElementById('noteSubmitBtn');
-  var fileInput = document.getElementById('noteImageInput');
-  var file = fileInput && fileInput.files ? fileInput.files[0] : null;
-  var targetId = existing ? existing.id : AtlasData.uid();
+      var submitBtn = document.getElementById('noteSubmitBtn');
+      var fileInput = document.getElementById('noteImageInput');
+      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      var targetId = existing ? existing.id : AtlasData.uid();
 
-  submitBtn.disabled = true;
-  submitBtn.textContent = 'Salvando...';
-      
-      .then(function (imageUrl) {
-        var saved = AtlasData.saveNote({
-          id: targetId,
-          titulo: document.getElementById('noteTitulo').value,
-          materia: document.getElementById('noteMateria').value,
-          bimestre: document.getElementById('noteBimestre').value,
-          imagemUrl: imageUrl,
-          conteudo: conteudoEditor.getHTML()
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Salvando...';
+
+      var uploadPromise = file
+        ? AtlasImgBB.upload(file, function (percent) {
+            submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
+          })
+        : Promise.resolve(existing ? (existing.imagemUrl || '') : '');
+
+      uploadPromise
+        .then(function (imageUrl) {
+          var saved = AtlasData.saveNote({
+            id: targetId,
+            titulo: document.getElementById('noteTitulo').value,
+            materia: document.getElementById('noteMateria').value,
+            bimestre: document.getElementById('noteBimestre').value,
+            imagemUrl: imageUrl,
+            conteudo: conteudoEditor.getHTML()
+          });
+
+          if (saved) {
+            window.location.href = 'anotacao.html?id=' + encodeURIComponent(saved.id);
+          }
+        })
+        .catch(function (err) {
+          alert(err.message || 'Erro ao processar o salvamento.');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Salvar anotação';
         });
-
-        if (saved) {
-          window.location.href = 'anotacao.html?id=' + encodeURIComponent(saved.id);
-        }
-      })
-      .catch(function (err) {
-        alert(err.message || 'Erro ao processar o salvamento.');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Salvar anotação';
-      });
     });
 
     showOnly(formMode);
