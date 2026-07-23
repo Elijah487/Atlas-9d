@@ -1,7 +1,6 @@
 /* =====================================================================
    ATLAS — Editor de texto rico (WYSIWYG) - Suporte Local & IA
-   Upload de imagens via AtlasData.uploadImageToStorage (Firebase Storage,
-   SDK modular v10 — o mesmo usado no atlas-data.js). Nada de Base64
+   Upload de imagens via AtlasImgBB (ImgBB, gratuito) — nada de Base64
    gigante indo pro Realtime Database.
    ===================================================================== */
 (function (global) {
@@ -99,11 +98,11 @@
   }
 
   /* Placeholder visual enquanto o upload roda (com % de progresso) */
-  function buildPlaceholderEl() {
+  function buildPlaceholderEl(initialText) {
     var span = document.createElement('span');
     span.className = 'atlas-editor-uploading';
     span.setAttribute('contenteditable', 'false');
-    span.textContent = '⏳ Enviando imagem... 0%';
+    span.textContent = initialText || '⏳ Enviando imagem... 0%';
     span.style.display = 'inline-block';
     span.style.padding = '6px 10px';
     span.style.margin = '4px 0';
@@ -114,40 +113,13 @@
     return span;
   }
 
-  /* ---------------------------------------------------------------------
-     Espera o AtlasData (atlas-data.js, módulo Firebase v10) estar pronto.
-     atlas-data.js é carregado como <script type="module">, então pode
-     ainda não existir no momento em que o editor é criado.
-     --------------------------------------------------------------------- */
-  function whenAtlasDataReady(callback) {
-    if (global.AtlasData && typeof global.AtlasData.uploadImageToStorage === 'function') {
-      if (typeof global.AtlasData.onFirebaseReady === 'function') {
-        global.AtlasData.onFirebaseReady(callback);
-      } else {
-        callback();
-      }
-      return;
+  function checkImgBBAvailable() {
+    if (!global.AtlasImgBB || typeof global.AtlasImgBB.upload !== 'function') {
+      throw new Error(
+        'O sistema de upload de imagens (atlas-imgbb.js) não foi carregado nesta página. ' +
+        'Adicione <script src="atlas-imgbb.js"></script> antes do atlas-editor.js.'
+      );
     }
-    document.addEventListener('atlas-data-ready', function handler() {
-      document.removeEventListener('atlas-data-ready', handler);
-      whenAtlasDataReady(callback);
-    });
-  }
-
-  /* Faz upload de um File/Blob usando o pipeline já existente do
-     atlas-data.js (compressão + retry + getDownloadURL). Cada imagem do
-     editor recebe um ID próprio (não reaproveita o id da nota/tarefa),
-     senão duas imagens na mesma nota se sobrescreveriam no Storage. */
-  function uploadViaAtlasData(fileOrBlob, onProgress) {
-    return new Promise(function (resolve, reject) {
-      whenAtlasDataReady(function () {
-        var uniqueId = global.AtlasData.uid ? global.AtlasData.uid() : (Date.now() + '-' + Math.random().toString(36).slice(2, 9));
-        global.AtlasData
-          .uploadImageToStorage(fileOrBlob, 'editor-conteudo', uniqueId, onProgress)
-          .then(resolve)
-          .catch(reject);
-      });
-    });
   }
 
   /* Processa o arquivo escolhido do dispositivo */
@@ -160,7 +132,17 @@
     var placeholder = buildPlaceholderEl();
     insertNodeAtRange(area, savedRange, placeholder);
 
-    uploadViaAtlasData(file, function (percent) {
+    try {
+      checkImgBBAvailable();
+    } catch (err) {
+      console.error('[AtlasEditor]', err.message);
+      placeholder.textContent = '⚠️ ' + err.message;
+      placeholder.style.background = 'rgba(220,53,69,0.12)';
+      placeholder.style.color = '#b02a37';
+      return;
+    }
+
+    global.AtlasImgBB.upload(file, function (percent) {
       if (placeholder.parentNode) {
         placeholder.textContent = '⏳ Enviando imagem... ' + percent + '%';
       }
@@ -174,20 +156,20 @@
         }
       })
       .catch(function (err) {
-        console.error('[AtlasEditor] Erro ao enviar imagem para o Firebase Storage:', err);
+        console.error('[AtlasEditor] Erro ao enviar imagem:', err);
         if (placeholder.parentNode) {
           placeholder.textContent = '⚠️ Falha ao enviar imagem. Tente novamente.';
           placeholder.style.background = 'rgba(220,53,69,0.12)';
           placeholder.style.color = '#b02a37';
         }
-        alert('Não foi possível enviar a imagem. Verifique sua conexão ou tente novamente em instantes.');
+        alert((err && err.message) || 'Não foi possível enviar a imagem. Verifique sua conexão.');
       });
   }
 
   /* Trata uma URL colada pelo usuário.
      - http(s)://... -> já é pública, insere direto.
      - data:...        -> Base64 embutido (comum em respostas de IA),
-                          precisa virar Blob e subir pro Storage.
+                          precisa virar Blob e subir pro ImgBB.
      - blob:...        -> URL temporária de sessão do navegador (também
                           comum em IAs tipo ChatGPT/Gemini), idem. */
   function processPastedUrl(url, area, savedRange) {
@@ -197,9 +179,18 @@
     }
 
     if (/^data:image\//i.test(url) || /^blob:/i.test(url)) {
-      var placeholder = buildPlaceholderEl();
-      placeholder.textContent = '⏳ Importando imagem...';
+      var placeholder = buildPlaceholderEl('⏳ Importando imagem...');
       insertNodeAtRange(area, savedRange, placeholder);
+
+      try {
+        checkImgBBAvailable();
+      } catch (err) {
+        console.error('[AtlasEditor]', err.message);
+        placeholder.textContent = '⚠️ ' + err.message;
+        placeholder.style.background = 'rgba(220,53,69,0.12)';
+        placeholder.style.color = '#b02a37';
+        return;
+      }
 
       fetch(url)
         .then(function (res) {
@@ -207,7 +198,7 @@
           return res.blob();
         })
         .then(function (blob) {
-          return uploadViaAtlasData(blob, function (percent) {
+          return global.AtlasImgBB.upload(blob, function (percent) {
             if (placeholder.parentNode) {
               placeholder.textContent = '⏳ Importando imagem... ' + percent + '%';
             }
