@@ -265,6 +265,58 @@
     display: flex;
   }
 
+  /* ============ PASTAS (Anotações / Tarefas) ============ */
+  .folders-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .folder-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, background-color 0.15s, transform 0.15s;
+  }
+  .folder-card:hover { border-color: var(--blue-dim); background: var(--surface-2); transform: translateY(-2px); }
+  .folder-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+    flex-shrink: 0;
+  }
+  .folder-icon svg { width: 20px; height: 20px; }
+  .folder-icon.notes { background: rgba(224,162,58,0.14); color: var(--orange); }
+  .folder-icon.tasks { background: rgba(63,185,111,0.14); color: var(--green); }
+  .folder-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .folder-desc { font-size: 13.5px; color: var(--ink-dim); margin-top: 2px; }
+
+  @media (max-width: 720px) {
+    .folders-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ============ BOTÃO VOLTAR PARA PASTAS ============ */
+  .back-to-folders {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    padding: 8px 0;
+    margin-top: 22px;
+  }
+  .back-to-folders:hover { color: var(--blue-bright); }
+  .back-to-folders svg { width: 15px; height: 15px; flex-shrink: 0; }
+
   /* ============ GRID & CARDS DE ANOTAÇÕES ============ */
   .notes-grid {
     display: grid;
@@ -452,6 +504,7 @@
 <body>
 
 <script type="module" src="atlas-data.js"></script>
+<script src="atlas-imgbb.js"></script>
 <script src="atlas-editor.js"></script>
 
 <div class="app">
@@ -511,7 +564,7 @@
 
   <main>
     <h1 class="page-title" id="pageTitle">Matéria</h1>
-    <p class="page-sub" id="pageSub">Selecione um bimestre para ver anotações e tarefas.</p>
+    <p class="page-sub" id="pageSub">Selecione um bimestre para acessar o conteúdo.</p>
 
     <section>
       <div class="bimestre-tabs" id="bimestreTabs"></div>
@@ -523,18 +576,53 @@
 
     <div id="subjectContent">
 
-      <section>
+      <!-- ===== TELA 1: PASTAS (Anotações / Tarefas) ===== -->
+      <section id="foldersView">
+        <div class="folders-grid">
+          <button type="button" class="folder-card" id="openNotesFolder">
+            <div class="folder-icon notes">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+            </div>
+            <div>
+              <div class="folder-title">Anotações</div>
+              <div class="folder-desc">Resumos, matérias e conteúdo passado em sala.</div>
+            </div>
+          </button>
+
+          <button type="button" class="folder-card" id="openTasksFolder">
+            <div class="folder-icon tasks">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div>
+              <div class="folder-title">Tarefas</div>
+              <div class="folder-desc">Exercícios, listas e trabalhos para entregar.</div>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== TELA 2: DENTRO DA PASTA "ANOTAÇÕES" ===== -->
+      <section id="notesFolderView" style="display:none;">
+        <a href="#" class="back-to-folders" id="backFromNotes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Voltar para Pastas
+        </a>
         <div class="section-head">
-          <h2>Anotações</h2>
+          <h2>Pasta: Anotações</h2>
           <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
         </div>
         <div class="notes-grid" id="notesGrid"></div>
         <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
       </section>
 
-      <section>
+      <!-- ===== TELA 3: DENTRO DA PASTA "TAREFAS" ===== -->
+      <section id="tasksFolderView" style="display:none;">
+        <a href="#" class="back-to-folders" id="backFromTasks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Voltar para Pastas
+        </a>
         <div class="section-head">
-          <h2>Tarefas</h2>
+          <h2>Pasta: Tarefas</h2>
           <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
         </div>
         <div class="tasks-grid" id="tasksList"></div>
@@ -563,7 +651,7 @@ document.addEventListener('atlas-data-ready', function () {
   var slug = params.get('materia') || '';
   var materiaName = SUBJECT_BY_SLUG[slug] || null;
 
-  var pageTitle = document.getElementById('pageTitle') || document.getElementById('materiaTitle');
+  var pageTitle = document.getElementById('pageTitle');
   var pageSub = document.getElementById('pageSub');
   var invalidBanner = document.getElementById('invalidSubjectBanner');
   var subjectContent = document.getElementById('subjectContent');
@@ -579,7 +667,7 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   if (pageTitle) pageTitle.textContent = materiaName;
-  if (pageSub) pageSub.textContent = 'Anotações e tarefas de ' + materiaName + ', organizadas por bimestre.';
+  if (pageSub) pageSub.textContent = 'Selecione um bimestre para acessar o conteúdo.';
   document.title = materiaName + ' — Atlas';
 
   var currentBimestre = BIMESTRES[0] || '1º Bimestre';
@@ -597,6 +685,36 @@ document.addEventListener('atlas-data-ready', function () {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+
+  /* ---------------------------------------------------------
+     Navegação por Pastas: Pastas -> Anotações / Tarefas
+  --------------------------------------------------------- */
+  var foldersView = document.getElementById('foldersView');
+  var notesFolderView = document.getElementById('notesFolderView');
+  var tasksFolderView = document.getElementById('tasksFolderView');
+
+  function showFolders() {
+    foldersView.style.display = 'block';
+    notesFolderView.style.display = 'none';
+    tasksFolderView.style.display = 'none';
+  }
+  function showNotesFolder() {
+    foldersView.style.display = 'none';
+    notesFolderView.style.display = 'block';
+    tasksFolderView.style.display = 'none';
+  }
+  function showTasksFolder() {
+    foldersView.style.display = 'none';
+    notesFolderView.style.display = 'none';
+    tasksFolderView.style.display = 'block';
+  }
+
+  document.getElementById('openNotesFolder').addEventListener('click', showNotesFolder);
+  document.getElementById('openTasksFolder').addEventListener('click', showTasksFolder);
+  document.getElementById('backFromNotes').addEventListener('click', function (e) { e.preventDefault(); showFolders(); });
+  document.getElementById('backFromTasks').addEventListener('click', function (e) { e.preventDefault(); showFolders(); });
+
+  showFolders();
 
   /* ---------------------------------------------------------
      Tratamento SEGURO de Formatação de Datas
@@ -713,9 +831,9 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Anotações (Card corrigido com <div class="note-card">)
+     Anotações
   --------------------------------------------------------- */
-  var notesGrid = document.getElementById('notesGrid') || document.getElementById('notesList');
+  var notesGrid = document.getElementById('notesGrid');
   var notesEmpty = document.getElementById('notesEmpty');
 
   function renderNotes() {
@@ -777,9 +895,9 @@ document.addEventListener('atlas-data-ready', function () {
   }
 
   /* ---------------------------------------------------------
-     Tarefas (Card corrigido com <div class="task-card">)
+     Tarefas
   --------------------------------------------------------- */
-  var tasksList = document.getElementById('tasksList') || document.getElementById('tasksGrid');
+  var tasksList = document.getElementById('tasksList');
   var tasksEmpty = document.getElementById('tasksEmpty');
 
   function renderTasks() {
