@@ -69,6 +69,8 @@
     padding: 0 20px;
     background: var(--surface);
     border-bottom: 1px solid var(--line);
+    position: relative;
+    z-index: 100;
   }
 
   .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -153,6 +155,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    position: relative;
+    z-index: 90;
   }
 
   .nav-item {
@@ -634,6 +638,42 @@
 
 </div>
 <script>
+  /* ---------------------------------------------------------
+     Botão de menu mobile e botão "Sair"
+     (estavam sem handler — corrigido; roda sempre,
+     mesmo que os dados do AtlasData ainda não tenham carregado)
+  --------------------------------------------------------- */
+  var menuBtn = document.getElementById('menuBtn');
+  var sidebarEl = document.getElementById('sidebar');
+  if (menuBtn && sidebarEl) {
+    menuBtn.addEventListener('click', function () {
+      sidebarEl.classList.toggle('open');
+    });
+    sidebarEl.querySelectorAll('.nav-item').forEach(function (link) {
+      link.addEventListener('click', function () {
+        sidebarEl.classList.remove('open');
+      });
+    });
+  }
+
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      var atlas = window.AtlasData;
+      if (atlas && atlas.logout) {
+        Promise.resolve(atlas.logout()).finally(function () {
+          window.location.href = 'index.html';
+        });
+      } else if (atlas && atlas.signOut) {
+        Promise.resolve(atlas.signOut()).finally(function () {
+          window.location.href = 'index.html';
+        });
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  }
+
 document.addEventListener('atlas-data-ready', function () {
   if (!window.AtlasData) return;
 
