@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Matéria — Atlas</title>
+<link rel="stylesheet" href="atlas-theme.css">
 <style>
 
   /* ============ RESET & TOKENS ============ */
@@ -106,53 +107,25 @@
     color: var(--blue-bright);
   }
 
-  /* ============ BOTÕES / ABAS DE CONTEÚDO (ANOTAÇÕES E TAREFAS) ============ */
-  .content-type-switch {
+  /* ============ GRID DE MATÉRIA & CARDS PRINCIPAIS ============ */
+  .materia-grid {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
   }
 
-  .content-tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    color: var(--ink-dim);
-    padding: 12px 20px;
-    border-radius: var(--radius);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .content-tab-btn:hover {
-    background: var(--surface-2);
-    color: var(--ink);
-  }
-
-  .content-tab-btn.active {
-    background: var(--surface-2);
-    border-color: var(--blue);
-    color: var(--blue-bright);
-    box-shadow: 0 0 12px rgba(37, 99, 235, 0.15);
-  }
-
-  /* ============ PAINÉIS DE CONTEÚDO ============ */
-  .content-panel {
-    display: none;
+  /* Container/Bloco da Seção com confinamento total dos cards */
+  .section-card {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius);
     padding: 20px;
-  }
-
-  .content-panel.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .section-head {
@@ -160,6 +133,8 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
   }
 
   .section-head h2 {
@@ -181,11 +156,14 @@
   }
   .btn-add:hover { background: var(--blue-bright); }
 
-  /* ============ GRIDS & CARDS ============ */
+  /* ============ GRIDS DE CARDS INTERNOS (Mantidos estritamente DENTRO do bloco) ============ */
   .notes-grid, .tasks-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+    width: 100%;
+    margin-top: 8px;
+    box-sizing: border-box;
   }
 
   .note-card, .task-card {
@@ -198,6 +176,7 @@
     justify-content: space-between;
     gap: 12px;
     cursor: pointer;
+    box-sizing: border-box;
     transition: transform 0.15s, border-color 0.15s;
   }
 
@@ -236,12 +215,15 @@
 
   .empty-banner {
     text-align: center;
-    padding: 36px 16px;
+    padding: 32px 16px;
     color: var(--ink-dim);
     font-size: 14px;
     background: var(--surface-2);
     border: 1px dashed var(--line);
     border-radius: var(--radius-sm);
+    margin-top: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .dev-only { display: none; }
@@ -263,39 +245,41 @@
 
     <div class="bimestre-tabs" id="bimestreTabs"></div>
 
-    <div class="content-type-switch">
-      <button type="button" class="content-tab-btn active" id="btnTabNotes" onclick="switchContentTab('notes')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Anotações
-      </button>
-      <button type="button" class="content-tab-btn" id="btnTabTasks" onclick="switchContentTab('tasks')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        Tarefas
-      </button>
-    </div>
-
-    <div class="content-panel active" id="panelNotes">
-      <div class="section-head">
-        <h2>Anotações do Bimestre</h2>
-        <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
+    <div class="materia-grid">
+      
+      <div class="section-card">
+        <div class="section-head">
+          <h2>Anotações do Bimestre</h2>
+          <button class="btn-add dev-only" id="addNoteBtn" type="button">+ Nova anotação</button>
+        </div>
+        <div class="notes-grid" id="notesGrid"></div>
+        <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
       </div>
-      <div class="notes-grid" id="notesGrid"></div>
-      <div class="empty-banner" id="notesEmpty" style="display:none;">Nenhuma anotação cadastrada neste bimestre ainda.</div>
-    </div>
 
-    <div class="content-panel" id="panelTasks">
-      <div class="section-head">
-        <h2>Tarefas do Bimestre</h2>
-        <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
+      <div class="section-card">
+        <div class="section-head">
+          <h2>Tarefas do Bimestre</h2>
+          <button class="btn-add dev-only" id="addTaskBtn" type="button">+ Nova tarefa</button>
+        </div>
+        <div class="tasks-grid" id="tasksList"></div>
+        <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
       </div>
-      <div class="tasks-grid" id="tasksList"></div>
-      <div class="empty-banner" id="tasksEmpty" style="display:none;">Nenhuma tarefa cadastrada neste bimestre ainda.</div>
-    </div>
 
+    </div>
   </div>
 
   <script src="atlas-data.js"></script>
   <script>
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     var urlParams = new URLSearchParams(window.location.search);
     var materiaSlug = urlParams.get('materia') || '';
     
@@ -319,7 +303,7 @@
 
       container.innerHTML = bimestres.map(function(b) {
         var activeClass = (b === currentBimestre) ? ' active' : '';
-        return '<button class="tab-btn' + activeClass + '" data-bimestre="' + b + '">' + b + '</button>';
+        return '<button class="tab-btn' + activeClass + '" data-bimestre="' + escapeHtml(b) + '">' + escapeHtml(b) + '</button>';
       }).join('');
 
       container.querySelectorAll('.tab-btn').forEach(function(btn) {
@@ -330,25 +314,6 @@
           renderTasks();
         });
       });
-    }
-
-    function switchContentTab(type) {
-      var btnNotes = document.getElementById('btnTabNotes');
-      var btnTasks = document.getElementById('btnTabTasks');
-      var panelNotes = document.getElementById('panelNotes');
-      var panelTasks = document.getElementById('panelTasks');
-
-      if (type === 'notes') {
-        btnNotes.classList.add('active');
-        btnTasks.classList.remove('active');
-        panelNotes.classList.add('active');
-        panelTasks.classList.remove('active');
-      } else {
-        btnTasks.classList.add('active');
-        btnNotes.classList.remove('active');
-        panelTasks.classList.add('active');
-        panelNotes.classList.remove('active');
-      }
     }
 
     function renderNotes() {
@@ -365,16 +330,17 @@
       if (notesEmpty) notesEmpty.style.display = notes.length ? 'none' : 'block';
 
       if (notesGrid) {
+        notesGrid.style.display = notes.length ? 'grid' : 'none';
         notesGrid.innerHTML = notes.map(function (n) {
           var cleanSnippet = (n.conteudo || '').replace(/<[^>]*>/g, '').trim();
           return (
             '<div class="note-card" onclick="window.location.href=\'anotacao.html?id=' + encodeURIComponent(n.id) + '\'">' +
               '<div>' +
-                '<div class="card-title">' + (n.titulo || 'Sem título') + '</div>' +
-                '<div class="card-snippet">' + (cleanSnippet || 'Sem conteúdo adicional...') + '</div>' +
+                '<div class="card-title">' + escapeHtml(n.titulo || 'Sem título') + '</div>' +
+                '<div class="card-snippet">' + escapeHtml(cleanSnippet || 'Sem conteúdo adicional...') + '</div>' +
               '</div>' +
               '<div class="card-footer">' +
-                '<span>' + (n.bimestre || currentBimestre) + '</span>' +
+                '<span>' + escapeHtml(n.bimestre || currentBimestre) + '</span>' +
                 '<span>Ver anotação &rarr;</span>' +
               '</div>' +
             '</div>'
@@ -397,16 +363,17 @@
       if (tasksEmpty) tasksEmpty.style.display = tasks.length ? 'none' : 'block';
 
       if (tasksList) {
+        tasksList.style.display = tasks.length ? 'grid' : 'none';
         tasksList.innerHTML = tasks.map(function (t) {
           var cleanSnippet = (t.resposta || '').replace(/<[^>]*>/g, '').trim();
           return (
             '<div class="task-card" onclick="window.location.href=\'tarefa.html?id=' + encodeURIComponent(t.id) + '\'">' +
               '<div>' +
-                '<div class="card-title">' + (t.titulo || 'Sem título') + '</div>' +
-                '<div class="card-snippet">' + (cleanSnippet || 'Sem resposta cadastrada...') + '</div>' +
+                '<div class="card-title">' + escapeHtml(t.titulo || 'Sem título') + '</div>' +
+                '<div class="card-snippet">' + escapeHtml(cleanSnippet || 'Sem resposta cadastrada...') + '</div>' +
               '</div>' +
               '<div class="card-footer">' +
-                '<span>Data: ' + (t.dataEntrega || 'Sem data') + '</span>' +
+                '<span>Data: ' + escapeHtml(t.dataEntrega || 'Sem data') + '</span>' +
                 '<span>Ver tarefa &rarr;</span>' +
               '</div>' +
             '</div>'
