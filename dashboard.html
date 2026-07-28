@@ -543,10 +543,7 @@
       evento = passados[0];
     }
 
-    var parts = evento.data.split('-'); // yyyy-mm-dd
-    var dataFormatada = parts.length === 3 ? (parts[2] + '/' + parts[1]) : evento.data;
-
-    el.textContent = dataFormatada + ' — ' + (evento.titulo || 'Evento');
+    el.textContent = evento.titulo || 'Evento';
   }
 
   function escapeHtml(str) {
