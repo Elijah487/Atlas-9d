@@ -520,22 +520,33 @@
     var el = document.getElementById('statProximoEvento');
     if (!el) return;
 
-    var hojeStr = new Date().toISOString().slice(0, 10);
+    var todos = (eventos || []).filter(function (e) { return e && e.data; });
 
-    var proximos = (eventos || [])
-      .filter(function (e) { return e && e.data && e.data >= hojeStr; })
-      .sort(function (a, b) { return a.data.localeCompare(b.data); });
-
-    if (proximos.length === 0) {
+    if (todos.length === 0) {
       el.textContent = '—';
       return;
     }
 
-    var proximo = proximos[0];
-    var parts = proximo.data.split('-'); // yyyy-mm-dd
-    var dataFormatada = parts.length === 3 ? (parts[2] + '/' + parts[1]) : proximo.data;
+    var hojeStr = new Date().toISOString().slice(0, 10);
 
-    el.textContent = dataFormatada + ' — ' + (proximo.titulo || 'Evento');
+    // Prioriza eventos futuros (o mais próximo primeiro);
+    // se não houver nenhum, cai para o mais recente já passado.
+    var futuros = todos
+      .filter(function (e) { return e.data >= hojeStr; })
+      .sort(function (a, b) { return a.data.localeCompare(b.data); });
+
+    var evento;
+    if (futuros.length > 0) {
+      evento = futuros[0];
+    } else {
+      var passados = todos.slice().sort(function (a, b) { return b.data.localeCompare(a.data); });
+      evento = passados[0];
+    }
+
+    var parts = evento.data.split('-'); // yyyy-mm-dd
+    var dataFormatada = parts.length === 3 ? (parts[2] + '/' + parts[1]) : evento.data;
+
+    el.textContent = dataFormatada + ' — ' + (evento.titulo || 'Evento');
   }
 
   function escapeHtml(str) {
