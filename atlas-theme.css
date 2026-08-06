@@ -871,6 +871,84 @@ select.field-input { color-scheme: dark; }
   opacity: 0.85;
 }
 
+/* Modal de inserir link (substitui window.prompt) */
+.atlas-editor-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+.atlas-editor-modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  padding: 20px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.atlas-editor-modal-title {
+  color: var(--ink);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+.atlas-editor-modal-label {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 12px 0 6px;
+}
+.atlas-editor-modal-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-mid);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  padding: 9px 11px;
+  outline: none;
+}
+.atlas-editor-modal-input:focus {
+  border-color: var(--red-bright);
+}
+.atlas-editor-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.atlas-editor-modal-btn {
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.atlas-editor-modal-btn-cancel {
+  background: transparent;
+  color: var(--ink-dim);
+  border-color: var(--line-mid);
+}
+.atlas-editor-modal-btn-cancel:hover {
+  color: var(--ink);
+}
+.atlas-editor-modal-btn-ok {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+.atlas-editor-modal-btn-ok:hover {
+  background: var(--red-bright) !important;
+}
+
 /* =====================================================================
    28. CALENDÁRIO (calendario.html)
    ===================================================================== */
