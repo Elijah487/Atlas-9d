@@ -272,8 +272,28 @@
         area.focus();
 
         if (btn.cmd === 'createLink') {
+          var savedRangeLink = saveSelection(area);
+          var selectedText = savedRangeLink.toString();
+
           var url = global.prompt('Cole o link (URL):', 'https://');
-          if (url) document.execCommand('createLink', false, url);
+          if (!url || !url.trim()) return;
+          url = url.trim();
+          if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+          var linkText = selectedText;
+          if (!linkText) {
+            linkText = global.prompt('Texto do link (opcional):', url);
+            if (linkText === null) return; // usuário cancelou
+            linkText = linkText.trim() || url;
+          }
+
+          var linkEl = document.createElement('a');
+          linkEl.href = url;
+          linkEl.target = '_blank';
+          linkEl.rel = 'noopener noreferrer';
+          linkEl.textContent = linkText;
+
+          insertNodeAtRange(area, savedRangeLink, linkEl);
           return;
         }
 
@@ -359,8 +379,24 @@
         var file = imageItem.getAsFile();
         var savedRange = saveSelection(area);
         if (file) processAndInsertFile(file, area, savedRange);
+        return;
       }
-      // Se não tem imagem, deixa o paste padrão de texto acontecer normalmente.
+
+      // Se o texto colado for só uma URL (ex: link de YouTube, artigo, etc.),
+      // transforma automaticamente em link clicável em vez de texto puro.
+      var pastedText = e.clipboardData && e.clipboardData.getData('text/plain');
+      if (pastedText && /^https?:\/\/\S+$/i.test(pastedText.trim())) {
+        e.preventDefault();
+        var urlTrimmed = pastedText.trim();
+        var savedRangeUrl = saveSelection(area);
+        var autoLink = document.createElement('a');
+        autoLink.href = urlTrimmed;
+        autoLink.target = '_blank';
+        autoLink.rel = 'noopener noreferrer';
+        autoLink.textContent = urlTrimmed;
+        insertNodeAtRange(area, savedRangeUrl, autoLink);
+      }
+      // Caso contrário, deixa o paste padrão de texto acontecer normalmente.
     });
 
     var api = {
