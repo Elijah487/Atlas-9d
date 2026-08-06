@@ -51,6 +51,126 @@
     sel.addRange(savedRange);
   }
 
+  /* ---------------------------------------------------------------------
+     Regex de URL usada tanto no auto-link ao colar quanto no link manual.
+     Aceita URLs "soltas" dentro de um texto maior (não só quando o texto
+     colado é 100% a URL), e não engole pontuação de fechamento de frase
+     colada logo depois do link (. , ) ] etc.).
+     --------------------------------------------------------------------- */
+  var URL_REGEX = /https?:\/\/[^\s<>"']+/gi;
+
+  function stripTrailingPunctuation(url) {
+    var trail = '';
+    while (url.length && /[.,;:!?)\]}'"]$/.test(url)) {
+      trail = url.slice(-1) + trail;
+      url = url.slice(0, -1);
+    }
+    return { url: url, trail: trail };
+  }
+
+  /* Converte um bloco de texto puro em um fragmento com <a> nos trechos
+     que são URLs e nós de texto no restante, preservando quebras de
+     linha como <br>. Usado no paste (ver evento 'paste' abaixo). */
+  function linkifyTextToFragment(text) {
+    var frag = document.createDocumentFragment();
+    var lines = text.split(/\r\n|\r|\n/);
+
+    lines.forEach(function (line, lineIdx) {
+      var lastIndex = 0;
+      var match;
+      URL_REGEX.lastIndex = 0;
+      while ((match = URL_REGEX.exec(line)) !== null) {
+        if (match.index > lastIndex) {
+          frag.appendChild(document.createTextNode(line.slice(lastIndex, match.index)));
+        }
+        var cleaned = stripTrailingPunctuation(match[0]);
+        var a = document.createElement('a');
+        a.href = cleaned.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = cleaned.url;
+        frag.appendChild(a);
+        if (cleaned.trail) frag.appendChild(document.createTextNode(cleaned.trail));
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < line.length) {
+        frag.appendChild(document.createTextNode(line.slice(lastIndex)));
+      }
+      if (lineIdx < lines.length - 1) {
+        frag.appendChild(document.createElement('br'));
+      }
+    });
+
+    return frag;
+  }
+
+  /* ---------------------------------------------------------------------
+     Modal próprio para inserir link, substituindo window.prompt().
+     window.prompt()/confirm() são bloqueados (retornam null sem exibir
+     nada) em vários WebViews de app/PWA no celular — o que fazia o botão
+     de link parecer "não funcionar". Este modal funciona em qualquer
+     navegador ou WebView.
+     --------------------------------------------------------------------- */
+  function openLinkModal(defaultText, onConfirm) {
+    var overlay = document.createElement('div');
+    overlay.className = 'atlas-editor-modal-overlay';
+
+    var modal = document.createElement('div');
+    modal.className = 'atlas-editor-modal';
+
+    modal.innerHTML =
+      '<h3 class="atlas-editor-modal-title">Inserir link</h3>' +
+      '<label class="atlas-editor-modal-label">URL</label>' +
+      '<input type="text" class="atlas-editor-modal-input" data-role="url" placeholder="https://exemplo.com" autocomplete="off">' +
+      '<label class="atlas-editor-modal-label">Texto do link</label>' +
+      '<input type="text" class="atlas-editor-modal-input" data-role="text" placeholder="Texto que vai aparecer" autocomplete="off">' +
+      '<div class="atlas-editor-modal-actions">' +
+        '<button type="button" class="atlas-editor-modal-btn atlas-editor-modal-btn-cancel" data-role="cancel">Cancelar</button>' +
+        '<button type="button" class="atlas-editor-modal-btn atlas-editor-modal-btn-ok" data-role="ok">Inserir</button>' +
+      '</div>';
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    var urlInput = modal.querySelector('[data-role="url"]');
+    var textInput = modal.querySelector('[data-role="text"]');
+    var okBtn = modal.querySelector('[data-role="ok"]');
+    var cancelBtn = modal.querySelector('[data-role="cancel"]');
+
+    textInput.value = defaultText || '';
+
+    function close() {
+      document.removeEventListener('keydown', onKeydown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+
+    function confirm() {
+      var url = urlInput.value.trim();
+      if (!url) {
+        urlInput.focus();
+        return;
+      }
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      var linkText = textInput.value.trim() || url;
+      close();
+      onConfirm(url, linkText);
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Escape') close();
+      if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+    }
+
+    okBtn.addEventListener('click', confirm);
+    cancelBtn.addEventListener('click', close);
+    overlay.addEventListener('mousedown', function (e) {
+      if (e.target === overlay) close();
+    });
+    document.addEventListener('keydown', onKeydown);
+
+    setTimeout(function () { urlInput.focus(); }, 30);
+  }
+
   function insertNodeAtRange(area, savedRange, node) {
     area.focus();
     try {
@@ -58,11 +178,21 @@
       var sel = global.getSelection();
       var range = sel.getRangeAt(0);
       range.deleteContents();
+
+      // DocumentFragment vira "vazio" depois de inserido (os filhos são
+      // movidos para o range) — precisamos guardar uma referência ao
+      // último filho ANTES de inserir para posicionar o cursor depois.
+      var isFragment = node.nodeType === 11; // DOCUMENT_FRAGMENT_NODE
+      var refNode = isFragment ? node.lastChild : node;
+
       range.insertNode(node);
-      range.setStartAfter(node);
-      range.setEndAfter(node);
-      sel.removeAllRanges();
-      sel.addRange(range);
+
+      if (refNode) {
+        range.setStartAfter(refNode);
+        range.setEndAfter(refNode);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
     } catch (err) {
       area.appendChild(node);
     }
@@ -267,35 +397,33 @@
       el.title = btn.title;
       el.textContent = btn.label;
 
+      /* CRÍTICO: sem isto, o mousedown no botão tira o foco (e a seleção
+         de texto) da área de edição ANTES do 'click' disparar — fazendo o
+         botão de link "não funcionar" (a seleção já tinha sumido quando
+         o código ia lê-la). preventDefault aqui mantém o editor focado. */
+      el.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+      });
+
       el.addEventListener('click', function (e) {
         e.preventDefault();
-        area.focus();
 
         if (btn.cmd === 'createLink') {
           var savedRangeLink = saveSelection(area);
           var selectedText = savedRangeLink.toString();
 
-          var url = global.prompt('Cole o link (URL):', 'https://');
-          if (!url || !url.trim()) return;
-          url = url.trim();
-          if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
-          var linkText = selectedText;
-          if (!linkText) {
-            linkText = global.prompt('Texto do link (opcional):', url);
-            if (linkText === null) return; // usuário cancelou
-            linkText = linkText.trim() || url;
-          }
-
-          var linkEl = document.createElement('a');
-          linkEl.href = url;
-          linkEl.target = '_blank';
-          linkEl.rel = 'noopener noreferrer';
-          linkEl.textContent = linkText;
-
-          insertNodeAtRange(area, savedRangeLink, linkEl);
+          openLinkModal(selectedText, function (url, linkText) {
+            var linkEl = document.createElement('a');
+            linkEl.href = url;
+            linkEl.target = '_blank';
+            linkEl.rel = 'noopener noreferrer';
+            linkEl.textContent = linkText;
+            insertNodeAtRange(area, savedRangeLink, linkEl);
+          });
           return;
         }
+
+        area.focus();
 
         if (btn.cmd === 'uploadImageBtn') {
           var savedRange = saveSelection(area);
@@ -382,19 +510,18 @@
         return;
       }
 
-      // Se o texto colado for só uma URL (ex: link de YouTube, artigo, etc.),
-      // transforma automaticamente em link clicável em vez de texto puro.
+      // Se o texto colado contém alguma URL (seja ele só a URL, seja um
+      // trecho maior de texto com uma URL no meio/fim), transforma essa
+      // parte automaticamente em link clicável, mantendo o resto como
+      // texto normal. Antes isso só funcionava quando o texto colado era
+      // 100% a URL — o que fazia links colados junto de outro conteúdo
+      // (ex.: um título em cima do link) virarem texto puro.
       var pastedText = e.clipboardData && e.clipboardData.getData('text/plain');
-      if (pastedText && /^https?:\/\/\S+$/i.test(pastedText.trim())) {
+      if (pastedText && /https?:\/\//i.test(pastedText)) {
         e.preventDefault();
-        var urlTrimmed = pastedText.trim();
         var savedRangeUrl = saveSelection(area);
-        var autoLink = document.createElement('a');
-        autoLink.href = urlTrimmed;
-        autoLink.target = '_blank';
-        autoLink.rel = 'noopener noreferrer';
-        autoLink.textContent = urlTrimmed;
-        insertNodeAtRange(area, savedRangeUrl, autoLink);
+        var fragment = linkifyTextToFragment(pastedText);
+        insertNodeAtRange(area, savedRangeUrl, fragment);
       }
       // Caso contrário, deixa o paste padrão de texto acontecer normalmente.
     });
