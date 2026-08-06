@@ -860,6 +860,17 @@ select.field-input { color-scheme: dark; }
 }
 .atlas-editor-empty { color: var(--ink-faint); font-style: italic; }
 
+.atlas-editor-area a,
+.atlas-editor-readonly a {
+  color: var(--red-bright) !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+.atlas-editor-area a:hover,
+.atlas-editor-readonly a:hover {
+  opacity: 0.85;
+}
+
 /* =====================================================================
    28. CALENDÁRIO (calendario.html)
    ===================================================================== */
