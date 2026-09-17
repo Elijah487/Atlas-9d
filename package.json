@@ -1,7 +1,8 @@
 {
-  "name": "atlas-9d",
+  "name": "nexos",
   "version": "1.0.0",
   "dependencies": {
-    "firebase-admin": "^12.0.0"
+    "firebase-admin": "^12.0.0",
+    "bcryptjs": "^2.4.3"
   }
 }

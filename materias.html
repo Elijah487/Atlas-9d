@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Matérias — Atlas</title>
+<title>Matérias — Nexos</title>
 <style>
 
   /* ============ RESET & TOKENS (idênticos ao dashboard) ============ */
@@ -177,6 +177,9 @@
     background: var(--line);
     margin: 14px 4px;
   }
+
+  .dev-only { display: none; }
+  body.dev-mode-on .dev-only { display: inline-flex; }
 
   /* ============ MAIN ============ */
   main {
@@ -442,15 +445,15 @@
 <link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
 <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="atlas-theme.css">
+<link rel="stylesheet" href="nexos-theme.css">
 </head>
 <body>
 
 <!-- Camada central de dados e sessão, carregada como módulo ES. -->
-<script type="module" src="atlas-data.js"></script>
+<script type="module" src="nexos-data.js"></script>
 <script>
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) { NexosData.requireSession('index.html'); }
   });
 </script>
 
@@ -463,8 +466,8 @@
     </button>
 
     <div class="brand">
-      <div class="brand-mark">A</div>
-      <span class="brand-word">Atlas</span>
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
     </div>
 
     <div class="search-wrap">
@@ -508,6 +511,11 @@
       Calendário
     </a>
 
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
+    </a>
+
     <div class="sidebar-divider"></div>
   </nav>
 
@@ -540,7 +548,7 @@
         <!-- Matemática — azul -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="matemática" data-materia-real="Matemática" data-tarefas="2" data-apostilas="4" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
@@ -560,7 +568,7 @@
         <!-- Português — vermelho -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="português" data-materia-real="Português" data-tarefas="1" data-apostilas="3" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
@@ -580,7 +588,7 @@
         <!-- História — marrom -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="história" data-materia-real="História" data-tarefas="0" data-apostilas="2" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
@@ -600,7 +608,7 @@
         <!-- Geografia — verde -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="geografia" data-materia-real="Geografia" data-tarefas="1" data-apostilas="1" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 6 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-6-3.8-9s1.3-6.3 3.8-9Z"/></svg>
@@ -620,7 +628,7 @@
         <!-- Ciências — roxo -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="ciências" data-materia-real="Ciências" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.5L4.5 17a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L15 8.5V2M9 2h6M9 13h6"/></svg>
@@ -640,7 +648,7 @@
         <!-- Inglês — laranja -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="inglês" data-materia-real="Inglês" data-tarefas="0" data-apostilas="2" data-recente="1"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z"/></svg>
@@ -660,7 +668,7 @@
         <!-- Arte — rosa -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="arte" data-materia-real="Arte" data-tarefas="0" data-apostilas="1" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="0.5"/><circle cx="17.5" cy="10.5" r="0.5"/><circle cx="8.5" cy="7.5" r="0.5"/><circle cx="6.5" cy="12.5" r="0.5"/><path d="M12 2a10 10 0 1 0 0 20c.6 0 1-.4 1-1 0-.3-.1-.5-.3-.7-.2-.2-.3-.4-.3-.7 0-.6.4-1 1-1h1.2A4.6 4.6 0 0 0 19 14c0-6.6-3.1-12-7-12Z"/></svg>
@@ -680,7 +688,7 @@
         <!-- O.E Matemática — azul claro -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="o.e matemática" data-materia-real="O.E Matemática" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 5 7l4 4M15 3l4 4-4 4"/><path d="M5 7h14M3 17h18M3 21h18"/></svg>
@@ -700,7 +708,7 @@
         <!-- O.E Português — vermelho suave -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="o.e português" data-materia-real="O.E Português" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>
@@ -720,7 +728,7 @@
         <!-- Multidisciplinar — ciano/turquesa -->
         <div class="subject-card" tabindex="0" role="button"
              data-name="multidisciplinar" data-materia-real="Multidisciplinar" data-tarefas="0" data-apostilas="0" data-recente="0"
-             style="--sc:#ff3d50; --sc-dim:rgba(212,43,58,0.16);">
+             style="--sc:#BC6FF1; --sc-dim:rgba(137,44,220,0.16);">
           <div class="subject-card-top">
             <div class="subject-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -751,8 +759,8 @@
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
+      if (window.NexosData) {
+        NexosData.logout();
       } else {
         window.location.href = 'index.html';
       }
@@ -773,13 +781,13 @@
   /* ===================================================
      ===== CONTADORES REAIS (anotações e tarefas) ====
      ===================================================
-     Lê os dados do Modo Desenvolvedor (localStorage, via AtlasData)
+     Lê os dados do Modo Desenvolvedor (localStorage, via NexosData)
      e atualiza os números mostrados em cada card, além dos atributos
      data-tarefas e data-recente usados pelos filtros abaixo.
      Apostilas continuam com o número de exemplo (sem CRUD por enquanto).
   ===================================================== */
   function syncSubjectCounters() {
-    if (!window.AtlasData) return;
+    if (!window.NexosData) return;
     var cards = document.querySelectorAll('#subjectGrid .subject-card');
     var todayISO = new Date().toISOString().slice(0, 10);
     var sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -788,8 +796,8 @@
       var materiaReal = card.dataset.materiaReal;
       if (!materiaReal) return;
 
-      var notes = AtlasData.getNotesBy(materiaReal);
-      var tasks = AtlasData.getTasksBy(materiaReal);
+      var notes = NexosData.getNotesBy(materiaReal);
+      var tasks = NexosData.getTasksBy(materiaReal);
 
       var noteCountEl = card.querySelector('.note-count');
       if (noteCountEl) {
@@ -815,11 +823,12 @@
   }
 
   syncSubjectCounters();
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) {
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) {
       syncSubjectCounters();
-      AtlasData.onDataChange(syncSubjectCounters);
-      AtlasData.injectDevBanner();
+      NexosData.onDataChange(syncSubjectCounters);
+      NexosData.injectDevBanner();
+      if (NexosData.isDev()) document.body.classList.add('dev-mode-on');
     }
   });
 
@@ -879,7 +888,7 @@
     // o parâmetro ?materia= identifica qual foi escolhida para uso futuro.
     function goToSubject(card) {
       var materiaReal = card.dataset.materiaReal || card.dataset.name;
-      var slug = window.AtlasData ? AtlasData.slugify(materiaReal) :
+      var slug = window.NexosData ? NexosData.slugify(materiaReal) :
         materiaReal.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, '-');
       window.location.href = 'materia.html?materia=' + encodeURIComponent(slug);
     }

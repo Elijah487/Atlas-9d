@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Apostilas (PDF) — Atlas</title>
+<title>Apostilas (PDF) — Nexos</title>
 <style>
 
   /* ============ RESET & TOKENS (idênticos ao dashboard) ============ */
@@ -177,6 +177,9 @@
     background: var(--line);
     margin: 14px 4px;
   }
+
+  .dev-only { display: none; }
+  body.dev-mode-on .dev-only { display: inline-flex; }
 
   /* ============ MAIN ============ */
   main {
@@ -458,15 +461,15 @@
 <link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
 <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="atlas-theme.css">
+<link rel="stylesheet" href="nexos-theme.css">
 </head>
 <body>
 
 <!-- Camada central de dados e sessão, carregada como módulo ES. -->
-<script type="module" src="atlas-data.js"></script>
+<script type="module" src="nexos-data.js"></script>
 <script>
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) { NexosData.requireSession('index.html'); }
   });
 </script>
 
@@ -478,8 +481,8 @@
     </button>
 
     <div class="brand">
-      <div class="brand-mark">A</div>
-      <span class="brand-word">Atlas</span>
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
     </div>
 
     <div class="search-wrap">
@@ -522,6 +525,11 @@
       Calendário
     </a>
 
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
+    </a>
+
     <div class="sidebar-divider"></div>
   </nav>
 
@@ -548,8 +556,8 @@
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
+      if (window.NexosData) {
+        NexosData.logout();
       } else {
         window.location.href = 'index.html';
       }
@@ -567,8 +575,8 @@
     }
   });
 
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.injectDevBanner(); }
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) { NexosData.injectDevBanner(); if (NexosData.isDev()) document.body.classList.add('dev-mode-on'); }
   });
 </script>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calendário — Atlas</title>
+<title>Calendário — Nexos</title>
 <style>
 
   /* ============ RESET & TOKENS (idênticos ao dashboard) ============ */
@@ -654,15 +654,15 @@
 <link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
 <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="atlas-theme.css">
+<link rel="stylesheet" href="nexos-theme.css">
 </head>
 <body>
 
 <!-- Camada central de dados e sessão, carregada como módulo ES. -->
-<script type="module" src="atlas-data.js"></script>
+<script type="module" src="nexos-data.js"></script>
 <script>
-  document.addEventListener('atlas-data-ready', function () {
-    if (window.AtlasData) { AtlasData.requireSession('index.html'); }
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) { NexosData.requireSession('index.html'); }
   });
 </script>
 
@@ -674,8 +674,8 @@
     </button>
 
     <div class="brand">
-      <div class="brand-mark">A</div>
-      <span class="brand-word">Atlas</span>
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
     </div>
 
     <div class="search-wrap">
@@ -716,6 +716,11 @@
     <a class="nav-item active fast" href="calendario.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       Calendário
+    </a>
+
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
     </a>
 
     <div class="sidebar-divider"></div>
@@ -787,8 +792,8 @@
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
+      if (window.NexosData) {
+        NexosData.logout();
       } else {
         window.location.href = 'index.html';
       }
@@ -808,10 +813,10 @@
 </script>
 
 <script>
-document.addEventListener('atlas-data-ready', function () {
-  if (!window.AtlasData) return;
+document.addEventListener('nexos-data-ready', function () {
+  if (!window.NexosData) return;
 
-  if (AtlasData.isDev()) {
+  if (NexosData.isDev()) {
     document.body.classList.add('dev-mode-on');
   }
 
@@ -857,7 +862,7 @@ document.addEventListener('atlas-data-ready', function () {
   var empty = document.getElementById('eventsEmpty');
 
   function render() {
-    var events = AtlasData.getEvents().slice().sort(function (a, b) {
+    var events = NexosData.getEvents().slice().sort(function (a, b) {
       return (a.data || '').localeCompare(b.data || '');
     });
 
@@ -912,7 +917,7 @@ document.addEventListener('atlas-data-ready', function () {
   var descInput = document.getElementById('eventDescricao');
 
   function openEventModal(id) {
-    var ev = id ? AtlasData.getEvents().find(function (e) { return e.id === id; }) : null;
+    var ev = id ? NexosData.getEvents().find(function (e) { return e.id === id; }) : null;
     modalTitle.textContent = ev ? 'Editar evento' : 'Novo evento';
     idInput.value = ev ? ev.id : '';
     tituloInput.value = ev ? ev.titulo : '';
@@ -934,7 +939,7 @@ document.addEventListener('atlas-data-ready', function () {
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
-    AtlasData.saveEvent({
+    NexosData.saveEvent({
       id: idInput.value || null,
       titulo: tituloInput.value.trim(),
       data: dataInput.value,
@@ -961,15 +966,15 @@ document.addEventListener('atlas-data-ready', function () {
   });
   document.getElementById('confirmDeleteConfirm').addEventListener('click', function () {
     if (!pendingId) return;
-    AtlasData.deleteEvent(pendingId);
+    NexosData.deleteEvent(pendingId);
     pendingId = null;
     confirmOverlay.classList.remove('open');
     render();
   });
 
   render();
-  AtlasData.onDataChange(render);
-  AtlasData.injectDevBanner();
+  NexosData.onDataChange(render);
+  NexosData.injectDevBanner();
 });
 
 </script>

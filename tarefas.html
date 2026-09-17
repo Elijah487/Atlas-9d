@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tarefas — Atlas</title>
+<title>Tarefas — Nexos</title>
 <style>
 
   /* ============ RESET & TOKENS ============ */
@@ -369,12 +369,12 @@
 <link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
 <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="atlas-theme.css">
+<link rel="stylesheet" href="nexos-theme.css">
 </head>
 <body>
 
-<script type="module" src="atlas-data.js"></script>
-<script src="atlas-editor.js"></script>
+<script type="module" src="nexos-data.js"></script>
+<script src="nexos-editor.js"></script>
 
 <div class="app">
 
@@ -384,8 +384,8 @@
     </button>
 
     <div class="brand">
-      <div class="brand-mark">A</div>
-      <span class="brand-word">Atlas</span>
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
     </div>
 
     <div class="search-wrap">
@@ -428,6 +428,11 @@
       Calendário
     </a>
 
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
+    </a>
+
     <div class="sidebar-divider"></div>
   </nav>
 
@@ -451,8 +456,8 @@
   var logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function () {
-      if (window.AtlasData) {
-        AtlasData.logout();
+      if (window.NexosData) {
+        NexosData.logout();
       } else {
         window.location.href = 'index.html';
       }
@@ -472,22 +477,23 @@
 </script>
 
 <script>
-document.addEventListener('atlas-data-ready', function () {
-  if (!window.AtlasData) return;
+document.addEventListener('nexos-data-ready', function () {
+  if (!window.NexosData) return;
+  NexosData.requireSession('index.html');
 
   var SUBJECT_COLORS = {
-    'Matemática':      { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Português':       { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'História':        { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Geografia':       { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Ciências':        { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Inglês':          { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Arte':            { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'O.E Matemática':  { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'O.E Português':   { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' },
-    'Multidisciplinar':{ sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' }
+    'Matemática':      { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Português':       { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'História':        { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Geografia':       { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Ciências':        { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Inglês':          { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Arte':            { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'O.E Matemática':  { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'O.E Português':   { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' },
+    'Multidisciplinar':{ sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' }
   };
-  var DEFAULT_COLOR = { sc: '#ff3d50', dim: 'rgba(212,43,58,0.16)' };
+  var DEFAULT_COLOR = { sc: '#BC6FF1', dim: 'rgba(137,44,220,0.16)' };
 
   function escapeHtml(str) {
     return String(str || '')
@@ -529,7 +535,7 @@ document.addEventListener('atlas-data-ready', function () {
     } catch(e) { return false; }
   }
 
-  function isDevSession() { return !!(AtlasData.isDev && AtlasData.isDev()); }
+  function isDevSession() { return !!(NexosData.isDev && NexosData.isDev()); }
   if (isDevSession()) { document.body.classList.add('dev-mode-on'); }
 
   function armConfirm(btn, onConfirm) {
@@ -568,7 +574,7 @@ document.addEventListener('atlas-data-ready', function () {
 
   function render() {
     if (!list) return;
-    var rawTasks = AtlasData.getTasks ? AtlasData.getTasks() : [];
+    var rawTasks = NexosData.getTasks ? NexosData.getTasks() : [];
     var tasks = rawTasks.slice().sort(function (a, b) {
       return (a.dataEntrega || '').localeCompare(b.dataEntrega || '');
     });
@@ -617,7 +623,7 @@ document.addEventListener('atlas-data-ready', function () {
         e.stopPropagation();
         if (!isDevSession()) return;
         armConfirm(delBtn, function () {
-          AtlasData.deleteTask(delBtn.dataset.id);
+          NexosData.deleteTask(delBtn.dataset.id);
           render();
         });
         return;
@@ -632,11 +638,11 @@ document.addEventListener('atlas-data-ready', function () {
 
   render();
 
-  if (typeof AtlasData.onDataChange === 'function') {
-    AtlasData.onDataChange(render);
+  if (typeof NexosData.onDataChange === 'function') {
+    NexosData.onDataChange(render);
   }
-  if (typeof AtlasData.injectDevBanner === 'function') {
-    AtlasData.injectDevBanner();
+  if (typeof NexosData.injectDevBanner === 'function') {
+    NexosData.injectDevBanner();
   }
 });
 </script>
