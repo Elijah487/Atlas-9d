@@ -1,0 +1,1281 @@
+/* =====================================================================
+   NEXOS — Design System Unificado
+   Identidade Visual: Preto (60%) · Roxo Escuro (30%) · Roxo Vibrante (10%)
+   Paleta: #000000 · #52057B · #892CDC · #BC6FF1
+
+   Como usar: adicione <link rel="stylesheet" href="nexos-theme.css">
+   em todas as páginas internas do Nexos (dashboard, matérias, tarefas,
+   apostilas, calendário, materia, anotação, tarefa, contas). O arquivo
+   index.html já tem sua própria identidade visual — não precisa deste
+   arquivo.
+   ===================================================================== */
+
+/* =====================================================================
+   1. GOOGLE FONTS — Inter + Space Grotesk + JetBrains Mono
+   ===================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* =====================================================================
+   2. TOKENS DE DESIGN — remapeamento completo para identidade vermelha
+   ===================================================================== */
+:root {
+  /* Backgrounds — base preta (60%) com leve tintura roxa */
+  --bg:        #060207;
+  --surface:   #0c0710;
+  --surface-2: #130a1a;
+
+  /* Bordas — sutil tintura roxo-escuro (30%) */
+  --line:      rgba(137, 44, 220, 0.10);
+  --line-mid:  rgba(137, 44, 220, 0.16);
+
+  /* Roxo — accent principal (10% vibrante) */
+  --blue:       #892CDC;          /* usado para fundos sólidos, botões  */
+  --blue-bright:#BC6FF1;          /* texto accent, ícones ativos  */
+  --blue-dim:   rgba(137,44,220,0.18); /* fundos tinted sutis          */
+
+  /* Roxo escuro — usado em áreas de maior superfície (30%) */
+  --purple-deep: #52057B;
+
+  /* Alias semânticos (mesmos nomes, mantém compatibilidade) */
+  --red:        #892CDC;
+  --red-bright: #BC6FF1;
+  --red-glow:   rgba(137,44,220, 0.35);
+  --red-deep:   rgba(137,44,220, 0.12);
+
+  /* Texto */
+  --ink:       #f0eeec;
+  --ink-dim:   #8a8a92;
+  --ink-faint: #52525a;
+
+  /* Status — permanecem reconhecíveis mas harmonizados */
+  --green:     #2eb86a;
+  --orange:    #d97c2b;
+
+  /* Raios */
+  --radius:    10px;
+  --radius-sm: 7px;
+
+  /* Easing */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =====================================================================
+   3. BASE GLOBAL
+   ===================================================================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  line-height: 1.5;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a          { color: inherit; text-decoration: none; }
+button     { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+ul         { list-style: none; }
+input, select, textarea { font-family: inherit; }
+
+::selection           { background: var(--red); color: #fff; }
+:focus-visible        { outline: 2px solid var(--red-bright); outline-offset: 2px; border-radius: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =====================================================================
+   4. TRANSIÇÕES RÁPIDAS
+   ===================================================================== */
+.fast {
+  transition: background-color 0.18s var(--ease),
+              border-color     0.18s var(--ease),
+              color            0.18s var(--ease);
+}
+
+/* =====================================================================
+   5. APP SHELL (grid — sem alteração de layout)
+   ===================================================================== */
+.app {
+  background: var(--bg);
+}
+
+/* =====================================================================
+   6. HEADER / NAVBAR
+   ===================================================================== */
+header {
+  background: rgba(8, 8, 9, 0.92) !important;
+  border-bottom: 1px solid var(--line-mid) !important;
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+}
+
+/* Brand mark — quadrado vermelho com "A" */
+.brand-mark {
+  background: var(--red) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 18px -4px var(--red-glow);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700 !important;
+}
+
+.brand-word {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Barra de busca no header */
+.search-wrap {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.search-wrap:focus-within {
+  border-color: rgba(137,44,220, 0.45) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+.search-wrap svg    { color: var(--ink-faint); }
+.search-wrap input  { color: var(--ink); background: transparent; border: none; outline: none; }
+.search-wrap input::placeholder { color: var(--ink-faint); }
+
+/* Badge da turma */
+.class-badge {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.class-badge .dot { background: var(--green) !important; }
+
+/* Botão Sair */
+.logout-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease), color 0.18s var(--ease);
+}
+.logout-btn:hover {
+  background: rgba(137,44,220, 0.12) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  color: var(--red-bright) !important;
+}
+
+/* Botão hamburguer (mobile) */
+.menu-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.menu-btn:hover {
+  border-color: rgba(137,44,220, 0.4) !important;
+  background: var(--red-deep) !important;
+}
+
+/* =====================================================================
+   7. SIDEBAR
+   ===================================================================== */
+.sidebar {
+  background: rgba(8, 8, 9, 0.96) !important;
+  border-right: 1px solid var(--line-mid) !important;
+}
+
+.nav-item {
+  color: var(--ink-dim);
+  border-radius: var(--radius-sm) !important;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--ink) !important;
+}
+.nav-item.active {
+  background: rgba(137,44,220, 0.16) !important;
+  color: var(--red-bright) !important;
+  font-weight: 600;
+  position: relative;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--red-bright);
+  box-shadow: 0 0 10px var(--red-glow);
+}
+
+.sidebar-divider {
+  background: var(--line-mid) !important;
+}
+
+/* Card motivacional na sidebar (dashboard) */
+.sidebar-promo {
+  background: rgba(137,44,220, 0.08) !important;
+  border: 1px solid rgba(137,44,220, 0.2) !important;
+  border-radius: var(--radius) !important;
+}
+.sidebar-promo strong,
+.sidebar-promo-title {
+  color: var(--red-bright) !important;
+}
+
+/* =====================================================================
+   8. MAIN CONTENT — ESTRUTURA
+   ===================================================================== */
+.page-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.page-sub { color: var(--ink-dim); }
+
+.section-head h2 {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.section-head .link {
+  color: var(--red-bright) !important;
+  font-weight: 600;
+  font-size: 13px;
+  transition: opacity 0.15s;
+}
+.section-head .link:hover { opacity: 0.8; }
+
+/* =====================================================================
+   9. STAT CARDS
+   ===================================================================== */
+.stat {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+.stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none;
+}
+.stat:hover {
+  border-color: rgba(137,44,220, 0.3) !important;
+  background: rgba(137,44,220, 0.04) !important;
+}
+
+.stat-label  { color: var(--ink-faint); font-size: 12.5px; }
+.stat-value  { color: var(--ink); font-weight: 700; }
+.stat-value.accent { color: var(--red-bright) !important; }
+
+.stat-link {
+  color: var(--red-bright) !important;
+  font-weight: 600;
+}
+.stat-link:hover { text-decoration: underline; }
+
+/* Ícone dentro do stat (dashboard novo) */
+.stat-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 0 14px -6px var(--red-glow);
+}
+
+/* =====================================================================
+   10. LISTA DE TAREFAS (dashboard)
+   ===================================================================== */
+.list {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden;
+}
+.list-row {
+  border-bottom: 1px solid var(--line) !important;
+  transition: background 0.15s;
+}
+.list-row:hover   { background: rgba(255, 255, 255, 0.03) !important; }
+.list-row:last-child { border-bottom: none !important; }
+
+.task-dot     { background: var(--red-bright) !important; box-shadow: 0 0 8px var(--red-glow); }
+.task-subject { color: var(--red-bright) !important; font-weight: 600; }
+.task-date    { color: var(--ink-faint); }
+
+/* Badge de prioridade na linha de tarefa */
+.priority-badge-inline {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.priority-alta   { background: rgba(137,44,220,0.18); color: var(--red-bright); }
+.priority-media  { background: rgba(217,124,43,0.18); color: var(--orange); }
+.priority-baixa  { background: rgba(46,184,106,0.15); color: var(--green); }
+
+/* =====================================================================
+   11. GRID DE MATÉRIAS (dashboard)
+   ===================================================================== */
+.subjects-grid .subject,
+.subject {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.subjects-grid .subject:hover,
+.subject:hover {
+  border-color: rgba(137,44,220, 0.35) !important;
+  background: rgba(137,44,220, 0.05) !important;
+}
+.subject-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 12px -4px var(--red-glow);
+}
+
+/* =====================================================================
+   12. APOSTILAS CTA (dashboard)
+   ===================================================================== */
+.apostilas-cta {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.apostilas-cta:hover {
+  border-color: rgba(137,44,220, 0.35) !important;
+  background: rgba(137,44,220, 0.05) !important;
+}
+.apostilas-cta-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 9px !important;
+  box-shadow: 0 0 12px -4px var(--red-glow);
+}
+.apostilas-cta-sub   { color: var(--ink-faint); }
+.apostilas-cta-arrow { color: var(--ink-faint); transition: color 0.18s; }
+.apostilas-cta:hover .apostilas-cta-arrow { color: var(--red-bright) !important; }
+
+/* =====================================================================
+   13. ASIDE / PAINEL LATERAL
+   ===================================================================== */
+aside {
+  background: rgba(8, 8, 9, 0.96) !important;
+  border-left: 1px solid var(--line-mid) !important;
+}
+.aside-block h3 { color: var(--ink-dim); font-size: 13px; font-weight: 600; }
+
+/* =====================================================================
+   14. AVISOS / NOTICES
+   ===================================================================== */
+.notice {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius-sm) !important;
+}
+.notice strong { color: var(--ink); }
+.notice-desc  { color: var(--ink-dim); }
+.notice-date  { color: var(--ink-faint); }
+.notice-empty { color: var(--ink-faint); }
+
+/* Bordas de prioridade */
+.notice.priority-normal    { border-left: 3px solid var(--ink-faint) !important; }
+.notice.priority-importante { border-left: 3px solid var(--orange) !important; }
+.notice.priority-urgente   { border-left: 3px solid var(--red-bright) !important; }
+
+.notice.priority-normal .priority-badge    { background: rgba(255,255,255,0.05); color: var(--ink-faint); }
+.notice.priority-importante .priority-badge { background: rgba(217,124,43,0.15); color: var(--orange); }
+.notice.priority-urgente .priority-badge   { background: rgba(137,44,220,0.18);  color: var(--red-bright); }
+
+/* =====================================================================
+   15. ATIVIDADE RECENTE
+   ===================================================================== */
+.activity-item {
+  border-bottom: 1px solid var(--line) !important;
+  color: var(--ink-dim);
+}
+.activity-item:last-child { border-bottom: none !important; }
+.activity-bullet { background: var(--red-bright) !important; box-shadow: 0 0 8px var(--red-glow); }
+.activity-item span strong { color: var(--ink); }
+.activity-time { color: var(--ink-faint) !important; }
+
+/* =====================================================================
+   16. BOTÕES
+   ===================================================================== */
+
+/* Botão primário (salvar, confirmar, criar) */
+.btn-primary {
+  background: linear-gradient(180deg, #892CDC, var(--red)) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.18) inset, 0 6px 20px -8px var(--red-glow);
+  font-weight: 600;
+  transition: transform 0.22s var(--ease), box-shadow 0.22s var(--ease), background 0.22s var(--ease) !important;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 10px 28px -6px rgba(137,44,220,0.55) !important;
+  background: linear-gradient(180deg, #BC6FF1, #892CDC) !important;
+}
+.btn-primary:active { transform: translateY(0); }
+
+/* Botão secundário / fantasma */
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--ink) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Botão de perigo */
+.btn-danger {
+  background: rgba(137,44,220, 0.18) !important;
+  color: var(--red-bright) !important;
+  border: 1px solid rgba(137,44,220, 0.35) !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 600;
+  transition: background 0.18s, border-color 0.18s !important;
+}
+.btn-danger:hover {
+  background: rgba(137,44,220, 0.28) !important;
+  border-color: rgba(137,44,220, 0.55) !important;
+}
+
+/* Botão "+ Adicionar" (dev mode) */
+.btn-add {
+  background: var(--red-deep) !important;
+  border: 1px solid rgba(137,44,220, 0.3) !important;
+  color: var(--red-bright) !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 600;
+  transition: background 0.18s, color 0.18s, border-color 0.18s !important;
+}
+.btn-add:hover {
+  background: var(--red) !important;
+  color: #fff !important;
+  border-color: var(--red) !important;
+}
+
+/* Botão pequeno "+ Adicionar" (aside) */
+.btn-add-small {
+  background: var(--red-deep) !important;
+  border: 1px solid rgba(137,44,220, 0.25) !important;
+  color: var(--red-bright) !important;
+  border-radius: 100px !important;
+  font-size: 11.5px;
+  font-weight: 600;
+  transition: background 0.18s, color 0.18s !important;
+}
+.btn-add-small:hover {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+
+/* =====================================================================
+   17. ÍCONE BUTTONS (mini e normal)
+   ===================================================================== */
+.icon-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-faint) !important;
+  border-radius: 6px !important;
+  transition: color 0.18s, border-color 0.18s, background 0.18s !important;
+}
+.icon-btn:hover {
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  background: var(--red-deep) !important;
+}
+.icon-btn.danger:hover {
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.5) !important;
+  background: rgba(137,44,220, 0.15) !important;
+}
+
+.icon-btn-mini {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--ink-faint) !important;
+  border-radius: 5px !important;
+  transition: color 0.18s, border-color 0.18s, background 0.18s !important;
+}
+.icon-btn-mini:hover {
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  background: var(--red-deep) !important;
+}
+.icon-btn-mini.danger:hover {
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.5) !important;
+  background: rgba(137,44,220, 0.15) !important;
+}
+
+/* =====================================================================
+   18. INPUTS, TEXTAREAS, SELECTS (modais e formulários)
+   ===================================================================== */
+.field-label {
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.field-input,
+.field-textarea,
+select.field-input {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--ink) !important;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease) !important;
+}
+.field-input:focus,
+.field-textarea:focus,
+select.field-input:focus {
+  outline: none !important;
+  border-color: rgba(137,44,220, 0.55) !important;
+  background: rgba(137,44,220, 0.04) !important;
+}
+.field-input::placeholder,
+.field-textarea::placeholder { color: var(--ink-faint); }
+
+/* Select arrow color */
+select.field-input { color-scheme: dark; }
+
+/* =====================================================================
+   19. MODAIS
+   ===================================================================== */
+.modal-overlay {
+  background: rgba(2, 2, 3, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+.modal-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04) inset,
+    0 40px 80px -20px rgba(0,0,0,0.8),
+    0 0 60px -30px var(--red-glow) !important;
+  position: relative;
+  overflow: hidden;
+}
+.modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(137,44,220,0.3), transparent);
+  pointer-events: none;
+}
+
+.modal-card h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.modal-close {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: 50% !important;
+  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
+}
+.modal-close:hover {
+  background: rgba(137,44,220, 0.12) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  color: var(--red-bright) !important;
+}
+
+.confirm-text { color: var(--ink-dim); }
+
+/* =====================================================================
+   20. CARDS DE MATÉRIA (materias.html — grade de disciplinas)
+   ===================================================================== */
+.subject-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease),
+              box-shadow 0.22s var(--ease), background 0.22s var(--ease) !important;
+}
+.subject-card:hover {
+  transform: translateY(-3px) !important;
+  border-color: rgba(137,44,220, 0.45) !important;
+  background: rgba(137,44,220, 0.04) !important;
+  box-shadow:
+    0 16px 40px -16px rgba(0,0,0,0.6),
+    0 0 30px -20px var(--red-glow) !important;
+}
+.subject-card:hover::before { opacity: 0.08 !important; }
+.subject-card::before {
+  background: linear-gradient(160deg, var(--red) 0%, transparent 60%) !important;
+}
+.subject-card:focus-visible {
+  outline: 2px solid var(--red-bright) !important;
+}
+
+.subject-card-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 11px !important;
+  box-shadow: 0 0 16px -6px var(--red-glow);
+}
+
+.subject-card-arrow {
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-faint) !important;
+}
+.subject-card:hover .subject-card-arrow {
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.5) !important;
+}
+
+.subject-card-name { color: var(--ink); }
+.meta-item         { color: var(--ink-faint); }
+.meta-item strong  { color: var(--ink-dim); }
+
+/* Variável de cor da matéria (--sc) — forçada para vermelho */
+.subject-card {
+  --sc:     var(--red-bright) !important;
+  --sc-dim: var(--red-deep)   !important;
+}
+
+.tag-pill {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  font-weight: 600;
+}
+
+/* =====================================================================
+   21. FILTROS / CHIPS
+   ===================================================================== */
+.filter-chip {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
+}
+.filter-chip:hover {
+  color: var(--ink) !important;
+  border-color: rgba(137,44,220, 0.35) !important;
+}
+.filter-chip.active {
+  background: rgba(137,44,220, 0.16) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  color: var(--red-bright) !important;
+}
+
+/* =====================================================================
+   22. ABAS DE BIMESTRE (materia.html)
+   ===================================================================== */
+.bimestre-tabs {
+  border-bottom: 1px solid var(--line-mid) !important;
+}
+.bimestre-tab {
+  color: var(--ink-dim);
+  border-bottom: 2px solid transparent !important;
+  transition: color 0.18s, border-color 0.18s !important;
+}
+.bimestre-tab:hover { color: var(--ink) !important; }
+.bimestre-tab.active {
+  color: var(--red-bright) !important;
+  border-bottom-color: var(--red-bright) !important;
+}
+
+/* =====================================================================
+   23. BUSCA DE MATÉRIA (materia.html toolbar)
+   ===================================================================== */
+.subject-search {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: border-color 0.18s !important;
+}
+.subject-search:focus-within {
+  border-color: rgba(137,44,220, 0.45) !important;
+}
+.subject-search input { color: var(--ink); outline: none; border: none; background: transparent; }
+.subject-search input::placeholder { color: var(--ink-faint); }
+.subject-search svg { color: var(--ink-faint); }
+
+/* =====================================================================
+   24. CARDS DE ANOTAÇÃO (materia.html)
+   ===================================================================== */
+.note-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: border-color 0.18s, background 0.18s !important;
+}
+.note-card:hover {
+  border-color: rgba(137,44,220, 0.35) !important;
+  background: rgba(137,44,220, 0.04) !important;
+}
+.note-card-title   { color: var(--ink); }
+.note-card-excerpt { color: var(--ink-dim); }
+.note-card-date    { color: var(--ink-faint); }
+
+/* =====================================================================
+   25. CARDS DE TAREFA (tarefas.html, materia.html)
+   ===================================================================== */
+.task-card {
+  --sc:     var(--red-bright) !important;
+  --sc-dim: var(--red-deep)   !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: transform 0.22s var(--ease), border-color 0.22s var(--ease),
+              box-shadow 0.22s var(--ease), background 0.22s var(--ease) !important;
+}
+.task-card:hover {
+  transform: translateY(-2px) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  background: rgba(137,44,220, 0.04) !important;
+  box-shadow: 0 12px 30px -14px rgba(0,0,0,0.5) !important;
+}
+.task-card::before {
+  background: linear-gradient(160deg, var(--red) 0%, transparent 55%) !important;
+}
+
+.task-card-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 9px !important;
+}
+.task-card-subject    { color: var(--red-bright) !important; font-weight: 600; }
+.task-card-title      { color: var(--ink); }
+.task-card-date,
+.task-card-footer span { color: var(--ink-faint); }
+
+.task-priority-alta   { background: rgba(137,44,220,0.18)  !important; color: var(--red-bright) !important; }
+.task-priority-media  { background: rgba(217,124,43,0.18) !important; color: var(--orange) !important; }
+.task-priority-baixa  { background: rgba(46,184,106,0.15) !important; color: var(--green) !important; }
+
+/* =====================================================================
+   26. EMPTY STATE / RESULTS EMPTY
+   ===================================================================== */
+.results-empty,
+.empty-banner {
+  border: 1px dashed rgba(255,255,255,0.1) !important;
+  border-radius: var(--radius) !important;
+  color: var(--ink-faint) !important;
+}
+.empty-banner a { color: var(--red-bright) !important; font-weight: 600; }
+
+/* =====================================================================
+   27. EDITOR WYSIWYG (nexos-editor.js)
+   ===================================================================== */
+.nexos-editor {
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  overflow: hidden;
+}
+
+.nexos-editor-toolbar {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom: 1px solid var(--line-mid) !important;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px 8px;
+}
+
+.nexos-editor-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 5px !important;
+  color: var(--ink-dim) !important;
+  padding: 4px 8px !important;
+  font-size: 13px !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s !important;
+}
+.nexos-editor-btn:hover {
+  background: rgba(137,44,220, 0.12) !important;
+  color: var(--red-bright) !important;
+  border-color: rgba(137,44,220, 0.3) !important;
+}
+.nexos-editor-btn:active {
+  background: rgba(137,44,220, 0.2) !important;
+  color: var(--red-bright) !important;
+}
+
+.nexos-editor-sep {
+  width: 1px !important;
+  height: 18px !important;
+  background: var(--line-mid) !important;
+  margin: 4px 4px !important;
+  align-self: center;
+  display: inline-block;
+}
+
+.nexos-editor-area {
+  min-height: 160px;
+  padding: 14px 16px;
+  color: var(--ink) !important;
+  line-height: 1.6;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+}
+.nexos-editor-area:focus {
+  background: rgba(137,44,220, 0.02) !important;
+}
+.nexos-editor-area[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+
+.nexos-editor-readonly {
+  padding: 14px 16px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+.nexos-editor-empty { color: var(--ink-faint); font-style: italic; }
+
+.nexos-editor-area a,
+.nexos-editor-readonly a {
+  color: var(--red-bright) !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+.nexos-editor-area a:hover,
+.nexos-editor-readonly a:hover {
+  opacity: 0.85;
+}
+
+/* Modal de inserir link (substitui window.prompt) */
+.nexos-editor-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+}
+.nexos-editor-modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  padding: 20px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.nexos-editor-modal-title {
+  color: var(--ink);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+.nexos-editor-modal-label {
+  display: block;
+  color: var(--ink-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 12px 0 6px;
+}
+.nexos-editor-modal-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-mid);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  padding: 9px 11px;
+  outline: none;
+}
+.nexos-editor-modal-input:focus {
+  border-color: var(--red-bright);
+}
+.nexos-editor-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.nexos-editor-modal-btn {
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.nexos-editor-modal-btn-cancel {
+  background: transparent;
+  color: var(--ink-dim);
+  border-color: var(--line-mid);
+}
+.nexos-editor-modal-btn-cancel:hover {
+  color: var(--ink);
+}
+.nexos-editor-modal-btn-ok {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+.nexos-editor-modal-btn-ok:hover {
+  background: var(--red-bright) !important;
+}
+
+/* =====================================================================
+   28. CALENDÁRIO (calendario.html)
+   ===================================================================== */
+
+/* Grade do calendário */
+.cal-grid {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  overflow: hidden;
+}
+
+/* Cabeçalho dias da semana */
+.cal-header-cell {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: var(--ink-faint) !important;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--line-mid) !important;
+}
+
+/* Células de dia */
+.cal-cell {
+  background: transparent !important;
+  border: 1px solid var(--line) !important;
+  transition: background 0.18s !important;
+}
+.cal-cell:hover { background: rgba(255, 255, 255, 0.03) !important; }
+
+.cal-cell.today {
+  background: rgba(137,44,220, 0.08) !important;
+  border-color: rgba(137,44,220, 0.3) !important;
+}
+.cal-cell.today .cal-day-num {
+  background: var(--red) !important;
+  color: #fff !important;
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+  box-shadow: 0 0 12px var(--red-glow);
+}
+.cal-cell.other-month { opacity: 0.35 !important; }
+
+.cal-day-num { color: var(--ink); font-size: 13px; font-weight: 500; }
+
+/* Evento no calendário */
+.cal-event {
+  background: rgba(137,44,220, 0.18) !important;
+  color: var(--red-bright) !important;
+  border-radius: 4px !important;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 2px solid var(--red-bright) !important;
+  transition: background 0.15s !important;
+}
+.cal-event:hover { background: rgba(137,44,220, 0.28) !important; }
+
+/* Navegação do calendário */
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cal-nav-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
+}
+.cal-nav-btn:hover {
+  background: rgba(137,44,220, 0.12) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  color: var(--red-bright) !important;
+}
+.cal-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+/* =====================================================================
+   29. APOSTILAS (apostilas.html)
+   ===================================================================== */
+.apostila-card {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border: 1px solid var(--line-mid) !important;
+  border-radius: var(--radius) !important;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease) !important;
+}
+.apostila-card:hover {
+  border-color: rgba(137,44,220, 0.35) !important;
+  background: rgba(137,44,220, 0.04) !important;
+}
+.apostila-card-icon {
+  background: var(--red-deep) !important;
+  color: var(--red-bright) !important;
+  border-radius: 9px !important;
+}
+.apostila-card-name   { color: var(--ink); }
+.apostila-card-meta   { color: var(--ink-faint); }
+.apostila-card-arrow  { color: var(--ink-faint); transition: color 0.18s; }
+.apostila-card:hover .apostila-card-arrow { color: var(--red-bright) !important; }
+
+/* Filtros de apostilas */
+.apostila-filter-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--line-mid) !important;
+  color: var(--ink-dim) !important;
+  border-radius: 100px !important;
+  transition: background 0.18s, border-color 0.18s, color 0.18s !important;
+}
+.apostila-filter-btn:hover {
+  color: var(--ink) !important;
+  border-color: rgba(137,44,220, 0.35) !important;
+}
+.apostila-filter-btn.active {
+  background: rgba(137,44,220, 0.16) !important;
+  border-color: rgba(137,44,220, 0.4) !important;
+  color: var(--red-bright) !important;
+}
+/* =====================================================================
+   30. MODO DESENVOLVEDOR — banner e indicadores
+   ===================================================================== */
+#nexosDevBanner {
+  /* Gradiente mais suave e moderno */
+  background: linear-gradient(90deg, #52057B, var(--red-bright), #52057B) !important;
+  color: #ffffff !important;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 8px 16px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(137,44,220, 0.2);
+}
+
+#nexosDevBanner .dot { 
+  background: #ffffff !important; 
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+#nexosDevBanner button {
+  background: rgba(0, 0, 0, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  font-weight: 600;
+  transition: background 0.18s, border-color 0.18s !important;
+}
+
+#nexosDevBanner button:hover { 
+  background: rgba(0, 0, 0, 0.3) !important; 
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* =====================================================================
+   32. HERO BANNER DO DASHBOARD (área de boas-vindas)
+   ===================================================================== */
+.dashboard-hero {
+  background: rgba(137,44,220, 0.05) !important;
+  border: 1px solid rgba(137,44,220, 0.15) !important;
+  border-radius: var(--radius) !important;
+  position: relative;
+  overflow: hidden;
+}
+.dashboard-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(137,44,220,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.dashboard-hero-title { color: var(--ink); }
+.dashboard-hero-sub   { color: var(--ink-dim); }
+
+/* =====================================================================
+   33. SCROLLBAR CUSTOMIZADA
+   ===================================================================== */
+::-webkit-scrollbar          { width: 6px; height: 6px; }
+::-webkit-scrollbar-track    { background: var(--bg); }
+::-webkit-scrollbar-thumb    {
+  background: rgba(137,44,220, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(137,44,220, 0.45); }
+
+/* =====================================================================
+   34. SELEÇÃO DE TEXTO
+   ===================================================================== */
+::selection { background: rgba(137,44,220, 0.35); color: var(--ink); }
+
+/* =====================================================================
+   35. MOBILE — ajustes de sidebar aberta
+   ===================================================================== */
+@media (max-width: 720px) {
+  .sidebar {
+    box-shadow: 4px 0 24px rgba(0,0,0,0.6), 1px 0 0 var(--line-mid) !important;
+  }
+}
+/* =====================================================================
+   NEXOS v7.3 — Performance & Rendering Boost
+   ===================================================================== */
+
+/* Otimização de GPU para Elementos Animados e Modais */
+.modal-overlay,
+.sidebar,
+.card,
+.btn {
+  will-change: transform, opacity;
+}
+
+/* Redução de cálculos de layout para conteúdos longos no mobile */
+.subject-grid,
+.notes-grid,
+.tasks-grid,
+.notices-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 300px;
+}
+
+/* Toque instantâneo sem atraso de 300ms nos botões mobile */
+button, 
+a, 
+.card, 
+.chip {
+  touch-action: manipulation;
+}
+/* Otimização de renderização e animações no mobile */
+.modal-overlay,
+.sidebar,
+.card,
+.btn {
+  will-change: transform, opacity;
+}
+
+.subject-grid,
+.notes-grid,
+.tasks-grid,
+.notices-list {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 300px;
+}
+
+button, 
+a, 
+.card, 
+.chip {
+  touch-action: manipulation;
+}
+/* =====================================================================
+   FIX DEFINITIVO: Imagens do Editor (Pequenas, arredondadas e contidas)
+   ===================================================================== */
+.nexos-editor-area img,
+.nexos-editor-readonly img,
+.doc-page img {
+  max-width: 100% !important;
+  max-height: 350px !important; /* Limita a altura para nunca explodir na tela */
+  width: auto !important;
+  border-radius: 12px !important; /* Deixa as bordas bem redondinhas */
+  object-fit: contain !important; /* Garante que a imagem não fique esticada nem amassada */
+  display: block !important;
+  margin: 16px auto !important; /* Centraliza a imagem perfeitamente */
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25) !important; /* Adiciona uma sombra elegante */
+}
+/* Garante que imagens inseridas no editor fiquem visíveis */
+.nexos-editor-area img,
+.nexos-editor-readonly img {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 10px 0 !important;
+  border-radius: 6px !important;
+}
+/* Transição suave entre abas para eliminar piscadas */
+.nexos-view {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.nexos-view.active {
+  display: block;
+  opacity: 1;
+}
+/* Faz o clique passar direto pelo ícone e atingir o botão */
+button svg, 
+button i, 
+button span {
+  pointer-events: none;
+}
+/* FIX DEFINITIVO DE LAYOUT E RESPONSIVIDADE */
+main {
+  margin-left: 0 !important;
+  padding: 84px 28px 48px !important;
+  overflow-x: hidden !important;
+}
+
+.folders-grid {
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; 
+  gap: 16px !important; 
+  margin-top: 32px !important;
+}
+
+.notes-grid, .tasks-grid { 
+  display: grid !important; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; 
+  gap: 14px !important; 
+}
+/* =====================================================================
+   FIM DO NEXOS DESIGN SYSTEM — nexos-theme.css
+   ===================================================================== */

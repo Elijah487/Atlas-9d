@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <script type="module" src="nexos-data.js"></script>
+<script src="nexos-imgbb.js"></script>
+<script src="nexos-editor.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarefa — Nexos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="nexos-theme.css">
+
+<style>
+  /* =====================================================================
+     FIX — Layout estrutural que faltava (não vinha no nexos-theme.css,
+     que é só o arquivo de tema/cores). Sem isto os SVGs do header/sidebar
+     ficam sem tamanho definido e "explodem" no layout.
+     ===================================================================== */
+  .app { min-height: 100vh; }
+
+  header {
+    position: fixed; top: 0; left: 0; right: 0; height: 64px;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 20px; z-index: 50;
+  }
+
+  .menu-btn {
+    display: none; flex-shrink: 0;
+    width: 36px; height: 36px; align-items: center; justify-content: center;
+  }
+  .menu-btn svg { width: 20px; height: 20px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .brand-mark {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .brand-word { font-size: 17px; }
+
+  .search-wrap {
+    flex: 1; max-width: 420px; height: 38px;
+    display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  }
+  .search-wrap svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .search-wrap input { flex: 1; font-size: 13.5px; min-width: 0; }
+
+  .header-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; }
+
+  .class-badge {
+    display: flex; align-items: center; gap: 6px; height: 34px;
+    padding: 0 12px; font-size: 12.5px; white-space: nowrap;
+  }
+  .class-badge .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .logout-btn {
+    display: flex; align-items: center; gap: 7px; height: 34px;
+    padding: 0 12px; font-size: 12.5px; white-space: nowrap;
+  }
+  .logout-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .sidebar {
+    position: fixed; top: 64px; left: 0; bottom: 0; width: 220px;
+    padding: 16px 12px; overflow-y: auto; z-index: 40;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; font-size: 13.5px; margin-bottom: 2px;
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-divider { height: 1px; margin: 12px 4px; }
+  .dev-only { display: none; }
+  body.dev-mode-on .dev-only { display: inline-flex; }
+
+  main {
+    margin-left: 220px; margin-top: 64px;
+    padding: 32px 28px 60px;
+  }
+
+  @media (max-width: 880px) {
+    .search-wrap { display: none; }
+    .menu-btn { display: flex; }
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+    }
+    .sidebar.open { transform: translateX(0); }
+    main { margin-left: 0; padding: 24px 18px 48px; }
+    .class-badge span:not(:last-child) { display: none; }
+  }
+
+  /* Ajustes pontuais da página de Tarefa */
+  .doc-page { max-width: 740px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13.5px; font-weight: 600; color: var(--ink-dim);
+    padding: 8px 0; margin-bottom: 22px;
+  }
+  .back-link:hover { color: var(--red-bright, var(--blue-bright)); }
+  .back-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  .doc-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .doc-badge {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em;
+    padding: 4px 11px; border-radius: 100px;
+    background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--line);
+  }
+  .doc-badge.primary { background: rgba(137,44,220, 0.15); color: #ff6b6b; border-color: rgba(137,44,220, 0.3); }
+  .doc-badge.due { background: var(--surface-2); color: var(--ink-faint); border: 1px solid var(--line); display: flex; align-items: center; gap: 5px; }
+  .doc-badge.due svg { width: 12px; height: 12px; }
+  .doc-badge.due.due-soon { color: var(--orange, #e0a23a); border-color: rgba(224,162,58,0.4); }
+
+  .doc-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 6px; }
+  .doc-title { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+  .doc-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 4px; }
+
+  .doc-divider { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+  .doc-section-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 14px;
+  }
+
+  @media (max-width: 720px) {
+    .doc-title { font-size: 23px; }
+    .doc-title-row { flex-direction: column; }
+    .doc-actions { padding-top: 0; }
+  }
+
+  /* Form / Inputs */
+  .field-label {
+    display: block; font-size: 12.5px; font-weight: 600;
+    color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.03em;
+    margin-bottom: 6px; margin-top: 22px;
+  }
+  .field-label:first-of-type { margin-top: 0; }
+  .field-input {
+    width: 100%; padding: 11px 13px; border-radius: var(--radius-sm, 7px);
+    border: 1px solid var(--line); background: var(--surface-2);
+    color: var(--ink); font-size: 14.5px; font-family: inherit;
+  }
+  .field-input:focus { outline: none; border-color: rgba(137,44,220, 0.5); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
+
+  .form-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .form-actions-main { display: flex; gap: 10px; }
+
+  /* Editor de Texto */
+  .nexos-editor {
+    border: 1px solid var(--line); border-radius: var(--radius-sm, 7px);
+    background: var(--surface-2); overflow: hidden;
+  }
+  .nexos-editor-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--surface);
+  }
+  .nexos-editor-btn {
+    min-width: 28px; height: 28px; padding: 0 7px; border-radius: 5px;
+    border: 1px solid transparent; background: transparent; color: var(--ink-dim);
+    font-size: 12.5px; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nexos-editor-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+  .nexos-editor-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; flex-shrink: 0; }
+  .nexos-editor-area {
+    min-height: 200px; max-height: 480px; overflow-y: auto;
+    padding: 16px 18px; font-size: 14.5px; line-height: 1.65; color: var(--ink); outline: none;
+  }
+  .nexos-editor-area:empty::before { content: attr(data-placeholder); color: var(--ink-faint); pointer-events: none; }
+  .nexos-editor-readonly { font-size: 15.5px; line-height: 1.75; color: var(--ink); }
+  .nexos-editor-empty { color: var(--ink-faint); font-style: italic; }
+
+  /* Contenção visual para imagens inseridas pelo usuário */
+  .doc-page img,
+  .nexos-editor-readonly img,
+  .nexos-editor-area img {
+    max-width: 100% !important;
+    height: auto !important;
+    border-radius: var(--radius-sm, 7px);
+    display: block;
+    margin: 12px 0;
+  }
+
+  .empty-banner {
+    text-align: center; padding: 48px 20px; color: var(--ink-faint);
+    font-size: 14px; border: 1px dashed var(--line); border-radius: var(--radius, 10px);
+  }
+</style>
+</head>
+<body>
+
+<script type="module" src="nexos-data.js"></script>
+<script src="nexos-editor.js"></script>
+<script>
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData && typeof NexosData.requireSession === 'function') { 
+      NexosData.requireSession('index.html'); 
+    }
+  });
+</script>
+
+<div class="app">
+
+  <header>
+    <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
+    </div>
+
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" placeholder="Pesquisar matérias, tarefas, apostilas...">
+    </div>
+
+    <div class="header-right">
+      <div class="class-badge">
+        <span class="dot"></span>
+        <span>Turma:</span>
+        <span><strong>9º D</strong></span>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button" title="Sair">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span>Sair</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="sidebar" id="sidebar">
+    <a class="nav-item fast" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item fast" href="materias.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Matérias
+    </a>
+    <a class="nav-item fast" href="apostilas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      Apostilas (PDF)
+    </a>
+    <a class="nav-item active fast" href="tarefas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tarefas
+    </a>
+    <a class="nav-item fast" href="calendario.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendário
+    </a>
+
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
+    </a>
+
+    <div class="sidebar-divider"></div>
+  </nav>
+
+  <main>
+    <div class="doc-page">
+
+      <a class="back-link" id="backLink" href="tarefas.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span id="backLinkText">Voltar para Tarefas</span>
+      </a>
+
+      <div class="empty-banner" id="notFoundBanner" style="display:none;">
+        Tarefa não encontrada ou removida. <a href="tarefas.html" style="color:var(--red-bright, var(--blue-bright)); font-weight:600;">Voltar para Tarefas</a>
+      </div>
+
+      <div id="viewMode" style="display:none;">
+        <div class="doc-badges">
+          <span class="doc-badge primary" id="viewMateria">Matéria</span>
+          <span class="doc-badge" id="viewBimestre">Bimestre</span>
+          <span class="doc-badge due" id="viewDue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span id="viewDueText"></span>
+          </span>
+        </div>
+        <div class="doc-title-row">
+          <h1 class="doc-title" id="viewTitle">Título da tarefa</h1>
+          <div class="doc-actions dev-only">
+            <button type="button" class="btn-secondary" id="viewEditBtn">Editar</button>
+            <button type="button" class="btn-danger" id="viewDeleteBtn">Excluir</button>
+          </div>
+        </div>
+
+        <hr class="doc-divider">
+        <section>
+          <div class="doc-section-label">Resposta / gabarito</div>
+          <div class="nexos-editor-readonly" id="viewResposta"></div>
+        </section>
+      </div>
+
+      <div id="formMode" style="display:none;">
+        <h1 class="doc-title" id="formTitle">Nova tarefa</h1>
+
+        <form id="taskForm">
+          <input type="hidden" id="taskId">
+
+          <label class="field-label" for="taskTitulo">Título</label>
+          <input type="text" id="taskTitulo" class="field-input" placeholder="Ex: Lista 5 — Equações" required>
+
+          <div class="field-row">
+            <div>
+              <label class="field-label" for="taskMateria">Matéria</label>
+              <select id="taskMateria" class="field-input"></select>
+            </div>
+            <div>
+              <label class="field-label" for="taskBimestre">Bimestre</label>
+              <select id="taskBimestre" class="field-input"></select>
+            </div>
+          </div>
+
+          <label class="field-label" for="taskDataEntrega">Data de entrega</label>
+          <input type="date" id="taskDataEntrega" class="field-input" required>
+
+          <label class="field-label">Resposta / gabarito (opcional)</label>
+          <div id="taskRespostaEditor"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-danger dev-only" id="taskDeleteBtn" style="display:none;">Excluir tarefa</button>
+            <div class="form-actions-main" style="margin-left:auto;">
+              <a class="btn-secondary" id="taskCancelBtn" href="tarefas.html">Cancelar</a>
+              <button type="submit" class="btn-primary">Salvar tarefa</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="empty-banner" id="forbiddenBanner" style="display:none;">
+        Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+  // Controles Globais da Interface (Sidebar e Autenticação)
+  var menuBtn = document.getElementById('menuBtn');
+  var logoutBtn = document.getElementById('logoutBtn');
+  var sidebar = document.getElementById('sidebar');
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      if (window.NexosData && typeof NexosData.logout === 'function') { 
+        NexosData.logout(); 
+      } else { 
+        window.location.href = 'index.html'; 
+      }
+    });
+  }
+
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener('click', function () { sidebar.classList.toggle('open'); });
+  }
+
+  document.addEventListener('click', function (e) {
+    if (sidebar && sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
+      sidebar.classList.remove('open');
+    }
+  });
+</script>
+
+<script>
+function runTarefaPage() {
+  if (!window.NexosData) return;
+
+  var SUBJECTS = NexosData.SUBJECTS || ['Matemática', 'Português', 'História', 'Geografia', 'Ciências', 'Inglês'];
+  var BIMESTRES = NexosData.BIMESTRES || ['1º Bimestre', '2º Bimestre', '3º Bimestre', '4º Bimestre'];
+
+  function isDevSession() { 
+    return (typeof NexosData.isDev === 'function') ? NexosData.isDev() : true; 
+  }
+
+  if (isDevSession()) { 
+    document.body.classList.add('dev-mode-on'); 
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function formatDateBR(isoDate) {
+    if (!isoDate) return '';
+    var parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function isDueSoon(isoDate) {
+    if (!isoDate) return false;
+    var due = new Date(isoDate + 'T00:00:00');
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var diffDays = Math.round((due - today) / 86400000);
+    return diffDays >= 0 && diffDays <= 3;
+  }
+
+  function safeSlugify(text) {
+    if (typeof NexosData.slugify === 'function') {
+      return NexosData.slugify(text);
+    }
+    return String(text || '').toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-');
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var taskId = params.get('id') || '';
+  var isEditFlag = params.get('editar') === '1';
+  var isNewFlag = params.get('nova') === '1';
+  var fromParam = params.get('from') || '';
+
+  var backLink = document.getElementById('backLink');
+  var backLinkText = document.getElementById('backLinkText');
+
+  function setBackTarget(materiaName) {
+    if (!backLink || !backLinkText) return;
+    if (fromParam === 'tarefas' || !materiaName) {
+      backLink.href = 'tarefas.html';
+      backLinkText.textContent = 'Voltar para Tarefas';
+    } else {
+      backLink.href = 'materia.html?materia=' + encodeURIComponent(safeSlugify(materiaName));
+      backLinkText.textContent = 'Voltar para ' + materiaName;
+    }
+  }
+
+  var viewMode = document.getElementById('viewMode');
+  var formMode = document.getElementById('formMode');
+  var notFoundBanner = document.getElementById('notFoundBanner');
+  var forbiddenBanner = document.getElementById('forbiddenBanner');
+
+  function showOnly(el) {
+    [viewMode, formMode, notFoundBanner, forbiddenBanner].forEach(function (e) {
+      if (e) e.style.display = (e === el) ? 'block' : 'none';
+    });
+  }
+
+  function armConfirm(btn, defaultLabel, confirmLabel, onConfirm) {
+    if (!btn) return;
+    var armed = false;
+    var timer = null;
+    btn.textContent = defaultLabel;
+    btn.addEventListener('click', function () {
+      if (!armed) {
+        armed = true;
+        btn.textContent = confirmLabel;
+        btn.classList.add('confirming');
+        timer = setTimeout(function () {
+          armed = false;
+          btn.textContent = defaultLabel;
+          btn.classList.remove('confirming');
+        }, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      onConfirm();
+    });
+  }
+
+  /* ---------------------------------------------------------
+     MODO LEITURA
+  --------------------------------------------------------- */
+  function renderView(task) {
+    setBackTarget(task.materia);
+    document.title = task.titulo + ' — Nexos';
+
+    var viewMat = document.getElementById('viewMateria');
+    var viewBim = document.getElementById('viewBimestre');
+    var viewDue = document.getElementById('viewDue');
+    var viewDueText = document.getElementById('viewDueText');
+    var viewTitle = document.getElementById('viewTitle');
+
+    if (viewMat) viewMat.textContent = task.materia;
+    if (viewBim) viewBim.textContent = task.bimestre;
+    if (viewDue) viewDue.classList.toggle('due-soon', isDueSoon(task.dataEntrega));
+    if (viewDueText) viewDueText.textContent = task.dataEntrega ? ('Entrega em ' + formatDateBR(task.dataEntrega)) : 'Sem data definida';
+    if (viewTitle) viewTitle.textContent = task.titulo;
+
+    var respostaHtml = task.resposta && task.resposta.trim()
+      ? task.resposta
+      : '<p class="nexos-editor-empty">Sem resposta/gabarito cadastrado para esta tarefa ainda.</p>';
+
+    var respostaEl = document.getElementById('viewResposta');
+    if (respostaEl) {
+      if (window.NexosEditor && typeof NexosEditor.renderReadOnly === 'function') {
+        NexosEditor.renderReadOnly(respostaEl, respostaHtml);
+      } else {
+        respostaEl.innerHTML = respostaHtml;
+      }
+    }
+
+    var editBtn = document.getElementById('viewEditBtn');
+    var delBtn = document.getElementById('viewDeleteBtn');
+
+    if (editBtn && delBtn) {
+      var editBtnClone = editBtn.cloneNode(true);
+      editBtn.replaceWith(editBtnClone);
+      var delBtnClone = delBtn.cloneNode(true);
+      delBtn.replaceWith(delBtnClone);
+
+      if (isDevSession()) {
+        editBtnClone.addEventListener('click', function () {
+          window.location.href = 'tarefa.html?id=' + encodeURIComponent(task.id) + '&editar=1';
+        });
+        armConfirm(delBtnClone, 'Excluir', 'Confirmar exclusão?', function () {
+          var res = NexosData.deleteTask ? NexosData.deleteTask(task.id) : null;
+          if (res && typeof res.then === 'function') {
+            res.then(function () { window.location.href = backLink.href; });
+          } else {
+            window.location.href = backLink.href;
+          }
+        });
+      }
+    }
+
+    showOnly(viewMode);
+  }
+
+  /* ---------------------------------------------------------
+     MODO FORMULÁRIO (criar / editar)
+  --------------------------------------------------------- */
+  function fillSelect(select, options, selected) {
+    if (!select) return;
+    select.innerHTML = options.map(function (opt) {
+      var sel = opt === selected ? ' selected' : '';
+      return '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
+    }).join('');
+  }
+
+  function initForm() {
+    if (!isDevSession()) {
+      showOnly(forbiddenBanner);
+      setTimeout(function () {
+        window.location.href = taskId ? ('tarefa.html?id=' + encodeURIComponent(taskId)) : 'tarefas.html';
+      }, 1200);
+      return;
+    }
+
+    var tasks = (typeof NexosData.getTasks === 'function') ? NexosData.getTasks() : [];
+    var existing = taskId ? tasks.find(function (t) { return t.id === taskId; }) : null;
+    if (taskId && !existing) { showOnly(notFoundBanner); return; }
+
+    var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
+      var slug = params.get('materia');
+      var found = SUBJECTS.find(function (s) { return safeSlugify(s) === slug; });
+      return found || SUBJECTS[0];
+    })() : SUBJECTS[0]);
+    var contextBimestre = existing ? existing.bimestre : (params.get('bimestre') || BIMESTRES[0]);
+
+    setBackTarget(contextMateria);
+    
+    var formTitleEl = document.getElementById('formTitle');
+    if (formTitleEl) formTitleEl.textContent = existing ? 'Editar tarefa' : 'Nova tarefa';
+    document.title = (existing ? 'Editar tarefa' : 'Nova tarefa') + ' — Nexos';
+
+    document.getElementById('taskId').value = existing ? existing.id : '';
+    document.getElementById('taskTitulo').value = existing ? existing.titulo : '';
+    document.getElementById('taskDataEntrega').value = existing ? (existing.dataEntrega || '') : '';
+    fillSelect(document.getElementById('taskMateria'), SUBJECTS, contextMateria);
+    fillSelect(document.getElementById('taskBimestre'), BIMESTRES, contextBimestre);
+
+    var respostaEditor = null;
+    try {
+      if (window.NexosEditor && typeof NexosEditor.create === 'function') {
+        respostaEditor = NexosEditor.create(document.getElementById('taskRespostaEditor'), {
+          placeholder: 'Resposta ou gabarito (opcional)...',
+          minHeight: '200px'
+        });
+        if (respostaEditor && typeof respostaEditor.setHTML === 'function') {
+          respostaEditor.setHTML(existing ? (existing.resposta || '') : '');
+        }
+      }
+    } catch (e) {
+      console.warn('Falha na inicialização do NexosEditor:', e);
+    }
+
+    var cancelBtn = document.getElementById('taskCancelBtn');
+    if (cancelBtn) cancelBtn.href = backLink.href;
+
+    var deleteBtn = document.getElementById('taskDeleteBtn');
+    if (existing && deleteBtn) {
+      deleteBtn.style.display = 'inline-flex';
+      armConfirm(deleteBtn, 'Excluir tarefa', 'Confirmar exclusão?', function () {
+        var res = NexosData.deleteTask ? NexosData.deleteTask(existing.id) : null;
+        if (res && typeof res.then === 'function') {
+          res.then(function () { window.location.href = backLink.href; });
+        } else {
+          window.location.href = backLink.href;
+        }
+      });
+    }
+
+    var taskForm = document.getElementById('taskForm');
+    if (taskForm) {
+      taskForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
+
+        var materiaVal = document.getElementById('taskMateria').value;
+        var respostaConteudo = (respostaEditor && typeof respostaEditor.getHTML === 'function') 
+          ? respostaEditor.getHTML() 
+          : '';
+
+        var payload = {
+          id: existing ? existing.id : '',
+          titulo: document.getElementById('taskTitulo').value,
+          materia: materiaVal,
+          bimestre: document.getElementById('taskBimestre').value,
+          dataEntrega: document.getElementById('taskDataEntrega').value,
+          resposta: respostaConteudo
+        };
+
+        var res = NexosData.saveTask ? NexosData.saveTask(payload) : null;
+
+        if (res && typeof res.then === 'function') {
+          res.then(function (saved) {
+            if (saved) { window.location.href = 'tarefa.html?id=' + encodeURIComponent(saved.id); }
+          }).catch(function (err) {
+            alert('Erro ao guardar a tarefa.');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar tarefa'; }
+          });
+        } else if (res) {
+          window.location.href = 'tarefa.html?id=' + encodeURIComponent(res.id);
+        }
+      });
+    }
+
+    showOnly(formMode);
+  }
+
+  /* ---------------------------------------------------------
+     ROTEAMENTO & INICIALIZAÇÃO
+  --------------------------------------------------------- */
+  function init() {
+    if (isNewFlag) { initForm(); return; }
+    if (!taskId) { showOnly(notFoundBanner); return; }
+
+    if (isEditFlag) { initForm(); return; }
+
+    var tasks = (typeof NexosData.getTasks === 'function') ? NexosData.getTasks() : [];
+    var task = tasks.find(function (t) { return t.id === taskId; });
+    if (!task) { showOnly(notFoundBanner); return; }
+    renderView(task);
+  }
+
+  init();
+
+  if (typeof NexosData.onDataChange === 'function') {
+    NexosData.onDataChange(function () {
+      if (isEditFlag || isNewFlag) return;
+      if (!taskId) return;
+      var tasks = (typeof NexosData.getTasks === 'function') ? NexosData.getTasks() : [];
+      var task = tasks.find(function (t) { return t.id === taskId; });
+      if (task) {
+        renderView(task);
+      }
+    });
+  }
+
+  if (typeof NexosData.injectDevBanner === 'function') {
+    NexosData.injectDevBanner();
+  }
+}
+
+if (window.NexosData) {
+  runTarefaPage();
+} else {
+  document.addEventListener('nexos-data-ready', runTarefaPage);
+}
+</script>
+
+</body>
+</html>

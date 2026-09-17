@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<script type="module" src="nexos-data.js"></script>
+<script src="nexos-imgbb.js"></script>
+<script src="nexos-editor.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anotação — Nexos</title>
+<style>
+
+  /* ============ RESET & TOKENS ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e14;
+    --surface: #10151d;
+    --surface-2: #161c26;
+    --line: #232a36;
+
+    --blue: #2563eb;
+    --blue-bright: #4f8dff;
+    --blue-dim: #1d3a6e;
+
+    --ink: #eef1f6;
+    --ink-dim: #97a1b0;
+    --ink-faint: #5e6675;
+
+    --green: #3fb96f;
+    --orange: #e0a23a;
+
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Arial, sans-serif;
+    line-height: 1.5;
+    font-size: 15px;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  ul { list-style: none; }
+  input, select { font-family: inherit; }
+
+  ::selection { background: var(--blue); color: #fff; }
+  :focus-visible { outline: 2px solid var(--blue-bright); outline-offset: 2px; }
+
+  .fast { transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
+
+  /* ============ APP SHELL ============ */
+  .app {
+    display: grid;
+    grid-template-columns: 232px 1fr;
+    grid-template-rows: 60px 1fr;
+    grid-template-areas:
+      "header header"
+      "sidebar main";
+    min-height: 100vh;
+  }
+
+  /* ============ HEADER ============ */
+  header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .brand-mark {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .brand-word { font-size: 16px; font-weight: 600; }
+
+  .search-wrap {
+    flex: 1;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  .search-wrap svg { width: 16px; height: 16px; color: var(--ink-faint); flex-shrink: 0; }
+  .search-wrap input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--ink);
+    font-size: 14px;
+    outline: none;
+  }
+  .search-wrap input::placeholder { color: var(--ink-faint); }
+
+  .header-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  .class-badge {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 12px; border-radius: var(--radius-sm);
+    background: var(--surface-2); border: 1px solid var(--line);
+    font-size: 13px; color: var(--ink-dim);
+  }
+  .class-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+  .logout-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: var(--radius-sm);
+    background: var(--surface-2); border: 1px solid var(--line);
+    color: var(--ink-dim); font-size: 13px; font-weight: 600;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .logout-btn:hover { background: #2a1414; border-color: #5c2222; color: #ff9a9a; }
+  .logout-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  @media (max-width: 460px) { .logout-btn span { display: none; } }
+
+  .menu-btn {
+    display: none;
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .menu-btn svg { width: 17px; height: 17px; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    grid-area: sidebar;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 12px; border-radius: var(--radius-sm);
+    font-size: 14px; color: var(--ink-dim);
+  }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-item:hover { background: var(--surface-2); color: var(--ink); }
+  .nav-item.active { background: var(--blue-dim); color: var(--blue-bright); font-weight: 600; }
+
+  .sidebar-divider { height: 1px; background: var(--line); margin: 14px 4px; }
+
+  /* ============ MAIN ============ */
+  main { grid-area: main; padding: 24px 28px 48px; overflow-x: hidden; }
+
+  @media (max-width: 720px) {
+    .app { grid-template-columns: 1fr; grid-template-areas: "header" "main"; }
+    .sidebar {
+      position: fixed; top: 60px; left: 0; bottom: 0; width: 220px;
+      transform: translateX(-100%); z-index: 50; transition: transform 0.18s ease;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .menu-btn { display: flex; }
+    .search-wrap { display: none; }
+    main { padding: 16px 16px 40px; }
+  }
+  @media (max-width: 460px) { .class-badge span:last-child { display: none; } }
+
+  /* ============ dev-only ============ */
+  .dev-only { display: none !important; }
+  body.dev-mode-on .dev-only { display: inline-flex !important; }
+
+  /* ============ PÁGINA-DOCUMENTO ============ */
+  .doc-page { max-width: 740px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13.5px; font-weight: 600; color: var(--ink-dim);
+    padding: 8px 0; margin-bottom: 22px;
+  }
+  .back-link:hover { color: var(--blue-bright); }
+  .back-link svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  .doc-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .doc-badge {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em;
+    padding: 4px 11px; border-radius: 100px;
+    background: var(--blue-dim); color: var(--blue-bright);
+  }
+  .doc-badge.muted { background: var(--surface-2); color: var(--ink-dim); border: 1px solid var(--line); }
+
+  .doc-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 6px; }
+  .doc-title { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+  .doc-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 4px; }
+
+  .doc-cover-img {
+    width: 100%; max-height: 380px; object-fit: cover;
+    border-radius: var(--radius); margin-bottom: 20px; border: 1px solid var(--line);
+  }
+
+  .doc-divider { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+
+  @media (max-width: 720px) {
+    .doc-title { font-size: 23px; }
+    .doc-title-row { flex-direction: column; }
+    .doc-actions { padding-top: 0; }
+  }
+
+  /* ============ BOTÕES ============ */
+  .btn-secondary, .btn-primary, .btn-danger {
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13.5px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-secondary { background: var(--surface-2); color: var(--ink-dim); border-color: var(--line); }
+  .btn-secondary:hover { color: var(--ink); }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover { background: var(--blue-bright); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-danger { background: #5c2222; color: #ffb4b4; }
+  .btn-danger:hover { background: #732a2a; }
+  .btn-danger.confirming { background: #BC6FF1; color: #fff; }
+
+  /* ============ FORMULÁRIO ============ */
+  .field-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 6px;
+    margin-top: 22px;
+  }
+  .field-label:first-of-type { margin-top: 0; }
+
+  .field-input {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    font-size: 14.5px;
+    font-family: inherit;
+  }
+  .field-input:focus { outline: none; border-color: var(--blue-dim); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+  }
+  .form-actions-main { display: flex; gap: 10px; }
+
+  /* ============ EDITOR RICO ============ */
+  .nexos-editor {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .nexos-editor-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--surface);
+  }
+  .nexos-editor-btn {
+    min-width: 28px; height: 28px; padding: 0 7px;
+    border-radius: 5px; border: 1px solid transparent;
+    background: transparent; color: var(--ink-dim);
+    font-size: 12.5px; font-family: inherit; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nexos-editor-btn:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line); }
+  .nexos-editor-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; flex-shrink: 0; }
+  .nexos-editor-area {
+    min-height: 260px; max-height: 560px; overflow-y: auto;
+    padding: 16px 18px; font-size: 14.5px; line-height: 1.65; color: var(--ink); outline: none;
+  }
+  .nexos-editor-area:empty::before {
+    content: attr(data-placeholder); color: var(--ink-faint); pointer-events: none;
+  }
+
+  .nexos-editor-readonly { font-size: 15.5px; line-height: 1.75; color: var(--ink); }
+  .nexos-editor-empty { color: var(--ink-faint); font-style: italic; }
+
+  .empty-banner {
+    text-align: center; padding: 48px 20px; color: var(--ink-faint);
+    font-size: 14px; border: 1px dashed var(--line); border-radius: var(--radius);
+  }
+
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://atlas-9d-default-rtdb.firebaseio.com" crossorigin>
+<link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nexos-theme.css">
+</head>
+<body>
+
+<script>
+  document.addEventListener('nexos-data-ready', function () {
+    if (window.NexosData) { NexosData.requireSession('index.html'); }
+  });
+</script>
+
+<div class="app">
+
+  <header>
+    <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <span class="brand-word">Nexos</span>
+    </div>
+
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" placeholder="Pesquisar matérias, tarefas, apostilas...">
+    </div>
+
+    <div class="header-right">
+      <div class="class-badge">
+        <span class="dot"></span>
+        <span>Turma:</span>
+        <span><strong>9º D</strong></span>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button" title="Sair">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span>Sair</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="sidebar" id="sidebar">
+    <a class="nav-item fast" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+      Dashboard
+    </a>
+    <a class="nav-item active fast" href="materias.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Matérias
+    </a>
+    <a class="nav-item fast" href="apostilas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+      Apostilas (PDF)
+    </a>
+    <a class="nav-item fast" href="tarefas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tarefas
+    </a>
+    <a class="nav-item fast" href="calendario.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendário
+    </a>
+
+    <a class="nav-item fast dev-only" href="contas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Contas
+    </a>
+
+    <div class="sidebar-divider"></div>
+  </nav>
+
+  <main>
+    <div class="doc-page">
+
+      <a class="back-link" id="backLink" href="materias.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span id="backLinkText">Voltar</span>
+      </a>
+
+      <div class="empty-banner" id="notFoundBanner" style="display:none;">
+        Anotação não encontrada ou removida. <a href="materias.html" style="color:var(--blue-bright); font-weight:600;">Voltar para Matérias</a>
+      </div>
+
+      <div id="viewMode" style="display:none;">
+        <div class="doc-badges">
+          <span class="doc-badge" id="viewMateria">Matéria</span>
+          <span class="doc-badge muted" id="viewBimestre">Bimestre</span>
+          <span class="doc-badge muted" id="viewDate"></span>
+        </div>
+        <div class="doc-title-row">
+          <h1 class="doc-title" id="viewTitle">Título da anotação</h1>
+          <div class="doc-actions dev-only">
+            <button type="button" class="btn-secondary" id="viewEditBtn">Editar</button>
+            <button type="button" class="btn-danger" id="viewDeleteBtn">Excluir</button>
+          </div>
+        </div>
+
+        <img id="viewCapaImg" class="doc-cover-img" style="display:none;" alt="Capa da anotação">
+
+        <hr class="doc-divider">
+        <section>
+          <div class="nexos-editor-readonly" id="viewConteudo"></div>
+        </section>
+      </div>
+
+      <div id="formMode" style="display:none;">
+        <h1 class="doc-title" id="formTitle">Nova anotação</h1>
+
+        <form id="noteForm">
+          <input type="hidden" id="noteId">
+
+          <label class="field-label" for="noteTitulo">Título</label>
+          <input type="text" id="noteTitulo" class="field-input" placeholder="Ex: Equações de 2º grau" required>
+
+          <div class="field-row">
+            <div>
+              <label class="field-label" for="noteMateria">Matéria</label>
+              <select id="noteMateria" class="field-input"></select>
+            </div>
+            <div>
+              <label class="field-label" for="noteBimestre">Bimestre</label>
+              <select id="noteBimestre" class="field-input"></select>
+            </div>
+          </div>
+
+          <label class="field-label" for="noteImageInput">Imagem / Capa (Opcional — Máx 10 MB)</label>
+          <input type="file" id="noteImageInput" class="field-input" accept="image/*">
+
+          <label class="field-label">Conteúdo</label>
+          <div id="noteConteudoEditor"></div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-danger dev-only" id="noteDeleteBtn" style="display:none;">Excluir anotação</button>
+            <div class="form-actions-main" style="margin-left:auto;">
+              <a class="btn-secondary" id="noteCancelBtn" href="materias.html">Cancelar</a>
+              <button type="submit" class="btn-primary" id="noteSubmitBtn">Salvar anotação</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="empty-banner" id="forbiddenBanner" style="display:none;">
+        Esta ação é exclusiva do Modo Desenvolvedor. Redirecionando...
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<script>
+  var menuBtn = document.getElementById('menuBtn');
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function () {
+      if (window.NexosData) { NexosData.logout(); } else { window.location.href = 'index.html'; }
+    });
+  }
+  var sidebar = document.getElementById('sidebar');
+  if (menuBtn) {
+    menuBtn.addEventListener('click', function () { sidebar.classList.toggle('open'); });
+  }
+  document.addEventListener('click', function (e) {
+    if (sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== menuBtn && !menuBtn.contains(e.target)) {
+      sidebar.classList.remove('open');
+    }
+  });
+</script>
+
+<script>
+document.addEventListener('nexos-data-ready', function () {
+  if (!window.NexosData) return;
+
+  var SUBJECTS = NexosData.SUBJECTS;
+  var BIMESTRES = NexosData.BIMESTRES;
+
+  function isDevSession() { return NexosData.isDev(); }
+  
+  if (isDevSession()) { 
+    document.body.classList.add('dev-mode-on'); 
+  } else {
+    document.body.classList.remove('dev-mode-on');
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function formatDateBR(isoDate) {
+    if (!isoDate) return '';
+    var parts = isoDate.split('-');
+    if (parts.length !== 3) return isoDate;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  var params = new URLSearchParams(window.location.search);
+  var noteId = params.get('id') || '';
+  var isEditFlag = params.get('editar') === '1';
+  var isNewFlag = params.get('nova') === '1';
+
+  var backLink = document.getElementById('backLink');
+  var backLinkText = document.getElementById('backLinkText');
+
+  function setBackTarget(materiaName) {
+    if (!materiaName) {
+      backLink.href = 'materias.html';
+      backLinkText.textContent = 'Voltar para Matérias';
+    } else {
+      backLink.href = 'materia.html?materia=' + encodeURIComponent(NexosData.slugify(materiaName));
+      backLinkText.textContent = 'Voltar para ' + materiaName;
+    }
+  }
+
+  var viewMode = document.getElementById('viewMode');
+  var formMode = document.getElementById('formMode');
+  var notFoundBanner = document.getElementById('notFoundBanner');
+  var forbiddenBanner = document.getElementById('forbiddenBanner');
+
+  function showOnly(el) {
+    [viewMode, formMode, notFoundBanner, forbiddenBanner].forEach(function (e) {
+      e.style.display = (e === el) ? 'block' : 'none';
+    });
+  }
+
+  function armConfirm(btn, defaultLabel, confirmLabel, onConfirm) {
+    var armed = false;
+    var timer = null;
+    btn.textContent = defaultLabel;
+    
+    var newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (!armed) {
+        armed = true;
+        newBtn.textContent = confirmLabel;
+        newBtn.classList.add('confirming');
+        timer = setTimeout(function () {
+          armed = false;
+          newBtn.textContent = defaultLabel;
+          newBtn.classList.remove('confirming');
+        }, 4000);
+        return;
+      }
+      clearTimeout(timer);
+      onConfirm();
+    });
+  }
+
+  /* ---------------------------------------------------------
+     MODO LEITURA
+  --------------------------------------------------------- */
+  function renderView(note) {
+    setBackTarget(note.materia);
+    document.title = note.titulo + ' — Nexos';
+
+    document.getElementById('viewMateria').textContent = note.materia;
+    document.getElementById('viewBimestre').textContent = note.bimestre;
+    var ts = note.atualizadoEm || note.criadoEm;
+    document.getElementById('viewDate').textContent = ts ? formatDateBR(new Date(ts).toISOString().slice(0, 10)) : '';
+    document.getElementById('viewTitle').textContent = note.titulo;
+
+    var capaImg = document.getElementById('viewCapaImg');
+    if (note.imagemUrl) {
+      capaImg.src = note.imagemUrl;
+      capaImg.style.display = 'block';
+    } else {
+      capaImg.style.display = 'none';
+    }
+
+    var conteudoHtml = note.conteudo && note.conteudo.trim()
+      ? note.conteudo
+      : '<p class="nexos-editor-empty">Sem conteúdo.</p>';
+    var conteudoEl = document.getElementById('viewConteudo');
+    if (window.NexosEditor) {
+      NexosEditor.renderReadOnly(conteudoEl, conteudoHtml);
+    } else {
+      conteudoEl.innerHTML = conteudoHtml;
+    }
+
+    document.getElementById('viewEditBtn').onclick = function () {
+      window.location.href = 'anotacao.html?id=' + encodeURIComponent(note.id) + '&editar=1';
+    };
+
+    var delBtn = document.getElementById('viewDeleteBtn');
+    armConfirm(delBtn, 'Excluir', 'Confirmar exclusão?', function () {
+      if (!isDevSession()) return;
+      NexosData.deleteNote(note.id).then(function () {
+        window.location.href = backLink.href;
+      });
+    });
+
+    showOnly(viewMode);
+  }
+
+  /* ---------------------------------------------------------
+     MODO FORMULÁRIO (criar / editar)
+  --------------------------------------------------------- */
+  function fillSelect(select, options, selected) {
+    select.innerHTML = options.map(function (opt) {
+      var sel = opt === selected ? ' selected' : '';
+      return '<option value="' + escapeHtml(opt) + '"' + sel + '>' + escapeHtml(opt) + '</option>';
+    }).join('');
+  }
+
+  function initForm() {
+    if (!isDevSession()) {
+      showOnly(forbiddenBanner);
+      setTimeout(function () {
+        window.location.href = noteId ? ('anotacao.html?id=' + encodeURIComponent(noteId)) : 'materias.html';
+      }, 1200);
+      return;
+    }
+
+    var existing = noteId ? NexosData.getNotes().find(function (n) { return n.id === noteId; }) : null;
+    if (noteId && !existing) { showOnly(notFoundBanner); return; }
+
+    var contextMateria = existing ? existing.materia : (params.get('materia') ? (function () {
+      var slug = params.get('materia');
+      var found = SUBJECTS.find(function (s) { return NexosData.slugify(s) === slug; });
+      return found || SUBJECTS[0];
+    })() : SUBJECTS[0]);
+    var contextBimestre = existing ? existing.bimestre : (params.get('bimestre') || BIMESTRES[0]);
+
+    setBackTarget(contextMateria);
+    document.getElementById('formTitle').textContent = existing ? 'Editar anotação' : 'Nova anotação';
+    document.title = (existing ? 'Editar anotação' : 'Nova anotação') + ' — Nexos';
+
+    document.getElementById('noteId').value = existing ? existing.id : '';
+    document.getElementById('noteTitulo').value = existing ? existing.titulo : '';
+    fillSelect(document.getElementById('noteMateria'), SUBJECTS, contextMateria);
+    fillSelect(document.getElementById('noteBimestre'), BIMESTRES, contextBimestre);
+
+    var conteudoEditor = NexosEditor.create(document.getElementById('noteConteudoEditor'), {
+      placeholder: 'Escreva a anotação aqui...',
+      minHeight: '260px'
+    });
+    conteudoEditor.setHTML(existing ? existing.conteudo : '');
+
+    document.getElementById('noteCancelBtn').href = backLink.href;
+
+    var deleteBtn = document.getElementById('noteDeleteBtn');
+    if (existing) {
+      deleteBtn.style.display = 'inline-flex';
+      armConfirm(deleteBtn, 'Excluir anotação', 'Confirmar exclusão?', function () {
+        NexosData.deleteNote(existing.id).then(function () {
+          window.location.href = backLink.href;
+        });
+      });
+    }
+
+    /* FIX DEFINITIVO DO ENVIO ASSÍNCRONO DE FORMULÁRIO — usando ImgBB
+       em vez do Firebase Storage (Storage passou a exigir plano pago). */
+    document.getElementById('noteForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      if (conteudoEditor.hasPendingUploads()) {
+        alert('Ainda tem uma imagem sendo enviada no conteúdo. Aguarde ela terminar antes de salvar.');
+        return;
+      }
+
+      var submitBtn = document.getElementById('noteSubmitBtn');
+      var fileInput = document.getElementById('noteImageInput');
+      var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      var targetId = existing ? existing.id : NexosData.uid();
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Salvando...';
+
+      var uploadPromise = file
+        ? NexosImgBB.upload(file, function (percent) {
+            submitBtn.textContent = 'Enviando imagem... ' + percent + '%';
+          })
+        : Promise.resolve(existing ? (existing.imagemUrl || '') : '');
+
+      uploadPromise
+        .then(function (imageUrl) {
+          var saved = NexosData.saveNote({
+            id: targetId,
+            titulo: document.getElementById('noteTitulo').value,
+            materia: document.getElementById('noteMateria').value,
+            bimestre: document.getElementById('noteBimestre').value,
+            imagemUrl: imageUrl,
+            conteudo: conteudoEditor.getHTML()
+          });
+
+          if (saved) {
+            window.location.href = 'anotacao.html?id=' + encodeURIComponent(saved.id);
+          }
+        })
+        .catch(function (err) {
+          alert(err.message || 'Erro ao processar o salvamento.');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Salvar anotação';
+        });
+    });
+
+    showOnly(formMode);
+  }
+
+  /* ---------------------------------------------------------
+     Roteamento
+  --------------------------------------------------------- */
+  function init() {
+    if (isNewFlag) { initForm(); return; }
+    if (!noteId) { showOnly(notFoundBanner); return; }
+
+    if (isEditFlag) { initForm(); return; }
+
+    var note = NexosData.getNotes().find(function (n) { return n.id === noteId; });
+    if (!note) { showOnly(notFoundBanner); return; }
+    renderView(note);
+  }
+
+  init();
+
+  NexosData.onDataChange(function () {
+    if (isEditFlag || isNewFlag) return;
+    if (!noteId) return;
+    var note = NexosData.getNotes().find(function (n) { return n.id === noteId; });
+    if (!note) { showOnly(notFoundBanner); return; }
+    renderView(note);
+  });
+
+  NexosData.injectDevBanner();
+});
+</script>
+
+</body>
+</html>
