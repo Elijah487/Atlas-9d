@@ -1,5 +1,5 @@
 /* =====================================================================
-   ATLAS — Camada central de dados, sessão e Storage (v7.3.3 — Fix Piscada & Sync)
+   ATLAS — Camada central de dados, sessão e Storage (v7.3.4 — Fix login DEV)
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -311,10 +311,10 @@ import {
         // Compara de forma rápida para evitar disparar a interface se os dados forem idênticos
         var strOld = JSON.stringify(cache[collectionName] || []);
         var strNew = JSON.stringify(newData);
-        
+
         cache[collectionName] = newData;
         saveToSessionStorage();
-        
+
         if (strOld !== strNew) {
           scheduleNotify();
         }
@@ -379,14 +379,46 @@ import {
   function isLoggedIn() { return true; }
   function requireSession() { return true; }
 
+  /* [v7.3.4] Login do desenvolvedor.
+     - Erros de senha/usuário viram 'wrong_password' (a tela mostra "Senha incorreta.").
+     - Qualquer outro erro mostra o código real na própria tela, para sabermos o motivo. */
   function loginAsDev(email, password, callback) {
-    if (!firebaseAuthInstance) { callback(false, 'auth_error'); return; }
+    if (!firebaseAuthInstance) {
+      callback(false, 'auth_error');
+      setTimeout(function () {
+        var el = document.getElementById('devFeedbackText');
+        if (el) el.textContent = 'Não foi possível entrar (auth_error — Firebase não carregou).';
+      }, 0);
+      return;
+    }
     signInWithEmailAndPassword(firebaseAuthInstance, email, password)
       .then(function () {
         setSessionDev();
         callback(true, null);
       })
-      .catch(function (err) { callback(false, err.code || 'error'); });
+      .catch(function (err) {
+        var code = (err && err.code) || 'error';
+        console.error('Atlas: falha no login dev →', code, err);
+
+        var credentialErrors = [
+          'auth/wrong-password',
+          'auth/invalid-credential',
+          'auth/invalid-login-credentials',
+          'auth/user-not-found',
+          'auth/invalid-email'
+        ];
+
+        if (credentialErrors.indexOf(code) !== -1) {
+          callback(false, 'wrong_password');
+          return;
+        }
+
+        callback(false, code);
+        setTimeout(function () {
+          var el = document.getElementById('devFeedbackText');
+          if (el) el.textContent = 'Não foi possível entrar (' + code + ').';
+        }, 0);
+      });
   }
 
   function loginWithRole(role, callback) {
