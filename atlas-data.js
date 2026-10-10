@@ -318,6 +318,8 @@ import {
         if (strOld !== strNew) {
           scheduleNotify();
         }
+
+        snapshotReceived(collectionName);
       },
       function (error) {
         console.error('Atlas: Erro ao sincronizar ' + collectionName, error);
@@ -665,6 +667,166 @@ import {
     document.body.classList.add('atlas-dev-active');
     var exitBtn = document.getElementById('atlasDevExitBtn');
     if (exitBtn) exitBtn.addEventListener('click', function () { logout(); });
+  }
+
+  /* --- Aviso de novidades (novas tarefas / novas anotações) ---
+     Guarda no navegador quais itens o aluno já viu (localStorage).
+     No primeiro acesso, tudo conta como novo. O modo desenvolvedor não recebe o aviso. */
+  var SEEN_KEY = 'atlas_seen_v1';
+  var firstSnapshot = { tasks: false, notes: false };
+  var newsToastEl = null;
+  var newsTimer = null;
+  var newsShown = { tasks: false, notes: false };
+
+  function readSeen() {
+    try {
+      var raw = global.localStorage.getItem(SEEN_KEY);
+      if (!raw) return null;
+      var p = JSON.parse(raw);
+      return {
+        tasks: Array.isArray(p.tasks) ? p.tasks : [],
+        notes: Array.isArray(p.notes) ? p.notes : []
+      };
+    } catch (e) { return null; }
+  }
+
+  function writeSeen(seen) {
+    try { global.localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch (e) {}
+  }
+
+  function markSeen(kind) {
+    var seen = readSeen() || { tasks: [], notes: [] };
+    seen[kind] = (cache[kind] || []).map(function (i) { return i.id; });
+    writeSeen(seen);
+  }
+
+  function currentPageName() {
+    var p = (global.location.pathname || '').split('/').pop();
+    return p || 'index.html';
+  }
+
+  function getUnseen() {
+    var seen = readSeen() || { tasks: [], notes: [] };
+    return {
+      tasks: (cache.tasks || []).filter(function (t) { return seen.tasks.indexOf(t.id) === -1; }),
+      notes: (cache.notes || []).filter(function (n) { return seen.notes.indexOf(n.id) === -1; })
+    };
+  }
+
+  function injectNewsStyles() {
+    if (document.getElementById('atlasNewsStyles')) return;
+    var st = document.createElement('style');
+    st.id = 'atlasNewsStyles';
+    st.textContent =
+      '#atlasNewsToast{position:fixed;right:20px;bottom:20px;z-index:9999;width:300px;max-width:calc(100vw - 24px);' +
+      'background:#10151d;border:1px solid #232a36;border-left:3px solid #ff3d50;border-radius:10px;padding:14px 16px;' +
+      'color:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;font-size:14px;line-height:1.45;' +
+      'box-shadow:0 16px 36px -12px rgba(0,0,0,.65);opacity:0;transform:translateY(12px);transition:opacity .25s ease,transform .25s ease;}' +
+      '#atlasNewsToast.show{opacity:1;transform:translateY(0);}' +
+      '#atlasNewsToast .nt-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}' +
+      '#atlasNewsToast .nt-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;}' +
+      '#atlasNewsToast .nt-title svg{width:16px;height:16px;color:#ff3d50;flex-shrink:0;}' +
+      '#atlasNewsToast .nt-close{width:24px;height:24px;border-radius:6px;border:none;background:transparent;color:#97a1b0;cursor:pointer;font-size:18px;line-height:1;}' +
+      '#atlasNewsToast .nt-close:hover{background:#161c26;color:#eef1f6;}' +
+      '#atlasNewsToast .nt-link{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;margin-top:6px;' +
+      'border-radius:7px;background:#161c26;border:1px solid #232a36;color:#eef1f6;text-decoration:none;font-weight:600;}' +
+      '#atlasNewsToast .nt-link:hover{border-color:#ff3d50;}' +
+      '#atlasNewsToast .nt-link span:last-child{color:#ff3d50;font-size:12.5px;}';
+    document.head.appendChild(st);
+  }
+
+  function hideNewsToast() {
+    clearTimeout(newsTimer);
+    newsTimer = null;
+    var el = newsToastEl;
+    newsToastEl = null;
+    newsShown = { tasks: false, notes: false };
+    if (!el) return;
+    el.classList.remove('show');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+  }
+
+  function dismissNewsToast() {
+    if (newsShown.tasks) markSeen('tasks');
+    if (newsShown.notes) markSeen('notes');
+    hideNewsToast();
+  }
+
+  function showNewsToast(u) {
+    injectNewsStyles();
+    var wasVisible = !!newsToastEl;
+
+    if (!newsToastEl) {
+      newsToastEl = document.createElement('div');
+      newsToastEl.id = 'atlasNewsToast';
+      newsToastEl.setAttribute('role', 'status');
+      document.body.appendChild(newsToastEl);
+    }
+
+    newsShown = { tasks: u.tasks.length > 0, notes: u.notes.length > 0 };
+
+    var html =
+      '<div class="nt-head">' +
+        '<div class="nt-title">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>' +
+          'Novidades no Atlas' +
+        '</div>' +
+        '<button type="button" class="nt-close" aria-label="Fechar">&times;</button>' +
+      '</div>';
+
+    if (u.tasks.length) {
+      var tl = u.tasks.length === 1 ? '1 nova tarefa' : u.tasks.length + ' novas tarefas';
+      html += '<a class="nt-link" href="tarefas.html" data-kind="tasks"><span>' + tl + '</span><span>Ver →</span></a>';
+    }
+    if (u.notes.length) {
+      var nl = u.notes.length === 1 ? '1 nova anotação' : u.notes.length + ' novas anotações';
+      html += '<a class="nt-link" href="anotacoes.html" data-kind="notes"><span>' + nl + '</span><span>Ver →</span></a>';
+    }
+    newsToastEl.innerHTML = html;
+
+    newsToastEl.querySelector('.nt-close').addEventListener('click', dismissNewsToast);
+    Array.prototype.forEach.call(newsToastEl.querySelectorAll('.nt-link'), function (a) {
+      a.addEventListener('click', function () { markSeen(a.getAttribute('data-kind')); });
+    });
+
+    if (!wasVisible) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (newsToastEl) newsToastEl.classList.add('show');
+        });
+      });
+      newsTimer = setTimeout(dismissNewsToast, 15000);
+    }
+  }
+
+  function checkNewContent() {
+    if (!firstSnapshot.tasks || !firstSnapshot.notes) return;
+    if (isDev()) return;
+
+    var page = currentPageName();
+    if (page === 'index.html') return;
+
+    if (!document.body) {
+      document.addEventListener('DOMContentLoaded', checkNewContent, { once: true });
+      return;
+    }
+
+    // Quem está na lista já está vendo o conteúdo: conta como visto
+    if (page === 'tarefas.html') markSeen('tasks');
+    if (page === 'anotacoes.html') markSeen('notes');
+
+    var u = getUnseen();
+    if (!u.tasks.length && !u.notes.length) {
+      hideNewsToast();
+      return;
+    }
+    showNewsToast(u);
+  }
+
+  function snapshotReceived(collectionName) {
+    if (collectionName !== 'tasks' && collectionName !== 'notes') return;
+    firstSnapshot[collectionName] = true;
+    checkNewContent();
   }
 
   /* --- API Exposta --- */
