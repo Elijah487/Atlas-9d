@@ -713,3 +713,40 @@ import {
   initFirebase();
 
 })(window);
+
+/* =====================================================================
+   Link "Anotações" no menu lateral (aparece em todas as páginas)
+   Copia o item "Tarefas" do próprio menu, para herdar o estilo da página.
+   ===================================================================== */
+(function () {
+  function addNotesLink() {
+    var nav = document.querySelector('.sidebar');
+    if (!nav || nav.querySelector('a[href="anotacoes.html"]')) return;
+
+    var tarefas = nav.querySelector('a[href="tarefas.html"]');
+    if (!tarefas) return;
+
+    var link = tarefas.cloneNode(true);
+    link.setAttribute('href', 'anotacoes.html');
+    link.classList.remove('active');
+    link.removeAttribute('aria-current');
+
+    var svg = link.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>';
+    }
+    Array.prototype.slice.call(link.childNodes).forEach(function (n) {
+      if (n.nodeType === 3 || (n.nodeType === 1 && n.tagName !== 'svg')) link.removeChild(n);
+    });
+    link.appendChild(document.createTextNode(' Anotações'));
+
+    tarefas.parentNode.insertBefore(link, tarefas.nextSibling);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addNotesLink);
+  } else {
+    addNotesLink();
+  }
+  document.addEventListener('atlas-data-ready', addNotesLink);
+})();
