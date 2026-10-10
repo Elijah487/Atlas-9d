@@ -317,6 +317,48 @@ section { margin-top: 24px; }
 }
 .note-card-excerpt.is-empty { color: var(--ink-faint); font-style: italic; }
 
+/* ============ PASTAS POR BIMESTRE ============ */
+.folder {
+  margin-top: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.folder:first-child { margin-top: 0; }
+.folder-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 18px;
+  text-align: left;
+  transition: background-color 0.15s;
+}
+.folder-head:hover { background: var(--surface-2); }
+.folder-icon { width: 22px; height: 22px; color: #ff3d50; flex-shrink: 0; }
+.folder-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.folder-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 3px 10px;
+}
+.folder-chevron {
+  width: 16px; height: 16px;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+.folder.open .folder-chevron { transform: rotate(90deg); }
+.folder-body { display: none; padding: 4px 18px 18px; }
+.folder.open .folder-body { display: block; }
+.folder-empty { font-size: 13.5px; color: var(--ink-faint); padding: 8px 0 2px; }
+
 /* Só aparecem no modo desenvolvedor */
 .dev-only { display: none; }
 body.dev-mode-on .dev-only { display: inline-flex; }
@@ -450,7 +492,7 @@ body.dev-mode-on .dev-only { display: inline-flex; }
     </div>
 
     <section>
-      <div class="notes-grid" id="allNotesList"></div>
+      <div id="allNotesList"></div>
       <div class="empty-banner" id="allNotesEmpty" style="display:none;">
         Nenhuma anotação cadastrada ainda. As anotações criadas no Modo Desenvolvedor aparecem aqui automaticamente.
       </div>
@@ -555,6 +597,70 @@ document.addEventListener('atlas-data-ready', function () {
   var list = document.getElementById('allNotesList');
   var empty = document.getElementById('allNotesEmpty');
 
+  var BIMESTRES = (AtlasData.BIMESTRES || []).slice();
+  var openState = {};
+  var openInitialized = false;
+
+  var FOLDER_ICON = '<svg class="folder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  var CHEVRON = '<svg class="folder-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+  function noteCardHtml(n) {
+    var color = DEFAULT_COLOR;
+    var excerpt = htmlToExcerpt(n.conteudo, 150);
+    var dateStr = formatTimestampBR(n.atualizadoEm || n.criadoEm);
+
+    var excerptHtml = excerpt
+      ? '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>'
+      : '<div class="note-card-excerpt is-empty">Sem conteúdo.</div>';
+
+    var coverHtml = n.imagemUrl
+      ? '<img class="note-card-cover" src="' + escapeHtml(n.imagemUrl) + '" alt="" loading="lazy">'
+      : '';
+
+    var dateHtml = dateStr
+      ? '<span class="note-date-badge">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
+          escapeHtml(dateStr) +
+        '</span>'
+      : '';
+
+    return (
+      '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '" style="--sc:' + color.sc + '; --sc-dim:' + color.dim + ';" tabindex="0" role="link">' +
+        coverHtml +
+        '<div class="note-card-top">' +
+          '<div class="note-card-top-left">' +
+            '<span class="note-subject-badge">' + escapeHtml(n.materia) + '</span>' +
+            dateHtml +
+          '</div>' +
+          noteActionsHtml(n) +
+        '</div>' +
+        '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
+        excerptHtml +
+      '</div>'
+    );
+  }
+
+  function folderHtml(name, notes) {
+    var isOpen = !!openState[name];
+    var count = notes.length;
+    var label = count === 1 ? '1 anotação' : count + ' anotações';
+    var body = count
+      ? '<div class="notes-grid">' + notes.map(noteCardHtml).join('') + '</div>'
+      : '<div class="folder-empty">Nenhuma anotação neste bimestre.</div>';
+
+    return (
+      '<div class="folder' + (isOpen ? ' open' : '') + '">' +
+        '<button type="button" class="folder-head" data-key="' + escapeHtml(name) + '" aria-expanded="' + isOpen + '">' +
+          FOLDER_ICON +
+          '<span class="folder-name">' + escapeHtml(name) + '</span>' +
+          '<span class="folder-count">' + label + '</span>' +
+          CHEVRON +
+        '</button>' +
+        '<div class="folder-body">' + body + '</div>' +
+      '</div>'
+    );
+  }
+
   function render() {
     if (!list) return;
 
@@ -568,47 +674,40 @@ document.addEventListener('atlas-data-ready', function () {
     });
 
     if (empty) empty.style.display = notes.length ? 'none' : 'block';
+    if (!notes.length) { list.innerHTML = ''; return; }
 
-    list.innerHTML = notes.map(function (n) {
-      var color = DEFAULT_COLOR;
-      var excerpt = htmlToExcerpt(n.conteudo, 150);
-      var dateStr = formatTimestampBR(n.atualizadoEm || n.criadoEm);
+    // Bimestre mais novo primeiro
+    var order = BIMESTRES.slice().reverse();
+    var groups = {};
+    order.forEach(function (k) { groups[k] = []; });
 
-      var excerptHtml = excerpt
-        ? '<div class="note-card-excerpt">' + escapeHtml(excerpt) + '</div>'
-        : '<div class="note-card-excerpt is-empty">Sem conteúdo.</div>';
+    notes.forEach(function (n) {
+      var k = Object.prototype.hasOwnProperty.call(groups, n.bimestre) ? n.bimestre : 'Sem bimestre';
+      if (!groups[k]) { groups[k] = []; order.push(k); }
+      groups[k].push(n);
+    });
 
-      var coverHtml = n.imagemUrl
-        ? '<img class="note-card-cover" src="' + escapeHtml(n.imagemUrl) + '" alt="" loading="lazy">'
-        : '';
+    // Na primeira vez, abre a primeira pasta que tiver anotações
+    if (!openInitialized) {
+      for (var i = 0; i < order.length; i++) {
+        if (groups[order[i]].length) { openState[order[i]] = true; break; }
+      }
+      openInitialized = true;
+    }
 
-      var dateHtml = dateStr
-        ? '<span class="note-date-badge">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>' +
-            escapeHtml(dateStr) +
-          '</span>'
-        : '';
-
-      return (
-        '<div class="note-card" data-href="anotacao.html?id=' + encodeURIComponent(n.id) + '" data-id="' + escapeHtml(n.id) + '" style="--sc:' + color.sc + '; --sc-dim:' + color.dim + ';" tabindex="0" role="link">' +
-          coverHtml +
-          '<div class="note-card-top">' +
-            '<div class="note-card-top-left">' +
-              '<span class="note-subject-badge">' + escapeHtml(n.materia) + '</span>' +
-              '<span class="note-bimestre-badge">' + escapeHtml(n.bimestre) + '</span>' +
-              dateHtml +
-            '</div>' +
-            noteActionsHtml(n) +
-          '</div>' +
-          '<div class="note-card-title">' + escapeHtml(n.titulo) + '</div>' +
-          excerptHtml +
-        '</div>'
-      );
-    }).join('');
+    list.innerHTML = order.map(function (k) { return folderHtml(k, groups[k]); }).join('');
   }
 
   if (list) {
     list.addEventListener('click', function (e) {
+      var folderHead = e.target.closest('.folder-head');
+      if (folderHead) {
+        var key = folderHead.dataset.key;
+        openState[key] = !openState[key];
+        render();
+        return;
+      }
+
       var editLink = e.target.closest('[data-action="edit-note"]');
       var delBtn = e.target.closest('[data-action="delete-note"]');
 
